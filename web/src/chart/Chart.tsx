@@ -31,6 +31,8 @@ interface Props {
   /** Changes when the symbol or timeframe changes, so the view resets then and only then. */
   viewKey: string;
   onTap?: (time: number, price: number) => void;
+  /** A card on a chart page: no panning or zooming, so the card can be tapped and dragged. */
+  still?: boolean;
 }
 
 const nyTime = new Intl.DateTimeFormat("en-AU", {
@@ -49,7 +51,7 @@ function histogramColour(values: number[], i: number) {
   return rising ? "#E8A0A6" : "#B2232F";
 }
 
-export default function Chart({ candles, timeframe, indicators, drawings, viewKey, onTap }: Props) {
+export default function Chart({ candles, timeframe, indicators, drawings, viewKey, onTap, still }: Props) {
   const box = useRef<HTMLDivElement>(null);
   const chart = useRef<IChartApi | null>(null);
   const priceSeries = useRef<ISeriesApi<"Candlestick"> | null>(null);
@@ -95,6 +97,7 @@ export default function Chart({ candles, timeframe, indicators, drawings, viewKe
       if (time !== null && price !== null) tap.current(time as number, price);
     };
     el.addEventListener("click", click);
+    if (still) c.applyOptions({ handleScroll: false, handleScale: false, crosshair: { mode: 2 } });
     chart.current = c;
     return () => {
       el.removeEventListener("click", click);
@@ -157,7 +160,7 @@ export default function Chart({ candles, timeframe, indicators, drawings, viewKe
     panes.forEach((p, i) => p.setStretchFactor(i === 0 ? Math.max(2, panes.length) : 1));
 
     if (keep) c.timeScale().setVisibleLogicalRange(keep);
-    else c.timeScale().setVisibleLogicalRange({ from: Math.max(0, t.length - 150), to: t.length + 3 } as LogicalRange);
+    else c.timeScale().setVisibleLogicalRange({ from: Math.max(0, t.length - (still ? 90 : 150)), to: t.length + 3 } as LogicalRange);
     lastKey.current = viewKey;
   }, [candles, timeframe, indicators, viewKey]);
 

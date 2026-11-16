@@ -35,3 +35,6 @@ export const List = () => (
 export const Radar = () => (
   <svg className="ic" viewBox="0 0 24 24" aria-hidden="true"><circle {...P} cx="12" cy="12" r="8" /><circle {...P} cx="12" cy="12" r="4" /><path {...P} d="M12 12l6-6" /></svg>
 );
+export const Grid = () => (
+  <svg className="ic" viewBox="0 0 24 24" aria-hidden="true"><rect {...P} x="3" y="3" width="8" height="8" rx="1.5" /><rect {...P} x="13" y="3" width="8" height="8" rx="1.5" /><rect {...P} x="3" y="13" width="8" height="8" rx="1.5" /><rect {...P} x="13" y="13" width="8" height="8" rx="1.5" /></svg>
+);

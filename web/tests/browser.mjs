@@ -16,7 +16,8 @@ const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if
 try {
   await wait(2500);
   const browser = await chromium.launch();
-  const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
+  const context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+  const page = await context.newPage();
   const errors = [];
   page.on("pageerror", (e) => errors.push(e.message));
   page.on("console", (m) => m.type() === "error" && errors.push(m.text()));
@@ -109,6 +110,76 @@ try {
   check(await page.getByRole("button", { name: /Symbol TEST/ }).isVisible(), "tapping a result opens it on the chart");
   check(await page.getByRole("button", { name: "1d", exact: true }).getAttribute("aria-pressed") === "true", "at the scan's timeframe");
 
+  // Chart pages: new page, add cards, drag to swap, reload keeps it, tap opens full screen
+  await page.getByRole("button", { name: "Chart pages" }).click();
+  check(await page.getByRole("heading", { name: "Chart pages" }).isVisible(), "chart pages open from the header");
+  await page.getByRole("button", { name: "New page" }).click();
+  await page.getByRole("textbox", { name: "Name" }).fill("Morning scan");
+  await page.getByRole("button", { name: "Done" }).click();
+  await page.getByRole("button", { name: "Add chart" }).click();
+  await page.locator(".sheet .chip").first().click();
+  await page.getByRole("button", { name: "Add chart" }).click();
+  await page.getByRole("button", { name: "New chart tab" }).click();
+  await page.waitForTimeout(600);
+  const cardsOnPage = page.getByTestId("page-card");
+  check(await cardsOnPage.count() === 2, "two charts on the page");
+  check(await page.locator(".gbody canvas").count() > 0, "cards draw their charts");
+  const ids = await cardsOnPage.evaluateAll((els) => els.map((el) => el.dataset.card));
+  const [b1, b2] = [await cardsOnPage.nth(0).boundingBox(), await cardsOnPage.nth(1).boundingBox()];
+  check(Math.abs(b1.y - b2.y) < 2 && b2.x > b1.x, "the two cards sit side by side");
+  const cardBox = (id) => page.locator(`[data-card="${id}"]`).boundingBox();
+  // Drag the second card's title bar onto the first card's spot.
+  const bb = await page.locator(`[data-card="${ids[1]}"] .gbar`).boundingBox();
+  await page.mouse.move(bb.x + 40, bb.y + 15);
+  await page.mouse.down();
+  await page.mouse.move(bb.x + 40 - (b2.x - b1.x) / 2, bb.y + 15, { steps: 5 });
+  await page.mouse.move(bb.x + 40 - (b2.x - b1.x), bb.y + 15, { steps: 5 });
+  await page.mouse.up();
+  await page.waitForTimeout(400);
+  const dragged = await cardBox(ids[1]), other = await cardBox(ids[0]);
+  check(Math.abs(dragged.x - b1.x) < 5 && Math.abs(dragged.y - b1.y) < 5, "dragging snaps the card into the first spot");
+  check(other.y > dragged.y + 50, "the card it landed on moved down out of the way");
+
+  // Resize from the corner: the card gets wider
+  const cb = await page.locator(`[data-card="${ids[1]}"] .gsize`).boundingBox();
+  await page.mouse.move(cb.x + 10, cb.y + 10);
+  await page.mouse.down();
+  await page.mouse.move(cb.x + 200, cb.y + 10, { steps: 8 });
+  await page.mouse.up();
+  await page.waitForTimeout(400);
+  check((await cardBox(ids[1])).width > dragged.width + 100, "resizing from the corner widens the card");
+
+  await page.waitForTimeout(900);
+  await page.reload();
+  await page.getByRole("button", { name: "Chart pages" }).click();
+  await page.waitForTimeout(500);
+  const keptCards = await page.getByTestId("page-card").evaluateAll((els) => els
+    .map((el) => ({ id: el.dataset.card, y: el.getBoundingClientRect().y, w: el.getBoundingClientRect().width }))
+    .sort((a, b) => a.y - b.y));
+  check(keptCards.length === 2 && keptCards[0].id === ids[1] && keptCards[0].w > dragged.width + 100,
+    "the page layout and sizes are kept after reload");
+  const names = [null, await page.locator(`[data-card="${ids[1]}"] .gname`).textContent()];
+
+  // Tap a chart: full screen, no tab strip, Back returns to the page
+  await page.locator(`[data-card="${ids[1]}"] .gbody`).click();
+  await page.waitForSelector("[data-testid=chart] canvas");
+  check(await page.getByRole("heading", { name: names[1] }).isVisible(), "tapping a card opens it full screen");
+  check(!(await page.getByRole("tablist", { name: "Workspace tabs" }).count()), "full screen shows just that chart");
+  check(await page.getByRole("button", { name: "Indicators" }).isVisible(), "with its tools");
+  await page.getByRole("button", { name: "Back" }).click();
+  check(await page.getByRole("heading", { name: "Chart pages" }).isVisible(), "Back returns to the page");
+
+  // Get latest version sits in the ⋯ menu
+  await page.getByRole("button", { name: "More", exact: true }).click();
+  check(await page.getByRole("menuitem", { name: "Get latest version" }).isVisible(), "Get latest version is in the menu");
+  await page.getByRole("menuitem", { name: "Get latest version" }).click();
+  await page.waitForURL(/fresh=/, { timeout: 2000 }).catch(() => {});
+  await page.waitForSelector("header");
+  await page.waitForTimeout(600);
+  check(!page.url().includes("fresh="), "the address is tidied after updating");
+  check(await page.getByText(/Up to date: build/).isVisible(), "it says it is up to date");
+  await page.getByRole("button", { name: "Home" }).click().catch(() => {});
+
   // Watchlists: back goes up a level, picking a symbol opens it in the tab
   await page.getByRole("button", { name: "More", exact: true }).click();
   await page.getByRole("menuitem", { name: "Watchlists" }).click();
@@ -122,15 +193,31 @@ try {
   check(await page.getByRole("button", { name: /Symbol TEST/ }).isVisible(), "picking a symbol opens it on the chart");
 
   await page.screenshot({ path: "/tmp/sw-desktop.png" });
+  await page.getByRole("button", { name: "Chart pages" }).click();
+  await page.waitForTimeout(800);
+  await page.screenshot({ path: "/tmp/sw-pages.png" });
+  await page.getByRole("button", { name: "Back" }).click();
 
   // Phone width
-  const phone = await browser.newPage({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 1 });
+  // Same browser profile as above, so the page made there is here too.
+  const phone = await context.newPage();
+  await phone.setViewportSize({ width: 390, height: 844 });
   phone.on("pageerror", (e) => errors.push(e.message));
   await phone.goto(base);
   await phone.waitForSelector("[data-testid=chart] canvas");
   await wait(500);
   const overflow = await phone.evaluate(() => document.documentElement.scrollWidth > window.innerWidth);
   check(!overflow, "no sideways scroll at phone width");
+  await phone.getByRole("button", { name: "Chart pages" }).click();
+  await phone.waitForTimeout(800);
+  const phoneCards = await phone.evaluate(() => [...document.querySelectorAll("[data-testid=page-card]")].map((el) => {
+    const r = el.getBoundingClientRect(); return { x: Math.round(r.x), w: Math.round(r.width), y: Math.round(r.y) };
+  }));
+  check(phoneCards.length === 2 && phoneCards[0].x === phoneCards[1].x && phoneCards[1].y > phoneCards[0].y && phoneCards[0].w > 330,
+    `phone shows one card per row (${JSON.stringify(phoneCards)})`);
+  check(!(await phone.locator(".gsize").count()), "no resize corners on the phone");
+  await phone.screenshot({ path: "/tmp/sw-pages-phone.png" });
+  await phone.getByRole("button", { name: "Back" }).click();
   await phone.screenshot({ path: "/tmp/sw-phone.png" });
 
   check(!errors.length, `no errors in the page${errors.length ? ": " + errors.join(" | ") : ""}`);

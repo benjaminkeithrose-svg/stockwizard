@@ -107,3 +107,15 @@ export interface ScanRun {
   notes: string | null;
   results: ScanResult[];
 }
+
+// --- chart pages ---
+
+import type { Card } from "./grid";
+
+export interface ChartView {
+  id: string;
+  name: string;
+  position: number;
+  cards: Card[];
+  updated_at?: string;
+}

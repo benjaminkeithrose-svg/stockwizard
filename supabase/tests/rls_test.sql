@@ -134,4 +134,21 @@ do $$ begin
 end $$;
 reset role;
 
+-- Views: own pages only, at most 10 cards.
+grant all on public.views to authenticated;
+set role authenticated;
+set request.jwt.claim.sub = '00000000-0000-0000-0000-00000000000a';
+insert into public.views (name, cards) values ('Morning scan', '[{"id":"c1","workspace_id":"w","x":0,"y":0,"w":6,"h":5}]');
+do $$ begin
+  begin
+    insert into public.views (name, cards) select 'Too many', jsonb_agg(jsonb_build_object('id', g)) from generate_series(1, 11) g;
+    raise exception 'FAIL: 11 cards accepted';
+  exception when check_violation then null; end;
+end $$;
+set request.jwt.claim.sub = '00000000-0000-0000-0000-00000000000b';
+do $$ begin
+  if (select count(*) from public.views) <> 0 then raise exception 'FAIL: B sees A''s page'; end if;
+end $$;
+reset role;
+
 select 'all RLS checks passed' as result;

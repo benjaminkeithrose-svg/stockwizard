@@ -3,7 +3,8 @@
 A technical-analysis workspace: charts, a scanner, a bar-by-bar backtester, a
 pattern lab and, last of all, a paper-trading bot on Interactive Brokers, all
 backed by Supabase. Phases 0 (indicators, loader, database), 1 (the chart
-workspace web app) and 2 (the scanner) are built.
+workspace web app) and 2 (the scanner) are built, plus chart pages (cards on a
+grid, saved as views).
 
 ## Who you are working with
 
@@ -41,6 +42,8 @@ inputs listed under "Still needed from Ben" (Supabase project first).
 | `backend/stockwizard/scans.py` | Scan rules: a signal for every candle, causal, truncation-tested; bump a rule's version when it changes |
 | `backend/stockwizard/scan.py` | Runs the enabled scans and saves each run with what it used; `--rerun N` repeats a run and checks it matches |
 | `web/src/ui/Scanner.tsx` | The Scanner screen: the latest run of each scan, in tabs |
+| `web/src/ui/Pages.tsx`, `web/src/data/grid.ts`, `web/src/data/useViews.ts` | Chart pages: up to 10 tabs as cards on a 12-column grid, dragged and resized with snapping on the PC, one per row on the phone; tap for full screen |
+| `web/src/update.ts` | "Get latest version" in the ⋯ menu: clears only Stock Wizard's own caches and service worker (the address is shared with Ben's other apps), then reloads fresh |
 | `backend/tests/` | Truncation test on every indicator, hand-worked values, loader tests. Made-up candles only |
 | `backend/tools/make_golden.py` | Writes `web/src/indicators/golden.json`, the Python library's numbers the browser copy must match |
 | `web/` | The web app: React, Vite, TypeScript, Lightweight Charts (TradingView, Apache 2.0; keep its logo link on) |

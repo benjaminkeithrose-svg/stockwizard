@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import Chart, { TapMode } from "../chart/Chart";
 import { Candles, emptyCandles, TIMEFRAMES, Timeframe } from "../data/candles";
 import { newId, SymbolInfo, Workspace } from "../data/model";
-import type { Store } from "../data/store";
+import { cachedCandles, Store } from "../data/store";
 import { REGISTRY } from "../indicators";
 import { Indicators, Pencil, Plus } from "./icons";
 import { AskText, ConfirmDelete, MoreMenu } from "./parts";
@@ -13,7 +13,7 @@ import { DrawSheet, IndicatorSheet, SymbolSearch } from "./sheets";
 
 type WS = ReturnType<typeof import("../data/useWorkspaces").useWorkspaces>;
 
-export default function ChartScreen(props: { store: Store; ws: WS; symbols: SymbolInfo[]; firstSymbol: () => string }) {
+export default function ChartScreen(props: { store: Store; ws: WS; symbols: SymbolInfo[]; firstSymbol: () => string; single?: boolean }) {
   const { store, ws } = props;
   const w = ws.active;
   const [candles, setCandles] = useState<Candles>(emptyCandles());
@@ -36,7 +36,7 @@ export default function ChartScreen(props: { store: Store; ws: WS; symbols: Symb
     let live = true;
     setLoading(true);
     setLoadError(null);
-    store.candles(w.symbol, w.timeframe)
+    cachedCandles(store, w.symbol, w.timeframe)
       .then((c) => live && setCandles(c))
       .catch((e) => live && (setCandles(emptyCandles()), setLoadError(String(e.message ?? e))))
       .finally(() => live && setLoading(false));
@@ -84,7 +84,7 @@ export default function ChartScreen(props: { store: Store; ws: WS; symbols: Symb
 
   return (
     <div className="main">
-      <div className="tabs" role="tablist" aria-label="Workspace tabs">
+      {!props.single && <div className="tabs" role="tablist" aria-label="Workspace tabs">
         {ws.list.map((t) => (
           <div key={t.id} className={`tab${t.id === w.id ? " on" : ""}`}>
             <button role="tab" aria-selected={t.id === w.id} className="tname" onClick={() => ws.setActiveId(t.id)}>{t.name}</button>
@@ -97,7 +97,7 @@ export default function ChartScreen(props: { store: Store; ws: WS; symbols: Symb
           </div>
         ))}
         <button className="tplus" aria-label="New tab" onClick={() => ws.add(w.symbol, w.timeframe)}><Plus /></button>
-      </div>
+      </div>}
 
       <div className="bar">
         <button className="tool sym" aria-label={`Symbol ${w.symbol}, change`} onClick={() => setSheet("symbol")}>{w.symbol}</button>
