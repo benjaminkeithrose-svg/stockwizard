@@ -1,7 +1,7 @@
 // The chart-page grid: cards on 12 columns, rows of fixed height. A moved or
-// resized card snaps to whole cells, pushes anything it lands on downwards,
-// and then every card slides up into any gap above it, so cards always sit
-// snug together.
+// resized card stays where it is put, lined up to whole cells; only cards it
+// lands on are pushed down out of the way. Nothing slides up on its own:
+// tidy() closes the gaps when Ben asks (the Tidy button). Ben, 17 Nov 2026.
 
 export const COLS = 12;
 export const MAX_CARDS = 10;
@@ -65,14 +65,14 @@ export function moveCard(cards: Card[], id: string, x: number, y: number): Card[
   const card = cards.find((c) => c.id === id);
   if (!card) return cards;
   const placed = fit({ ...card, x, y });
-  return compact(pushDown(cards, placed));
+  return pushDown(cards, placed);
 }
 
 export function resizeCard(cards: Card[], id: string, w: number, h: number): Card[] {
   const card = cards.find((c) => c.id === id);
   if (!card) return cards;
   const sized = fit({ ...card, w, h });
-  return compact(pushDown(cards, sized));
+  return pushDown(cards, sized);
 }
 
 /** Add a card in the first gap it fits, reading order; null if the page is full. */
@@ -82,14 +82,17 @@ export function addCard(cards: Card[], card: Omit<Card, "x" | "y" | "w" | "h">, 
   for (let y = 0; y <= bottom; y++) {
     for (let x = 0; x + w <= COLS; x++) {
       const c = { ...card, x, y, w, h };
-      if (!cards.some((o) => collides(c, o))) return compact([...cards, c]);
+      if (!cards.some((o) => collides(c, o))) return [...cards, c];
     }
   }
-  return compact([...cards, { ...card, x: 0, y: bottom, w, h }]);
+  return [...cards, { ...card, x: 0, y: bottom, w, h }];
 }
 
 export function removeCard(cards: Card[], id: string): Card[] {
-  return compact(cards.filter((c) => c.id !== id));
+  return cards.filter((c) => c.id !== id);
 }
+
+/** The Tidy button: every card slides up into the gaps above it, keeping its column and size. */
+export const tidy = compact;
 
 export const rowsUsed = (cards: Card[]) => cards.reduce((m, c) => Math.max(m, c.y + c.h), 0);

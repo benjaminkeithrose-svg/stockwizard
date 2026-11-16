@@ -6,7 +6,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Chart from "../chart/Chart";
 import { Candles, emptyCandles } from "../data/candles";
-import { addCard, Card, COLS, MAX_CARDS, moveCard, ordered, removeCard, resizeCard, rowsUsed } from "../data/grid";
+import { addCard, Card, COLS, MAX_CARDS, moveCard, ordered, removeCard, resizeCard, rowsUsed, tidy } from "../data/grid";
 import { ChartView, newId, Workspace } from "../data/model";
 import { cachedCandles, Store } from "../data/store";
 import type { useViews } from "../data/useViews";
@@ -168,6 +168,9 @@ export default function PagesScreen(props: { store: Store; views: Views; ws: WS;
       {v && (
         <div className="bar">
           <button className="tool" onClick={() => setAdding(true)} disabled={cards.length >= MAX_CARDS}><Plus /><span>Add chart</span></button>
+          {wide && cards.length > 0 && (
+            <button className="tool" onClick={() => setCards(tidy(cards))} title="Slide every card up into the gaps">Tidy</button>
+          )}
           <span className="hint" style={{ margin: 0 }}>
             {cards.length >= MAX_CARDS ? `${MAX_CARDS} charts is the most on one page` : `${cards.length} of ${MAX_CARDS} charts`}
             {wide && cards.length > 1 ? " · drag a title bar to move, a corner to resize" : ""}
@@ -179,7 +182,7 @@ export default function PagesScreen(props: { store: Store; views: Views; ws: WS;
       {v && cards.length > 0 && (
         <div className="gscroll">
           {wide ? (
-            <div ref={box} className="grid" style={{ height: (rowsUsed(cards) + (drag ? 6 : 0)) * ROW }}>
+            <div ref={box} className="grid" style={{ height: (rowsUsed(cards) + 5) * ROW }}>
               {drag && (() => {
                 const c = cards.find((x) => x.id === drag.id)!;
                 const cx = Math.round(drag.dx / colW), cy = Math.round(drag.dy / ROW);

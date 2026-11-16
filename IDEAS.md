@@ -30,3 +30,12 @@ Captured from Ben, not yet scheduled. Each goes into a phase when he picks it.
   indicators and drawings). Tapping a card opens it full screen to view or
   change; changes apply to that tab everywhere.
 - Phone: one card per row, scrolling down; tap for full screen.
+
+## Tests described in plain language (17 Nov 2026)
+
+- Describe a backtest, scan or indicator test in ordinary words (spoken or
+  typed) and have it turned into the test's settings, rather than filling
+  in fields.
+- Overlaps phase 4: Claude built into the app can already create strategy,
+  scan and indicator settings (SPEC.md, In-app Claude). This may come with
+  it rather than as a separate feature.

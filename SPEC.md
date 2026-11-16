@@ -29,6 +29,9 @@ These are settled, so do not reopen them:
 - Sign-in: email and password through Supabase, as Field CRM does. Look and feel: Field CRM's, without its logo. (16 Nov 2026.)
 - Daily candle top-up: a scheduled GitHub Actions job after each US close, loading the last 10 days. This settles where the loader runs; where the bot runs is still open. (Decided 16 Nov 2026.)
 - First scans (16 Nov 2026): squeeze on, squeeze fired, and breakouts (close beyond the previous 20 candles' high or low, volume filter off) on daily and hourly; SPY trend break (below the 50-day average after being above), SPY drawdown (5% below the 60-day high) and SPY RSI divergence, each with the VIX alongside. Every number is an adjustable starting point for the backtester to test. Universe: the 8 test symbols for now.
+- First backtest (17 Nov 2026): each SPY correction signal (trend break, drawdown, RSI divergence) studied against the VIX index with two exit rules side by side: (a) VIX +40% before -15%, within 20 trading days; (b) VIX touches 22 within 30 trading days, no stop, skipped if already at or above 22. Signal studies: the VIX index can't be traded, so no costs until option pricing is added. "Reached target" is the measure of working; "closed up" is shown alongside.
+- Held-back period: the last 5 years. Build period 2 Jan 2006 to 16 Nov 2021; held back from 17 Nov 2021. (17 Nov 2026.)
+- Chart pages: cards stay where they are dropped; a Tidy button closes gaps. (17 Nov 2026.)
 - Development data: a free, unofficial candle source is used to build and test until IBKR or a paid source is in place. It sits behind the same loader interface so it can be swapped, every candle records it as its data source, and nothing tested on it is reported as validated. (Decided 16 Nov 2026.)
 
 Still needed from Ben before the dependent work starts:
@@ -39,7 +42,7 @@ Still needed from Ben before the dependent work starts:
 - [ ] A source for 20 years of daily SPY and VIX data, and any paid intraday or options history.
 - [ ] How IBKR applies day-trade rules to a $1,000 to $2,000 Australian account.
 - [ ] Maximum loss per day, once real spread prices are known.
-- [ ] Exit rules for the first strategy: profit target, stop loss, time limit.
+- [x] Exit rules for the first strategy: profit target, stop loss, time limit. (17 Nov 2026: two rules tested side by side, see Decisions.)
 - [ ] Where the bot runs: home PC or a small VPS.
 
 ## Build order

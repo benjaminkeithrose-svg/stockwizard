@@ -6,7 +6,8 @@ import { DemoStore, Store, SupabaseStore, User } from "../data/store";
 import type { SymbolInfo, Watchlist } from "../data/model";
 import { useWorkspaces } from "../data/useWorkspaces";
 import ChartScreen from "./ChartScreen";
-import { Back, Grid, Home, List, Radar } from "./icons";
+import { Back, Flask, Grid, Home, List, Radar } from "./icons";
+import { BacktestScreen, BacktestsScreen } from "./Backtests";
 import PagesScreen from "./Pages";
 import { useViews } from "../data/useViews";
 import { cameBackFresh, checkForUpdate, getLatestVersion } from "../update";
@@ -17,7 +18,7 @@ import SignIn from "./SignIn";
 import { useWatchlists, WatchlistScreen, WatchlistsScreen } from "./Watchlists";
 import { APP_BUILD } from "../config";
 
-type Screen = { name: "chart" } | { name: "scanner" } | { name: "pages" } | { name: "card" } | { name: "watchlists" } | { name: "watchlist"; list: Watchlist };
+type Screen = { name: "chart" } | { name: "scanner" } | { name: "pages" } | { name: "card" } | { name: "backtests" } | { name: "backtest"; id: string } | { name: "watchlists" } | { name: "watchlist"; list: Watchlist };
 
 export function makeStore(): Store {
   return new URLSearchParams(location.search).has("demo") ? new DemoStore() : new SupabaseStore();
@@ -35,7 +36,7 @@ export default function App({ store }: { store: Store }) {
   return <SignedIn store={store} user={user} key={user.id} />;
 }
 
-function Header(props: { title: string; sub?: string; onBack?: () => void; onHome?: () => void; onScanner?: () => void; onPages?: () => void; menu?: React.ReactNode }) {
+function Header(props: { title: string; sub?: string; onBack?: () => void; onHome?: () => void; onScanner?: () => void; onPages?: () => void; onBacktests?: () => void; menu?: React.ReactNode }) {
   return (
     <header>
       {props.onBack
@@ -47,6 +48,7 @@ function Header(props: { title: string; sub?: string; onBack?: () => void; onHom
       </div>
       {props.onPages && <button className="menubtn" aria-label="Chart pages" onClick={props.onPages}><Grid /></button>}
       {props.onScanner && <button className="menubtn" aria-label="Scanner" onClick={props.onScanner}><Radar /></button>}
+      {props.onBacktests && <button className="menubtn" aria-label="Backtests" onClick={props.onBacktests}><Flask /></button>}
       {props.onHome && <button className="menubtn" aria-label="Home" onClick={props.onHome}><Home /></button>}
       {props.menu}
     </header>
@@ -63,6 +65,8 @@ function SignedIn({ store, user }: { store: Store; user: User }) {
   const ws = useWorkspaces(store, user.id, firstSymbol);
   const wl = useWatchlists(store);
   const views = useViews(store, user.id);
+  const [strategyLabels, setStrategyLabels] = useState<Record<string, string>>({});
+  useEffect(() => { store.strategies().then((s) => setStrategyLabels(Object.fromEntries(s.map((x) => [x.id, x.label])))).catch(() => {}); }, [store]);
   const [screen, setScreen] = useState<Screen>({ name: "chart" });
   const [toast, setToast] = useState<string | null>(null);
   useEffect(() => {
@@ -77,9 +81,12 @@ function SignedIn({ store, user }: { store: Store; user: User }) {
 
   const back = screen.name === "watchlist" ? () => setScreen({ name: "watchlists" })
     : screen.name === "card" ? () => setScreen({ name: "pages" })
+    : screen.name === "backtest" ? () => setScreen({ name: "backtests" })
+    : screen.name === "backtests" ? () => setScreen({ name: "chart" })
     : screen.name === "watchlists" || screen.name === "scanner" || screen.name === "pages" ? () => setScreen({ name: "chart" }) : undefined;
   const title = screen.name === "chart" ? "Stock Wizard" : screen.name === "scanner" ? "Scanner"
-    : screen.name === "pages" ? "Chart pages" : screen.name === "card" ? (ws.active?.name ?? "Chart")
+    : screen.name === "pages" ? "Chart pages" : screen.name === "backtests" ? "Backtests"
+    : screen.name === "backtest" ? (strategyLabels[screen.id] ?? "Backtest") : screen.name === "card" ? (ws.active?.name ?? "Chart")
     : screen.name === "watchlists" ? "Watchlists" : screen.list.name;
   // Open a symbol and timeframe in the current tab; a tab still on its automatic name follows.
   const openOnChart = (s: string, tf?: Timeframe) => {
@@ -109,7 +116,10 @@ function SignedIn({ store, user }: { store: Store; user: User }) {
     <div className="app">
       <Header title={title} sub={sub} onBack={back} onHome={screen.name === "chart" ? undefined : () => setScreen({ name: "chart" })}
         onScanner={screen.name === "chart" ? () => setScreen({ name: "scanner" }) : undefined}
-        onPages={screen.name === "chart" ? () => setScreen({ name: "pages" }) : undefined} menu={menu} />
+        onPages={screen.name === "chart" ? () => setScreen({ name: "pages" }) : undefined}
+        onBacktests={screen.name === "chart" ? () => setScreen({ name: "backtests" }) : undefined} menu={menu} />
+      {screen.name === "backtests" && <BacktestsScreen store={store} onOpen={(id) => setScreen({ name: "backtest", id })} />}
+      {screen.name === "backtest" && <BacktestScreen store={store} id={screen.id} />}
       {screen.name === "pages" && (
         <PagesScreen store={store} views={views} ws={ws} onOpen={(id) => { ws.setActiveId(id); setScreen({ name: "card" }); }} />
       )}

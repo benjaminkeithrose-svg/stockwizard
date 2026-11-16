@@ -119,3 +119,51 @@ export interface ChartView {
   cards: Card[];
   updated_at?: string;
 }
+
+// --- backtests (read-only in the app; the server writes) ---
+
+export interface StrategyDef {
+  id: string;
+  label: string;
+  family: string;
+  config: Record<string, unknown> & { study?: boolean; trade_symbol: string; signal_symbol: string };
+  version: number;
+  start_date: string;
+  split_date: string;
+  position: number;
+  notes: string | null;
+}
+
+/** A period's results. Numbers, plus `exits` (count by reason) and, for windows, `period` (build, held_back or both). */
+export interface Metrics {
+  [key: string]: number | null | string | Record<string, number> | undefined;
+  exits?: Record<string, number>;
+  period?: string;
+}
+
+export interface BacktestRun {
+  id: number;
+  strategy_id: string;
+  ran_at: string;
+  as_of: string;
+  start_date: string;
+  split_date: string;
+  source: string;
+  warnings: string[];
+  held_back_burned: boolean;
+  skipped: Record<string, number>;
+  metrics: { period: string; kind: "build" | "held_back" | "window"; metrics: Metrics; position: number }[];
+}
+
+export interface BacktestTrade {
+  n: number;
+  period: "build" | "held_back";
+  signal_ts: string;
+  entry_ts: string;
+  entry_price: number;
+  exit_ts: string | null;
+  exit_price: number | null;
+  exit_reason: "target" | "stop" | "time" | "open";
+  bars: number;
+  return_pct: number | null;
+}

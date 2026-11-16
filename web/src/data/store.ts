@@ -4,7 +4,7 @@
 
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
 import { Candles, emptyCandles, madeUpCandles, Timeframe } from "./candles";
-import { ChartView, ScanDef, ScanResult, ScanRun, SymbolInfo, Watchlist, Workspace } from "./model";
+import { BacktestRun, BacktestTrade, ChartView, ScanDef, ScanResult, ScanRun, StrategyDef, SymbolInfo, Watchlist, Workspace } from "./model";
 import { SUPABASE_KEY, SUPABASE_URL } from "../config";
 
 export interface User {
@@ -34,6 +34,11 @@ export interface Store {
   views(): Promise<ChartView[]>;
   saveView(v: ChartView): Promise<ChartView>;
   deleteView(id: string): Promise<void>;
+
+  strategies(): Promise<StrategyDef[]>;
+  /** The latest manual or scheduled run of each strategy, with its metrics. Re-runs are checks, not shown. */
+  latestBacktests(): Promise<Record<string, BacktestRun>>;
+  backtestTrades(runId: number): Promise<BacktestTrade[]>;
 
   scans(): Promise<ScanDef[]>;
   /** The latest scheduled or manual run of each scan, with its matches. Re-runs are checks, not shown. */
@@ -190,6 +195,41 @@ export class SupabaseStore implements Store {
     this.check(await this.sb.from("views").delete().eq("id", id));
   }
 
+  async strategies() {
+    return this.check(await this.sb.from("strategies").select("id,label,family,config,version,start_date,split_date,position,notes").eq("enabled", true).order("position")) as StrategyDef[];
+  }
+
+  async latestBacktests() {
+    const runs = this.check(
+      await this.sb.from("backtest_runs")
+        .select("id,strategy_id,ran_at,as_of,start_date,split_date,source,warnings,held_back_burned,skipped")
+        .neq("trigger", "rerun").order("ran_at", { ascending: false }).limit(200),
+    ) as Omit<BacktestRun, "metrics">[];
+    const latest: Record<string, BacktestRun> = {};
+    for (const r of runs) if (!latest[r.strategy_id]) latest[r.strategy_id] = { ...r, metrics: [] };
+    const ids = Object.values(latest).map((r) => r.id);
+    if (ids.length) {
+      const rows = this.check(
+        await this.sb.from("backtest_metrics").select("run_id,period,kind,metrics,position").in("run_id", ids).order("position"),
+      ) as (BacktestRun["metrics"][number] & { run_id: number })[];
+      const byId = new Map(Object.values(latest).map((r) => [r.id, r]));
+      for (const { run_id, ...m } of rows) byId.get(run_id)?.metrics.push(m);
+    }
+    return latest;
+  }
+
+  async backtestTrades(runId: number) {
+    const out: BacktestTrade[] = [];
+    for (let from = 0; ; from += 1000) {
+      const page = this.check(
+        await this.sb.from("backtest_trades").select("n,period,signal_ts,entry_ts,entry_price,exit_ts,exit_price,exit_reason,bars,return_pct")
+          .eq("run_id", runId).order("n").range(from, from + 999),
+      ) as BacktestTrade[];
+      out.push(...page);
+      if (page.length < 1000) return out;
+    }
+  }
+
   async scans() {
     return this.check(await this.sb.from("scans").select("id,label,rule,timeframe,params,symbols,tab,position").eq("enabled", true).order("position")) as ScanDef[];
   }
@@ -309,6 +349,40 @@ export class DemoStore implements Store {
     const d = this.load();
     d.views = d.views.filter((x) => x.id !== id);
     this.save(d);
+  }
+
+  async strategies(): Promise<StrategyDef[]> {
+    const cfg = { signal_symbol: "DEMO", trade_symbol: "TEST", study: true };
+    return [
+      { id: "demo_a", label: "Made-up signal → +40%", family: "demo", config: cfg, version: 1, start_date: "2006-01-02", split_date: "2021-11-17", position: 0, notes: "Win: +40% before -15%, within 20 trading days" },
+      { id: "demo_b", label: "Made-up signal → level 22", family: "demo", config: cfg, version: 1, start_date: "2006-01-02", split_date: "2021-11-17", position: 1, notes: null },
+    ];
+  }
+
+  async latestBacktests(): Promise<Record<string, BacktestRun>> {
+    const m = (trades: number, target_rate: number, lo: number, hi: number, win_rate: number) =>
+      ({ trades, targets_hit: Math.round(trades * target_rate / 100), target_rate, next_100_targets_low: lo, next_100_targets_high: hi,
+         wins: Math.round(trades * win_rate / 100), win_rate, next_100_wins_low: lo, next_100_wins_high: hi, avg_win_pct: 22.5, avg_loss_pct: -9.1,
+         profit_factor: 1.4, expectancy_pct: 2.1, return_pct: 35.2, max_drawdown_pct: -28.4, longest_losing_streak: 6,
+         time_in_market_pct: 18.2, avg_bars_held: 8.4, exits: { target: 10, stop: 20, time: 5 } });
+    const run = (id: number, strategy_id: string, warnings: string[] = []): BacktestRun => ({
+      id, strategy_id, ran_at: "2026-11-17T09:00:00Z", as_of: "2026-11-17T09:00:00Z", start_date: "2006-01-02", split_date: "2021-11-17",
+      source: "made-up", warnings, held_back_burned: false, skipped: { already_in_trade: 12 },
+      metrics: [
+        { period: "build", kind: "build", metrics: m(99, 13, 7, 22, 25), position: 0 },
+        { period: "held_back", kind: "held_back", metrics: m(32, 22, 11, 38, 28), position: 1 },
+        { period: "2006-01-02..2009-01-01", kind: "window", metrics: { ...m(30, 20, 9, 35, 27), period: "build" }, position: 2 },
+        { period: "2021-01-02..2024-01-01", kind: "window", metrics: { ...m(20, 25, 10, 45, 30), period: "both" }, position: 3 },
+      ],
+    });
+    return { demo_a: run(1, "demo_a"), demo_b: run(2, "demo_b", ["Few trades: the win-rate ranges are wide, so treat the win rates as rough."]) };
+  }
+
+  async backtestTrades(): Promise<BacktestTrade[]> {
+    return [
+      { n: 0, period: "build", signal_ts: "2008-09-15T04:00:00Z", entry_ts: "2008-09-16T04:00:00Z", entry_price: 25.1, exit_ts: "2008-09-29T04:00:00Z", exit_price: 35.14, exit_reason: "target", bars: 10, return_pct: 40 },
+      { n: 1, period: "held_back", signal_ts: "2022-01-20T05:00:00Z", entry_ts: "2022-01-21T05:00:00Z", entry_price: 25.6, exit_ts: "2022-01-27T05:00:00Z", exit_price: 21.76, exit_reason: "stop", bars: 5, return_pct: -15 },
+    ];
   }
 
   async scans(): Promise<ScanDef[]> {

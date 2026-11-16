@@ -212,3 +212,15 @@ button.bin { color: var(--warn); }
 .tool:disabled { opacity: .5; cursor: default; }
 .toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); z-index: 80; background: var(--ink-2);
   color: #fff; border-radius: var(--r-pill); padding: 10px 18px; font-size: 14px; box-shadow: var(--lift-2); }
+
+/* ---------- backtests ---------- */
+.btpair { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 6px; }
+.btlab { font-size: 11px; letter-spacing: .05em; text-transform: uppercase; color: var(--ink-3); font-weight: 700; }
+.btbig { font-size: 22px; font-weight: 700; line-height: 1.2; }
+table.bt { width: 100%; border-collapse: collapse; background: var(--surface); border: 1px solid var(--edge); border-radius: var(--r-sm); overflow: hidden; font-size: 14px; }
+table.bt th { text-align: right; font-size: 12px; color: var(--ink-2); padding: 8px 10px; background: var(--sunk); border-bottom: 1px solid var(--line-2); }
+table.bt th:first-child { text-align: left; }
+table.bt th span, table.bt td span { display: block; font-size: 11px; color: var(--ink-3); font-weight: 400; }
+table.bt td { padding: 7px 10px; border-bottom: 1px solid var(--line-2); text-align: right; white-space: nowrap; }
+table.bt td:first-child { text-align: left; white-space: normal; width: 46%; }
+table.bt tr:last-child td { border-bottom: 0; }

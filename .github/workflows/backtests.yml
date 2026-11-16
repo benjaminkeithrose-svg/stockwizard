@@ -1,0 +1,31 @@
+# Runs every enabled backtest strategy on the candles in Supabase and saves the
+# results, which the app's Backtests screen shows. Run it by hand: Actions tab,
+# "Run backtests", Run workflow. Needs the repository secret SUPABASE_SECRET_KEY.
+name: Run backtests
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: backtests
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: backend
+    env:
+      SUPABASE_URL: https://cxpspihahmztfydvdwpd.supabase.co
+      SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install .
+      - run: python -m stockwizard.run_backtests
