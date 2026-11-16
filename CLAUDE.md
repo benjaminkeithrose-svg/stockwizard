@@ -3,8 +3,8 @@
 A technical-analysis workspace: charts, a scanner, a bar-by-bar backtester, a
 pattern lab and, last of all, a paper-trading bot on Interactive Brokers, all
 backed by Supabase. Phases 0 (indicators, loader, database), 1 (the chart
-workspace web app) and 2 (the scanner) are built, plus chart pages (cards on a
-grid, saved as views).
+workspace web app), 2 (the scanner) and 3 (the backtester) are built, plus chart
+pages (cards on a grid, saved as views).
 
 ## Who you are working with
 
@@ -41,6 +41,9 @@ inputs listed under "Still needed from Ben" (Supabase project first).
 | `backend/stockwizard/load.py` | Loads a symbol list's candles into Supabase |
 | `backend/stockwizard/scans.py` | Scan rules: a signal for every candle, causal, truncation-tested; bump a rule's version when it changes |
 | `backend/stockwizard/scan.py` | Runs the enabled scans and saves each run with what it used; `--rerun N` repeats a run and checks it matches |
+| `backend/stockwizard/backtest.py` | The backtest engine: bar by bar, next-open fills, stop before target, costs per fill; metrics for build, held-back and 3-year windows. Pure, no database |
+| `backend/stockwizard/run_backtests.py` | Runs the saved strategies and saves runs, trades and metrics; `--rerun N` repeats a run and checks it matches; marks the held-back period burned when settings change |
+| `web/src/ui/Backtests.tsx` | The Backtests screens: each strategy's build and held-back results side by side, the windows and every trade |
 | `web/src/ui/Scanner.tsx` | The Scanner screen: the latest run of each scan, in tabs |
 | `web/src/ui/Pages.tsx`, `web/src/data/grid.ts`, `web/src/data/useViews.ts` | Chart pages: up to 10 tabs as cards on a 12-column grid, dragged and resized with snapping on the PC, one per row on the phone; tap for full screen |
 | `web/src/update.ts` | "Get latest version" in the ⋯ menu: clears only Stock Wizard's own caches and service worker (the address is shared with Ben's other apps), then reloads fresh |
@@ -53,7 +56,7 @@ inputs listed under "Still needed from Ben" (Supabase project first).
 | `web/src/ui/` | Screens, sheets and styles. The look is Field CRM's (`benjaminkeithrose-svg/CRM`, `index.html`), without its logo |
 | `web/public/sw.js` | Service worker. `CACHE` must equal `stockwizard-` + `APP_BUILD` in `web/src/config.ts`; bump both on every change to the app |
 | `supabase/migrations/` | Database changes, one file per change, applied in order |
-| `.github/workflows/` | `pages.yml` publishes the app on each merge; `topup.yml` loads the last 10 days of candles every US trading day, then runs the scans (needs the repository secret `SUPABASE_SECRET_KEY`); `keepalive.yml` pings Supabase twice a week so the free project isn't paused |
+| `.github/workflows/` | `pages.yml` publishes the app on each merge; `topup.yml` loads the last 10 days of candles every US trading day, then runs the scans (needs the repository secret `SUPABASE_SECRET_KEY`); `keepalive.yml` pings Supabase twice a week so the free project isn't paused; `backtests.yml` runs the backtests by hand from the Actions tab |
 | `IDEAS.md` | Ben's ideas not yet scheduled. Add to it rather than building unasked |
 | `supabase/tests/` | Row-level security checks, run on a local Postgres with a stand-in for Supabase's sign-in |
 

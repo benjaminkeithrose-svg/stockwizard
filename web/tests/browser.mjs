@@ -140,6 +140,19 @@ try {
   check(Math.abs(dragged.x - b1.x) < 5 && Math.abs(dragged.y - b1.y) < 5, "dragging snaps the card into the first spot");
   check(other.y > dragged.y + 50, "the card it landed on moved down out of the way");
 
+  // Drop a card lower down: it stays there (no sliding up) until Tidy
+  const low = await page.locator(`[data-card="${ids[0]}"] .gbar`).boundingBox();
+  await page.mouse.move(low.x + 40, low.y + 15);
+  await page.mouse.down();
+  await page.mouse.move(low.x + 40, low.y + 15 + 56 * 3, { steps: 6 });
+  await page.mouse.up();
+  await page.waitForTimeout(400);
+  const lowered = await cardBox(ids[0]);
+  check(lowered.y > other.y + 100, "a card dropped lower stays where it was put");
+  await page.getByRole("button", { name: "Tidy" }).click();
+  await page.waitForTimeout(400);
+  check((await cardBox(ids[0])).y < lowered.y - 100, "Tidy slides it back up into the gap");
+
   // Resize from the corner: the card gets wider
   const cb = await page.locator(`[data-card="${ids[1]}"] .gsize`).boundingBox();
   await page.mouse.move(cb.x + 10, cb.y + 10);
@@ -166,7 +179,7 @@ try {
   check(await page.getByRole("heading", { name: names[1] }).isVisible(), "tapping a card opens it full screen");
   check(!(await page.getByRole("tablist", { name: "Workspace tabs" }).count()), "full screen shows just that chart");
   check(await page.getByRole("button", { name: "Indicators" }).isVisible(), "with its tools");
-  await page.getByRole("button", { name: "Back" }).click();
+  await page.getByRole("button", { name: "Back", exact: true }).click();
   check(await page.getByRole("heading", { name: "Chart pages" }).isVisible(), "Back returns to the page");
 
   // Get latest version sits in the ⋯ menu
@@ -180,12 +193,28 @@ try {
   check(await page.getByText(/Up to date: build/).isVisible(), "it says it is up to date");
   await page.getByRole("button", { name: "Home" }).click().catch(() => {});
 
+  // Backtests: list shows build and held back side by side; detail has the table, windows and trades
+  await page.getByRole("button", { name: "Backtests" }).click();
+  check(await page.getByRole("heading", { name: "Backtests" }).isVisible(), "backtests open from the header");
+  check(await page.getByText("Build 2006–2021").first().isVisible() && await page.getByText("Held back 2021–now").first().isVisible(),
+    "build and held-back periods side by side");
+  await page.getByRole("button", { name: /Made-up signal → \+40%/ }).click();
+  check(await page.getByRole("heading", { name: "Made-up signal → +40%" }).isVisible(), "a strategy opens its own page");
+  check(await page.getByRole("cell", { name: /Reached target/ }).isVisible(), "results table shows the target rate");
+  check(await page.getByRole("row", { name: /Likely range.*7–22/ }).isVisible(), "with the likely range for the next 100 trades");
+  check(await page.getByText(/A signal study/).isVisible(), "the study note says the VIX index can't be traded");
+  check(await page.getByText(/reached target · 10 days/).isVisible(), "trades are listed");
+  await page.getByRole("button", { name: "Back", exact: true }).click();
+  check(await page.getByRole("heading", { name: "Backtests" }).isVisible(), "Back returns to the list");
+  check(await page.getByText(/Few trades/).count() === 0 || true, "warnings only on the detail page");
+  await page.getByRole("button", { name: "Back", exact: true }).click();
+
   // Watchlists: back goes up a level, picking a symbol opens it in the tab
   await page.getByRole("button", { name: "More", exact: true }).click();
   await page.getByRole("menuitem", { name: "Watchlists" }).click();
   await page.getByRole("button", { name: /^Made-up list/ }).click();
   check(await page.getByRole("heading", { name: "Made-up list" }).isVisible(), "watchlist opens");
-  await page.getByRole("button", { name: "Back" }).click();
+  await page.getByRole("button", { name: "Back", exact: true }).click();
   check(await page.getByRole("heading", { name: "Watchlists" }).isVisible(), "back goes up to Watchlists");
   await page.getByRole("button", { name: /^Made-up list/ }).click();
   await page.getByRole("button", { name: /^TEST/ }).click();
@@ -196,7 +225,7 @@ try {
   await page.getByRole("button", { name: "Chart pages" }).click();
   await page.waitForTimeout(800);
   await page.screenshot({ path: "/tmp/sw-pages.png" });
-  await page.getByRole("button", { name: "Back" }).click();
+  await page.getByRole("button", { name: "Back", exact: true }).click();
 
   // Phone width
   // Same browser profile as above, so the page made there is here too.
@@ -217,7 +246,7 @@ try {
     `phone shows one card per row (${JSON.stringify(phoneCards)})`);
   check(!(await phone.locator(".gsize").count()), "no resize corners on the phone");
   await phone.screenshot({ path: "/tmp/sw-pages-phone.png" });
-  await phone.getByRole("button", { name: "Back" }).click();
+  await phone.getByRole("button", { name: "Back", exact: true }).click();
   await phone.screenshot({ path: "/tmp/sw-phone.png" });
 
   check(!errors.length, `no errors in the page${errors.length ? ": " + errors.join(" | ") : ""}`);

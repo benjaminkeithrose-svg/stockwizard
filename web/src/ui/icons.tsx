@@ -38,3 +38,6 @@ export const Radar = () => (
 export const Grid = () => (
   <svg className="ic" viewBox="0 0 24 24" aria-hidden="true"><rect {...P} x="3" y="3" width="8" height="8" rx="1.5" /><rect {...P} x="13" y="3" width="8" height="8" rx="1.5" /><rect {...P} x="3" y="13" width="8" height="8" rx="1.5" /><rect {...P} x="13" y="13" width="8" height="8" rx="1.5" /></svg>
 );
+export const Flask = () => (
+  <svg className="ic" viewBox="0 0 24 24" aria-hidden="true"><path {...P} d="M9 3h6M10 3v6L4.5 19a1.5 1.5 0 0 0 1.3 2h12.4a1.5 1.5 0 0 0 1.3-2L14 9V3M7.5 14h9" /></svg>
+);
