@@ -29,7 +29,7 @@ These are settled, so do not reopen them:
 
 Still needed from Ben before the dependent work starts:
 
-- [ ] Supabase project and repository created, with access shared.
+- [x] Supabase project and repository created, with access shared. (Project `stockwizard`, Sydney, 16 Nov 2026.)
 - [ ] Pointer to the existing repositories that define the app's visual conventions.
 - [ ] IBKR account opened and funded, and which IBKR market-data subscriptions to buy.
 - [ ] A source for 20 years of daily SPY and VIX data, and any paid intraday or options history.

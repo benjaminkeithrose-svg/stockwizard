@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "stockwizard"
+version = "0.1.0"
+description = "Stock Wizard backend: candles, indicators, scanner, backtester"
+requires-python = ">=3.11"
+dependencies = [
+    "numpy>=1.26",
+    "pandas>=2.1",
+]
+
+[project.optional-dependencies]
+# The free, unofficial development data source. Swapped out once IBKR or a paid source is in place.
+yahoo = ["yfinance>=0.2.40"]
+test = ["pytest>=8"]
+
+[tool.setuptools.packages.find]
+include = ["stockwizard*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

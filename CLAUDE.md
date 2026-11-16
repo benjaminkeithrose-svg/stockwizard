@@ -29,6 +29,35 @@ Follow the working agreements at the end of `SPEC.md`: read both files, then
 confirm the build order with Ben before writing code. Phase 0 needs the open
 inputs listed under "Still needed from Ben" (Supabase project first).
 
+## Files
+
+| Path | What it is |
+|---|---|
+| `backend/stockwizard/candles.py` | The candle frame every part uses: UTC open times, checks that refuse bad data |
+| `backend/stockwizard/indicators/` | The indicator library and its registry; bump an indicator's version when its maths changes |
+| `backend/stockwizard/data/` | Candle sources behind one interface (the free Yahoo source for now) and the Supabase writer |
+| `backend/stockwizard/load.py` | Loads a symbol list's candles into Supabase |
+| `backend/tests/` | Truncation test on every indicator, hand-worked values, loader tests. Made-up candles only |
+| `supabase/migrations/` | Database changes, one file per change, applied in order |
+| `supabase/tests/` | Row-level security checks, run on a local Postgres with a stand-in for Supabase's sign-in |
+
+## Supabase
+
+Project `stockwizard` (ref `cxpspihahmztfydvdwpd`, Sydney). Every migration in
+`supabase/migrations/` is applied to it; check the security advisors after
+each one. Keys never go in the repository: loaders read `SUPABASE_URL` and
+`SUPABASE_SECRET_KEY` from the environment.
+
+## Testing
+
+```
+cd backend && pip install -e ".[test]" && python -m pytest
+```
+
+The database checks run `supabase/tests/supabase_stub.sql`, each migration,
+then `supabase/tests/rls_test.sql` with psql against a scratch local Postgres.
+Neither touches real market data or the live project.
+
 ## Hard rules
 
 - No look-ahead anywhere. Nothing is reported as validated unless it passed
