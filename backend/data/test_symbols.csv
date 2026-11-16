@@ -1,0 +1,9 @@
+symbol,market,instrument_type,tradable,name
+SPY,US,etf,true,SPDR S&P 500 ETF
+QQQ,US,etf,true,Invesco QQQ
+IWM,US,etf,true,iShares Russell 2000 ETF
+^VIX,US,index,false,CBOE Volatility Index
+^VIX3M,US,index,false,CBOE 3-Month Volatility Index
+AAPL,US,stock,true,Apple
+MSFT,US,stock,true,Microsoft
+BHP.AX,ASX,stock,false,BHP Group
