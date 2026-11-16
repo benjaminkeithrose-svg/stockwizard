@@ -25,12 +25,14 @@ These are settled, so do not reopen them:
 - Starting account: $1,000 to $2,000. Early trades risk under $50.
 - Backtest history: up to 20 years where data allows. Daily SPX expiries only began in 2022, so 0DTE tests will be shorter.
 - Front end: React, with an open-source candlestick chart library whose licence is checked before it is added. This replaces the plain-JavaScript default in `PREFERENCES.md`. (Decided 16 Nov 2026.)
+- Indicators in the browser: a TypeScript copy of the Python library, checked against the Python library's own numbers on every test run. (Decided 16 Nov 2026.)
+- Sign-in: email and password through Supabase, as Field CRM does. Look and feel: Field CRM's, without its logo. (16 Nov 2026.)
 - Development data: a free, unofficial candle source is used to build and test until IBKR or a paid source is in place. It sits behind the same loader interface so it can be swapped, every candle records it as its data source, and nothing tested on it is reported as validated. (Decided 16 Nov 2026.)
 
 Still needed from Ben before the dependent work starts:
 
 - [x] Supabase project and repository created, with access shared. (Project `stockwizard`, Sydney, 16 Nov 2026.)
-- [ ] Pointer to the existing repositories that define the app's visual conventions.
+- [x] Pointer to the existing repositories that define the app's visual conventions. (Field CRM, 16 Nov 2026.)
 - [ ] IBKR account opened and funded, and which IBKR market-data subscriptions to buy.
 - [ ] A source for 20 years of daily SPY and VIX data, and any paid intraday or options history.
 - [ ] How IBKR applies day-trade rules to a $1,000 to $2,000 Australian account.

@@ -74,4 +74,34 @@ do $$ begin
 end $$;
 reset role;
 
+-- Workspaces: each person sees and changes only their own tabs.
+grant all on public.workspaces to authenticated;
+set role authenticated;
+set request.jwt.claim.sub = '00000000-0000-0000-0000-00000000000a';
+insert into public.workspaces (name, symbol, timeframe) values ('SPY daily', 'SPY', '1d');
+do $$ declare t timestamptz; begin
+  if (select count(*) from public.workspaces) <> 1 then raise exception 'FAIL: A cannot see own tab'; end if;
+  select updated_at into t from public.workspaces;
+  update public.workspaces set updated_at = '2000-01-01', name = 'Renamed';
+  if (select updated_at from public.workspaces) < t then raise exception 'FAIL: updated_at not stamped by the server'; end if;
+  begin
+    insert into public.workspaces (name, symbol, timeframe, indicators) values ('Bad', 'SPY', '1d', '{}');
+    raise exception 'FAIL: indicators accepted a non-list';
+  exception when check_violation then null; end;
+end $$;
+set request.jwt.claim.sub = '00000000-0000-0000-0000-00000000000b';
+do $$ begin
+  if (select count(*) from public.workspaces) <> 0 then raise exception 'FAIL: B sees A''s tab'; end if;
+  update public.workspaces set name = 'Hijacked';
+  begin
+    insert into public.workspaces (owner, name, symbol, timeframe)
+      values ('00000000-0000-0000-0000-00000000000a', 'Planted', 'SPY', '1d');
+    raise exception 'FAIL: B created a tab owned by A';
+  exception when insufficient_privilege then null; end;
+end $$;
+reset role;
+do $$ begin
+  if (select name from public.workspaces) <> 'Renamed' then raise exception 'FAIL: B changed A''s tab'; end if;
+end $$;
+
 select 'all RLS checks passed' as result;
