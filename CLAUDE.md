@@ -56,6 +56,15 @@ Project `stockwizard` (ref `cxpspihahmztfydvdwpd`, Sydney). Every migration in
 each one. Keys never go in the repository: loaders read `SUPABASE_URL` and
 `SUPABASE_SECRET_KEY` from the environment.
 
+## Publishing
+
+A merge to `main` runs `.github/workflows/pages.yml`: the web tests, the
+build, then GitHub Pages at https://benjaminkeithrose-svg.github.io/stockwizard/.
+The repository is public (Ben's decision, 16 Nov 2026), so nothing private
+goes in it. Pages puts Field CRM on the same web address, so every browser
+storage name starts with `stockwizard` (local storage, the sign-in key, the
+service worker's cache) and never touches Field CRM's.
+
 ## Testing
 
 ```
