@@ -102,6 +102,7 @@ export function useWorkspaces(store: Store, userId: string, firstSymbol: () => s
     const w = newWorkspace(symbol, tf, listRef.current.length);
     commit([...listRef.current, w], [w]);
     setActiveId(w.id);
+    return w;
   }, [commit]);
 
   const duplicate = useCallback((w: Workspace) => {

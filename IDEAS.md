@@ -20,7 +20,7 @@ Captured from Ben, not yet scheduled. Each goes into a phase when he picks it.
   examples; this would make it a named, visible check covering combinations
   too.
 
-## Chart pages (17 Nov 2026) — next, after the scanner
+## Chart pages (17 Nov 2026) — built 17 Nov 2026
 
 - A page shows up to about 10 charts as large cards, dragged around and
   snapping together into a grid.

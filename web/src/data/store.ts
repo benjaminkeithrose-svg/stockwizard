@@ -4,7 +4,7 @@
 
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
 import { Candles, emptyCandles, madeUpCandles, Timeframe } from "./candles";
-import { ScanDef, ScanResult, ScanRun, SymbolInfo, Watchlist, Workspace } from "./model";
+import { ChartView, ScanDef, ScanResult, ScanRun, SymbolInfo, Watchlist, Workspace } from "./model";
 import { SUPABASE_KEY, SUPABASE_URL } from "../config";
 
 export interface User {
@@ -30,6 +30,10 @@ export interface Store {
   watchlists(): Promise<Watchlist[]>;
   saveWatchlist(w: Watchlist): Promise<Watchlist>;
   deleteWatchlist(id: Watchlist["id"]): Promise<void>;
+
+  views(): Promise<ChartView[]>;
+  saveView(v: ChartView): Promise<ChartView>;
+  deleteView(id: string): Promise<void>;
 
   scans(): Promise<ScanDef[]>;
   /** The latest scheduled or manual run of each scan, with its matches. Re-runs are checks, not shown. */
@@ -173,6 +177,19 @@ export class SupabaseStore implements Store {
     this.check(await this.sb.from("watchlists").delete().eq("id", id));
   }
 
+  async views() {
+    return this.check(await this.sb.from("views").select("*").order("position")) as ChartView[];
+  }
+
+  async saveView(v: ChartView) {
+    const { updated_at: _skip, ...row } = v;
+    return this.check(await this.sb.from("views").upsert(row).select().single()) as ChartView;
+  }
+
+  async deleteView(id: string) {
+    this.check(await this.sb.from("views").delete().eq("id", id));
+  }
+
   async scans() {
     return this.check(await this.sb.from("scans").select("id,label,rule,timeframe,params,symbols,tab,position").eq("enabled", true).order("position")) as ScanDef[];
   }
@@ -211,17 +228,17 @@ export class DemoStore implements Store {
   private user: User | null = { id: "demo", email: "demo" };
   private listeners = new Set<(u: User | null) => void>();
 
-  private load(): { workspaces: Workspace[]; watchlists: Watchlist[] } {
+  private load(): { workspaces: Workspace[]; watchlists: Watchlist[]; views: ChartView[] } {
     try {
       const raw = localStorage.getItem(this.key);
-      if (raw) return JSON.parse(raw);
+      if (raw) return { views: [], ...JSON.parse(raw) };
     } catch {
       /* storage blocked: start empty */
     }
-    return { workspaces: [], watchlists: [{ id: "demo-1", name: "Made-up list", is_universe: false, symbols: ["DEMO", "TEST"] }] };
+    return { workspaces: [], views: [], watchlists: [{ id: "demo-1", name: "Made-up list", is_universe: false, symbols: ["DEMO", "TEST"] }] };
   }
 
-  private save(d: { workspaces: Workspace[]; watchlists: Watchlist[] }) {
+  private save(d: { workspaces: Workspace[]; watchlists: Watchlist[]; views: ChartView[] }) {
     try {
       localStorage.setItem(this.key, JSON.stringify(d));
     } catch {
@@ -278,6 +295,22 @@ export class DemoStore implements Store {
     this.save(d);
   }
 
+  async views() { return this.load().views.sort((a, b) => a.position - b.position); }
+
+  async saveView(v: ChartView) {
+    const d = this.load();
+    const saved = { ...v, updated_at: new Date().toISOString() };
+    d.views = [...d.views.filter((x) => x.id !== v.id), saved];
+    this.save(d);
+    return saved;
+  }
+
+  async deleteView(id: string) {
+    const d = this.load();
+    d.views = d.views.filter((x) => x.id !== id);
+    this.save(d);
+  }
+
   async scans(): Promise<ScanDef[]> {
     const def = (id: string, label: string, rule: string, timeframe: Timeframe, tab: ScanDef["tab"], position: number): ScanDef =>
       ({ id, label, rule, timeframe, params: {}, symbols: tab === "spy" ? ["SPY"] : null, tab, position });
@@ -306,4 +339,18 @@ export class DemoStore implements Store {
       spy_drawdown: run(6, "spy_drawdown", [r("SPY", "down", { drawdown_pct: -5.4, first_day: 1 }, { "^VIX": 19.2 })]),
     };
   }
+}
+
+// Candles read recently, shared by the cards on a page and the full-screen chart.
+const candleCache = new Map<string, { at: number; candles: Promise<Candles> }>();
+const CACHE_MS = 5 * 60_000;
+
+export function cachedCandles(store: Store, symbol: string, tf: Timeframe): Promise<Candles> {
+  const key = `${store.demo ? "demo" : "db"}|${symbol}|${tf}`;
+  const hit = candleCache.get(key);
+  if (hit && Date.now() - hit.at < CACHE_MS) return hit.candles;
+  const candles = store.candles(symbol, tf);
+  candleCache.set(key, { at: Date.now(), candles });
+  candles.catch(() => candleCache.delete(key));
+  return candles;
 }
