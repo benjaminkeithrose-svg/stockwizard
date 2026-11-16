@@ -95,6 +95,20 @@ try {
   await page.getByRole("button", { name: "Delete", exact: true }).click();
   check(!(await page.getByRole("tab", { name: "My copy" }).count()), "tab deleted");
 
+  // Scanner: tabs, nothing-matched shown plainly, a result opens its chart
+  await page.getByRole("button", { name: "Scanner" }).click();
+  check(await page.getByRole("heading", { name: "Scanner" }).isVisible(), "scanner opens from the header");
+  check(await page.getByText("On for 6 candles · momentum +0.42").isVisible(), "squeeze result described in one line");
+  await page.getByRole("button", { name: "1h", exact: true }).click();
+  check(await page.getByText("Nothing matched.").isVisible(), "no matches said plainly");
+  await page.getByRole("button", { name: "SPY", exact: true }).click();
+  check(await page.getByText(/-5.4% from the 60-day high · first day · VIX 19.2/).isVisible(), "SPY drawdown shows the VIX");
+  await page.getByRole("button", { name: "Fired", exact: true }).click();
+  await page.getByRole("button", { name: /^TEST/ }).click();
+  await page.waitForSelector("[data-testid=chart] canvas");
+  check(await page.getByRole("button", { name: /Symbol TEST/ }).isVisible(), "tapping a result opens it on the chart");
+  check(await page.getByRole("button", { name: "1d", exact: true }).getAttribute("aria-pressed") === "true", "at the scan's timeframe");
+
   // Watchlists: back goes up a level, picking a symbol opens it in the tab
   await page.getByRole("button", { name: "More", exact: true }).click();
   await page.getByRole("menuitem", { name: "Watchlists" }).click();

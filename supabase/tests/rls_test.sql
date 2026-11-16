@@ -111,4 +111,27 @@ do $$ begin
 end $$;
 reset role;
 
+-- Scanner: signed-in users read scans and results; only the server writes.
+grant all on public.scans, public.scan_runs, public.scan_results to anon, authenticated;
+set role authenticated;
+set request.jwt.claim.sub = '00000000-0000-0000-0000-00000000000a';
+do $$ begin
+  if (select count(*) from public.scans) <> 9 then raise exception 'FAIL: the 9 starting scans are not readable'; end if;
+  begin
+    update public.scans set enabled = false;
+    if exists (select 1 from public.scans where not enabled) then raise exception 'FAIL: browser changed a scan'; end if;
+  end;
+  begin
+    insert into public.scan_runs (scan_id, as_of, rule_version, code_version, params, symbols, source, data_hash, result_hash, matches)
+      values ('breakout_1d', now(), 'x', 'x', '{}', '{}', 'x', 'x', 'x', 0);
+    raise exception 'FAIL: browser wrote a scan run';
+  exception when insufficient_privilege then null; end;
+end $$;
+reset role;
+set role anon;
+do $$ begin
+  if (select count(*) from public.scans) <> 0 then raise exception 'FAIL: anon reads scans'; end if;
+end $$;
+reset role;
+
 select 'all RLS checks passed' as result;

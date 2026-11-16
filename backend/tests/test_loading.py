@@ -55,8 +55,8 @@ class FakeNet:
         self.status = status
 
     def __call__(self, method, url, headers, body):
-        self.calls.append((method, url, headers, json.loads(body)))
-        return self.status
+        self.calls.append((method, url, headers, json.loads(body) if body else None))
+        return self.status, b"[]"
 
 
 def test_store_upserts_in_batches_with_the_right_headers():

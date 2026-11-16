@@ -28,6 +28,7 @@ These are settled, so do not reopen them:
 - Indicators in the browser: a TypeScript copy of the Python library, checked against the Python library's own numbers on every test run. (Decided 16 Nov 2026.)
 - Sign-in: email and password through Supabase, as Field CRM does. Look and feel: Field CRM's, without its logo. (16 Nov 2026.)
 - Daily candle top-up: a scheduled GitHub Actions job after each US close, loading the last 10 days. This settles where the loader runs; where the bot runs is still open. (Decided 16 Nov 2026.)
+- First scans (16 Nov 2026): squeeze on, squeeze fired, and breakouts (close beyond the previous 20 candles' high or low, volume filter off) on daily and hourly; SPY trend break (below the 50-day average after being above), SPY drawdown (5% below the 60-day high) and SPY RSI divergence, each with the VIX alongside. Every number is an adjustable starting point for the backtester to test. Universe: the 8 test symbols for now.
 - Development data: a free, unofficial candle source is used to build and test until IBKR or a paid source is in place. It sits behind the same loader interface so it can be swapped, every candle records it as its data source, and nothing tested on it is reported as validated. (Decided 16 Nov 2026.)
 
 Still needed from Ben before the dependent work starts:

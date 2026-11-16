@@ -46,3 +46,31 @@ describe("made-up candles", () => {
     }
   });
 });
+
+import { describe as describeResult } from "../src/ui/Scanner";
+import { latestPerScan } from "../src/data/store";
+
+describe("scanner", () => {
+  it("each result reads as one plain line", () => {
+    const r = (vals: Record<string, number>, direction: "up" | "down" | null = "up", context = {}) =>
+      ({ symbol: "SPY", candle_ts: "2026-11-13T05:00:00Z", direction, vals, context });
+    expect(describeResult("squeeze_on", r({ candles_on: 6, momentum: 0.42 }))).toBe("On for 6 candles · momentum +0.42");
+    expect(describeResult("breakout", r({ level: 512.3, volume_ratio: 0 }, "down"), { length: 20 })).toBe("Below the 20-candle low of 512.3");
+    expect(describeResult("drawdown", r({ drawdown_pct: -5.43, first_day: 1 }, "down", { "^VIX": 19.21 }), { lookback: 60 }))
+      .toBe("-5.4% from the 60-day high · first day · VIX 19.2");
+    expect(describeResult("trend_break", r({ below_by_pct: -0.83 }, "down"), { length: 50 })).toBe("Closed 0.8% below the 50-day average");
+  });
+
+  it("keeps only the newest run of each scan, with its own results", () => {
+    const runs = [
+      { id: 3, scan_id: "a", ran_at: "2026-11-17", as_of: "", symbols: [], source: "", matches: 1, notes: null },
+      { id: 1, scan_id: "a", ran_at: "2026-11-16", as_of: "", symbols: [], source: "", matches: 1, notes: null },
+      { id: 2, scan_id: "b", ran_at: "2026-11-16", as_of: "", symbols: [], source: "", matches: 0, notes: null },
+    ];
+    const res = (run_id: number, symbol: string) => ({ run_id, symbol, candle_ts: "", direction: null, vals: {}, context: {} });
+    const out = latestPerScan(runs, [res(3, "Z"), res(3, "A"), res(1, "OLD")]);
+    expect(out.a.id).toBe(3);
+    expect(out.a.results.map((r) => r.symbol)).toEqual(["A", "Z"]);
+    expect(out.b.results).toEqual([]);
+  });
+});

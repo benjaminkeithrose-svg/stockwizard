@@ -32,3 +32,6 @@ export const Pencil = () => (
 export const List = () => (
   <svg className="ic" viewBox="0 0 24 24" aria-hidden="true"><path {...P} d="M9 6h11M9 12h11M9 18h11M4 6h.01M4 12h.01M4 18h.01" /></svg>
 );
+export const Radar = () => (
+  <svg className="ic" viewBox="0 0 24 24" aria-hidden="true"><circle {...P} cx="12" cy="12" r="8" /><circle {...P} cx="12" cy="12" r="4" /><path {...P} d="M12 12l6-6" /></svg>
+);
