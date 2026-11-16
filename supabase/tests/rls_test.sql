@@ -151,4 +151,25 @@ do $$ begin
 end $$;
 reset role;
 
+-- Backtests: signed-in users read; only the server writes.
+grant all on public.strategies, public.backtest_runs, public.backtest_trades, public.backtest_metrics to anon, authenticated;
+set role authenticated;
+set request.jwt.claim.sub = '00000000-0000-0000-0000-00000000000a';
+do $$ begin
+  if (select count(*) from public.strategies) <> 6 then raise exception 'FAIL: the 6 starting strategies are not readable'; end if;
+  update public.strategies set enabled = false;
+  if exists (select 1 from public.strategies where not enabled) then raise exception 'FAIL: browser changed a strategy'; end if;
+  begin
+    insert into public.backtest_runs (strategy_id, strategy_version, config, config_hash, as_of, start_date, split_date, code_version, source, data_hash, result_hash)
+      values ('vix_drawdown_pct', 1, '{}', 'x', now(), '2006-01-02', '2021-11-17', 'x', 'x', 'x', 'x');
+    raise exception 'FAIL: browser wrote a backtest run';
+  exception when insufficient_privilege then null; end;
+end $$;
+reset role;
+set role anon;
+do $$ begin
+  if (select count(*) from public.strategies) <> 0 then raise exception 'FAIL: anon reads strategies'; end if;
+end $$;
+reset role;
+
 select 'all RLS checks passed' as result;
