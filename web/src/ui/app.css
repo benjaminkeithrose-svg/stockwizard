@@ -224,3 +224,7 @@ table.bt th span, table.bt td span { display: block; font-size: 11px; color: var
 table.bt td { padding: 7px 10px; border-bottom: 1px solid var(--line-2); text-align: right; white-space: nowrap; }
 table.bt td:first-child { text-align: left; white-space: normal; width: 46%; }
 table.bt tr:last-child td { border-bottom: 0; }
+.labcounts { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; text-align: center; }
+.labcounts b { display: block; font-size: 18px; }
+.labcounts span { font-size: 11px; color: var(--ink-3); line-height: 1.25; display: block; }
+@media (max-width: 560px) { .labcounts { grid-template-columns: repeat(3, 1fr); } }

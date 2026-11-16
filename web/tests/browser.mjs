@@ -206,7 +206,12 @@ try {
   check(await page.getByText(/reached target · 10 days/).isVisible(), "trades are listed");
   await page.getByRole("button", { name: "Back", exact: true }).click();
   check(await page.getByRole("heading", { name: "Backtests" }).isVisible(), "Back returns to the list");
-  check(await page.getByText(/Few trades/).count() === 0 || true, "warnings only on the detail page");
+  await page.getByRole("button", { name: "Pattern lab" }).click();
+  check(await page.getByText("patterns tried").isVisible(), "the pattern lab shows how many patterns were tried");
+  check(await page.getByText(/Sealed years \(blind backtest\)/).isVisible(), "survivors show their sealed-years result");
+  check(await page.getByText(/Discovery \(saw the future\)/).first().isVisible(), "discovery numbers are labelled as having seen the future");
+  check(await page.getByText(/needs 0.05 or less/).isVisible(), "near-misses say why they failed");
+  await page.getByRole("button", { name: "Strategies" }).click();
   await page.getByRole("button", { name: "Back", exact: true }).click();
 
   // Watchlists: back goes up a level, picking a symbol opens it in the tab

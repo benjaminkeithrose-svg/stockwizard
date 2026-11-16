@@ -34,6 +34,21 @@ def _urllib_send(method: str, url: str, headers: dict, body: bytes | None) -> tu
         return e.code, e.read()
 
 
+def _clean(v):
+    """JSON has no NaN or infinity: write them as empty (null)."""
+    if isinstance(v, float) and (math.isnan(v) or math.isinf(v)):
+        return None
+    if isinstance(v, dict):
+        return {k: _clean(x) for k, x in v.items()}
+    if isinstance(v, (list, tuple)):
+        return [_clean(x) for x in v]
+    return v
+
+
+def _json(rows) -> bytes:
+    return json.dumps(_clean(rows), allow_nan=False).encode()
+
+
 class SupabaseStore:
     def __init__(self, url: str | None = None, key: str | None = None, send: Sender = _urllib_send):
         self.url = (url or os.environ.get("SUPABASE_URL", "")).rstrip("/")
@@ -60,7 +75,7 @@ class SupabaseStore:
                 "POST",
                 f"{self.url}/rest/v1/{table}?on_conflict={on_conflict}",
                 self._headers(),
-                json.dumps(chunk).encode(),
+                _json(chunk),
             )
             if status >= 300:
                 raise RuntimeError(f"Supabase refused {table} batch starting at row {i}: HTTP {status} {body[:300]!r}")
@@ -84,7 +99,7 @@ class SupabaseStore:
 
     def insert(self, table: str, rows: list[dict], returning: bool = False) -> list[dict]:
         headers = {**self._headers(), "Prefer": "return=representation" if returning else "return=minimal"}
-        status, body = self.send("POST", f"{self.url}/rest/v1/{table}", headers, json.dumps(rows).encode())
+        status, body = self.send("POST", f"{self.url}/rest/v1/{table}", headers, _json(rows))
         if status >= 300:
             raise RuntimeError(f"Supabase refused writing {table}: HTTP {status} {body[:300]!r}")
         return json.loads(body) if returning and body else []

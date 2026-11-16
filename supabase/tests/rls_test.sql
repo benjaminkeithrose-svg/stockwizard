@@ -172,4 +172,18 @@ do $$ begin
 end $$;
 reset role;
 
+-- Pattern lab: signed-in users read; only the server writes.
+grant all on public.feature_sets, public.pattern_runs, public.pattern_candidates to anon, authenticated;
+set role authenticated;
+set request.jwt.claim.sub = '00000000-0000-0000-0000-00000000000a';
+do $$ begin
+  if (select count(*) from public.feature_sets) <> 1 then raise exception 'FAIL: feature set not readable'; end if;
+  begin
+    insert into public.pattern_runs (question, feature_set, settings, settings_hash, start_date, split_date, as_of, code_version, source, data_hash, result_hash, counts)
+      values ('x', 'spy_vix_daily', '{}', 'x', '2006-01-02', '2021-11-17', now(), 'x', 'x', 'x', 'x', '{}');
+    raise exception 'FAIL: browser wrote a pattern run';
+  exception when insufficient_privilege then null; end;
+end $$;
+reset role;
+
 select 'all RLS checks passed' as result;

@@ -56,3 +56,22 @@ backtest:
 - The same placement should feed both a backtest and an order for approval
   (phase 5: orders only ever go out after Ben approves them, behind the
   safety rails).
+
+## Positions on every chart, and an analysis screen (17 Nov 2026)
+
+Follows on from the one-tap option structures above.
+
+- A position placed on a chart (an iron condor, say) shows on every chart
+  of that ticker, across all tabs and chart pages, so a position is never
+  out of sight. Backtesting screens are the exception: they keep their own.
+- Positions are tappable, and marked as planned (not yet bought) or
+  bought: planned in purple, bought in green, with a way to say "yes,
+  bought" or "no".
+- Tapping a position opens an analysis screen: the usual option views (the
+  profit and loss at expiry and today across prices, break-evens, the risk
+  measures), for butterflies, iron condors and the rest. Built in Stock
+  Wizard's own style; Ben is used to TradeStation's views, but the spec
+  rules out copying another product's tools.
+- Comparison is the main use: the same structure over different expiry
+  dates (12 days against 9; 0DTE against 3 days), or a different structure
+  altogether, to see which pays best for the trade.

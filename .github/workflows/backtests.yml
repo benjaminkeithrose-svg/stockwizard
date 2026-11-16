@@ -1,7 +1,7 @@
-# Runs every enabled backtest strategy on the candles in Supabase and saves the
-# results, which the app's Backtests screen shows. Run it by hand: Actions tab,
+# Runs every enabled backtest strategy, then the pattern lab, on the candles in
+# Supabase and saves the results, which the app's Backtests screen shows. Run it by hand: Actions tab,
 # "Run backtests", Run workflow. Needs the repository secret SUPABASE_SECRET_KEY.
-name: Run backtests
+name: Run backtests and the pattern lab
 
 on:
   workflow_dispatch:
@@ -29,3 +29,4 @@ jobs:
           python-version: '3.12'
       - run: pip install .
       - run: python -m stockwizard.run_backtests
+      - run: python -m stockwizard.run_lab
