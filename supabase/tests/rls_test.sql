@@ -104,4 +104,11 @@ do $$ begin
   if (select name from public.workspaces) <> 'Renamed' then raise exception 'FAIL: B changed A''s tab'; end if;
 end $$;
 
+-- The keepalive answers anyone with the publishable key, and reads nothing.
+set role anon;
+do $$ begin
+  if public.keepalive() is null then raise exception 'FAIL: keepalive returned nothing'; end if;
+end $$;
+reset role;
+
 select 'all RLS checks passed' as result;

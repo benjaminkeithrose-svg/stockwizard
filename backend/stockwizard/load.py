@@ -1,6 +1,7 @@
 """Load candles for a symbol list into Supabase.
 
     python -m stockwizard.load --symbols data/test_symbols.csv --timeframe 1d --start 2006-01-01
+    python -m stockwizard.load --symbols data/test_symbols.csv --timeframe 5m --days 7   # top-up
 
 The symbol list is a CSV with columns symbol, market, instrument_type,
 tradable, name. Symbols are added or updated first, then each symbol's
@@ -12,7 +13,7 @@ from __future__ import annotations
 import argparse
 import csv
 import sys
-from datetime import date
+from datetime import date, timedelta
 from pathlib import Path
 
 from stockwizard.candles import check_timeframe
@@ -61,8 +62,14 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--timeframe", default="1d")
     p.add_argument("--start", type=date.fromisoformat)
     p.add_argument("--end", type=date.fromisoformat)
+    p.add_argument("--days", type=int, help="Only the last N days: a top-up. Overlap is harmless; candles are upserted.")
     a = p.parse_args(argv)
-    return 1 if run(a.symbols, a.timeframe, a.start, a.end) else 0
+    start = a.start
+    if a.days is not None:
+        if a.start:
+            p.error("Use --start or --days, not both")
+        start = date.today() - timedelta(days=a.days)
+    return 1 if run(a.symbols, a.timeframe, start, a.end) else 0
 
 
 if __name__ == "__main__":
