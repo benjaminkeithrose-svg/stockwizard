@@ -1,0 +1,52 @@
+# Adds the latest candles to Supabase every US trading day, after the close.
+# Runs in GitHub's cloud; nothing needs to be left on at home.
+#
+# Needs one repository secret, SUPABASE_SECRET_KEY (the project's secret key,
+# starting sb_secret_): Settings, Secrets and variables, Actions. It never
+# goes in the repository. The symbols are backend/data/test_symbols.csv.
+# Each run fetches the last 10 days, so a missed day or two fills itself in.
+# A failed symbol fails the run, and GitHub emails the repository owner.
+# Run it by hand: Actions tab, "Top up candles", Run workflow.
+name: Top up candles
+
+on:
+  schedule:
+    - cron: '17 22 * * 1-5'   # 22:17 UTC Mon-Fri: after the US close; 8 or 9 am in Sydney the next day
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: topup
+
+jobs:
+  load:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: backend
+    env:
+      SUPABASE_URL: https://cxpspihahmztfydvdwpd.supabase.co
+      SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Check the secret is there
+        run: |
+          if [ -z "$SUPABASE_SECRET_KEY" ]; then
+            echo "::error::Add the repository secret SUPABASE_SECRET_KEY (Settings, Secrets and variables, Actions)."
+            exit 1
+          fi
+      - run: pip install ".[yahoo]"
+      - name: Daily candles
+        run: python -m stockwizard.load --symbols data/test_symbols.csv --timeframe 1d --days 10
+      - name: Hourly candles
+        if: always()
+        run: python -m stockwizard.load --symbols data/test_symbols.csv --timeframe 1h --days 10
+      - name: 5-minute candles
+        if: always()
+        run: python -m stockwizard.load --symbols data/test_symbols.csv --timeframe 5m --days 10

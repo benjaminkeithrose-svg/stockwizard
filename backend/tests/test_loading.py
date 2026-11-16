@@ -117,3 +117,22 @@ def test_load_run_writes_symbols_then_candles_and_carries_on_after_a_failure(cap
     assert tables[0] == "symbols"
     assert tables.count("candles") == len(read_symbols(SYMBOLS_CSV)) - 1
     assert "MSFT: FAILED" in capsys.readouterr().err
+
+
+def test_days_option_fetches_only_recent_candles(monkeypatch):
+    import stockwizard.load as load
+    from datetime import date, timedelta
+
+    seen = {}
+    monkeypatch.setattr(load, "run", lambda csv, tf, start, end: seen.update(tf=tf, start=start, end=end) or 0)
+    assert load.main(["--symbols", str(SYMBOLS_CSV), "--timeframe", "5m", "--days", "7"]) == 0
+    assert seen == {"tf": "5m", "start": date.today() - timedelta(days=7), "end": None}
+    with pytest.raises(SystemExit):
+        load.main(["--symbols", str(SYMBOLS_CSV), "--days", "7", "--start", "2020-01-01"])
+
+
+def test_a_failed_symbol_makes_the_run_fail(monkeypatch):
+    import stockwizard.load as load
+
+    monkeypatch.setattr(load, "run", lambda *a: 1)
+    assert load.main(["--symbols", str(SYMBOLS_CSV)]) == 1

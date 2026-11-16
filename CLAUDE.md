@@ -47,6 +47,8 @@ inputs listed under "Still needed from Ben" (Supabase project first).
 | `web/src/ui/` | Screens, sheets and styles. The look is Field CRM's (`benjaminkeithrose-svg/CRM`, `index.html`), without its logo |
 | `web/public/sw.js` | Service worker. `CACHE` must equal `stockwizard-` + `APP_BUILD` in `web/src/config.ts`; bump both on every change to the app |
 | `supabase/migrations/` | Database changes, one file per change, applied in order |
+| `.github/workflows/` | `pages.yml` publishes the app on each merge; `topup.yml` loads the last 10 days of candles every US trading day (needs the repository secret `SUPABASE_SECRET_KEY`); `keepalive.yml` pings Supabase twice a week so the free project isn't paused |
+| `IDEAS.md` | Ben's ideas not yet scheduled. Add to it rather than building unasked |
 | `supabase/tests/` | Row-level security checks, run on a local Postgres with a stand-in for Supabase's sign-in |
 
 ## Supabase

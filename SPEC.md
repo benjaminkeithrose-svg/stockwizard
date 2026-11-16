@@ -27,6 +27,7 @@ These are settled, so do not reopen them:
 - Front end: React, with an open-source candlestick chart library whose licence is checked before it is added. This replaces the plain-JavaScript default in `PREFERENCES.md`. (Decided 16 Nov 2026.)
 - Indicators in the browser: a TypeScript copy of the Python library, checked against the Python library's own numbers on every test run. (Decided 16 Nov 2026.)
 - Sign-in: email and password through Supabase, as Field CRM does. Look and feel: Field CRM's, without its logo. (16 Nov 2026.)
+- Daily candle top-up: a scheduled GitHub Actions job after each US close, loading the last 10 days. This settles where the loader runs; where the bot runs is still open. (Decided 16 Nov 2026.)
 - Development data: a free, unofficial candle source is used to build and test until IBKR or a paid source is in place. It sits behind the same loader interface so it can be swapped, every candle records it as its data source, and nothing tested on it is reported as validated. (Decided 16 Nov 2026.)
 
 Still needed from Ben before the dependent work starts:
