@@ -2,7 +2,8 @@
 
 A technical-analysis workspace: charts, a scanner, a bar-by-bar backtester, a
 pattern lab and, last of all, a paper-trading bot on Interactive Brokers, all
-backed by Supabase. Nothing is built yet.
+backed by Supabase. Phase 0 (indicators, loader, database) and phase 1
+(the chart workspace web app) are built.
 
 ## Who you are working with
 
@@ -38,6 +39,13 @@ inputs listed under "Still needed from Ben" (Supabase project first).
 | `backend/stockwizard/data/` | Candle sources behind one interface (the free Yahoo source for now) and the Supabase writer |
 | `backend/stockwizard/load.py` | Loads a symbol list's candles into Supabase |
 | `backend/tests/` | Truncation test on every indicator, hand-worked values, loader tests. Made-up candles only |
+| `backend/tools/make_golden.py` | Writes `web/src/indicators/golden.json`, the Python library's numbers the browser copy must match |
+| `web/` | The web app: React, Vite, TypeScript, Lightweight Charts (TradingView, Apache 2.0; keep its logo link on) |
+| `web/src/indicators/` | The browser's copy of the indicators. Change it with the Python library, regenerate `golden.json`, and both test suites must pass |
+| `web/src/data/` | Candles, the saved shapes (`model.ts`), the Supabase and made-up data stores, workspace saving |
+| `web/src/chart/Chart.tsx` | The chart: candles, overlays, indicator panes, drawings, taps |
+| `web/src/ui/` | Screens, sheets and styles. The look is Field CRM's (`benjaminkeithrose-svg/CRM`, `index.html`), without its logo |
+| `web/public/sw.js` | Service worker. `CACHE` must equal `stockwizard-` + `APP_BUILD` in `web/src/config.ts`; bump both on every change to the app |
 | `supabase/migrations/` | Database changes, one file per change, applied in order |
 | `supabase/tests/` | Row-level security checks, run on a local Postgres with a stand-in for Supabase's sign-in |
 
@@ -51,12 +59,16 @@ each one. Keys never go in the repository: loaders read `SUPABASE_URL` and
 ## Testing
 
 ```
-cd backend && pip install -e ".[test]" && python -m pytest
+cd backend && pip install -e ".[test]" && python -m pytest     # Python: indicators, loader, golden file
+cd web && npm install && npm test                             # browser copy of the indicators, app logic
+cd web && npm run build && NODE_PATH=$(npm root -g) node tests/browser.mjs   # the built app in Chromium
+bash supabase/tests/run_local.sh                              # migrations and security rules, local Postgres
 ```
 
-The database checks run `supabase/tests/supabase_stub.sql`, each migration,
-then `supabase/tests/rls_test.sql` with psql against a scratch local Postgres.
-Neither touches real market data or the live project.
+`npm install` needs `legacy-peer-deps` (set in `web/.npmrc`) because of an
+npm bug with these versions. The browser test opens the app with `?demo`:
+made-up candles, everything kept in the browser, no network. None of these
+touch real market data, the live Supabase project or a phone. Say which ran.
 
 ## Hard rules
 
