@@ -133,6 +133,8 @@ class Backtester:
         if not old:
             raise SystemExit(f"No backtest run {run_id}")
         old = old[0]
+        if old["code_version"] != __version__:
+            return f"Run {run_id} was made with Stock Wizard {old['code_version']}; this is {__version__}. Not comparable."
         st = self.store.select("strategies", {"select": "*", "id": f"eq.{old['strategy_id']}"})[0]
         out = self.compute(old["strategy_id"], old["config"], old["start_date"], old["split_date"],
                            pd.Timestamp(old["as_of"]), source=old["source"].split(",")[0])

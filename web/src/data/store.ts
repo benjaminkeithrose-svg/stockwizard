@@ -4,7 +4,7 @@
 
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
 import { Candles, emptyCandles, madeUpCandles, Timeframe } from "./candles";
-import { BacktestRun, BacktestTrade, ChartView, ScanDef, ScanResult, ScanRun, StrategyDef, SymbolInfo, Watchlist, Workspace } from "./model";
+import { BacktestRun, BacktestTrade, ChartView, PatternRun, ScanDef, ScanResult, ScanRun, StrategyDef, SymbolInfo, Watchlist, Workspace } from "./model";
 import { SUPABASE_KEY, SUPABASE_URL } from "../config";
 
 export interface User {
@@ -39,6 +39,8 @@ export interface Store {
   /** The latest manual or scheduled run of each strategy, with its metrics. Re-runs are checks, not shown. */
   latestBacktests(): Promise<Record<string, BacktestRun>>;
   backtestTrades(runId: number): Promise<BacktestTrade[]>;
+  /** The latest pattern lab run (not a re-run check), with the patterns it kept. */
+  latestPatternRun(): Promise<PatternRun | null>;
 
   scans(): Promise<ScanDef[]>;
   /** The latest scheduled or manual run of each scan, with its matches. Re-runs are checks, not shown. */
@@ -218,6 +220,18 @@ export class SupabaseStore implements Store {
     return latest;
   }
 
+  async latestPatternRun() {
+    const runs = this.check(
+      await this.sb.from("pattern_runs").select("id,question,settings,start_date,split_date,ran_at,as_of,source,counts,sealed_burned")
+        .neq("trigger", "rerun").order("ran_at", { ascending: false }).limit(1),
+    ) as Omit<PatternRun, "candidates">[];
+    if (!runs.length) return null;
+    const candidates = this.check(
+      await this.sb.from("pattern_candidates").select("n,label,status,discovery,sealed").eq("run_id", runs[0].id).order("n"),
+    ) as PatternRun["candidates"];
+    return { ...runs[0], candidates };
+  }
+
   async backtestTrades(runId: number) {
     const out: BacktestTrade[] = [];
     for (let from = 0; ; from += 1000) {
@@ -376,6 +390,22 @@ export class DemoStore implements Store {
       ],
     });
     return { demo_a: run(1, "demo_a"), demo_b: run(2, "demo_b", ["Few trades: the win-rate ranges are wide, so treat the win rates as rough."]) };
+  }
+
+  async latestPatternRun(): Promise<PatternRun | null> {
+    const d = (episodes: number, hits: number, q: number) => ({ episodes, hits, rate: hits / episodes, lift: hits / episodes / 0.24, p: 0.0001, q, stable: q <= 0.05 });
+    return {
+      id: 1, question: "What made-up conditions come before TEST rising 30% or more within 10 trading days?",
+      settings: { rise_pct: 30, days: 10, min_episodes: 20, fdr_q: 0.05, survivors: 8 },
+      start_date: "2006-01-02", split_date: "2021-11-17", ran_at: "2026-11-17T09:00:00Z", as_of: "2026-11-17T09:00:00Z", source: "made-up",
+      counts: { tried: 5525, enough_episodes: 3958, passed_fdr: 1, stable: 1, survivors: 1, base_rate: 0.24, sealed_base_rate: 0.28 },
+      sealed_burned: false,
+      candidates: [
+        { n: 0, label: "DEMO near its 20-day high and TEST at or below 14", status: "survivor", discovery: d(40, 21, 0.03),
+          sealed: { trades: 9, hits: 4, rate: 4 / 9, base_rate: 0.28, lift: 1.6, p: 0.2 } },
+        { n: 1, label: "DEMO volume at or above 1.5× its 20-day average", status: "not_significant", discovery: d(44, 23, 0.066), sealed: {} },
+      ],
+    };
   }
 
   async backtestTrades(): Promise<BacktestTrade[]> {

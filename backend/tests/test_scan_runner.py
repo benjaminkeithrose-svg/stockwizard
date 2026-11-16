@@ -144,3 +144,13 @@ def test_fingerprint_changes_with_any_candle():
     df2.iloc[3, 0] += 0.01
     assert a != candles_fingerprint({"X": df2})
     assert a == candles_fingerprint({"X": df.copy()})
+
+
+def test_vix_context_is_the_same_days_close_even_when_stamped_an_hour_later():
+    idx = daily_index(100)
+    spy = make_candles(idx, seed=1)
+    vix = make_candles(idx, seed=2, start=15.0)
+    vix.index = vix.index + pd.Timedelta(hours=1)  # Chicago midnight
+    as_of = idx[-1] + pd.Timedelta(days=1)
+    results, _ = apply_scan("drawdown", "1d", {"lookback": 60, "pct": 0.0}, {"SPY": spy}, as_of, {"^VIX": vix})
+    assert results and results[0]["context"]["^VIX"] == pytest.approx(vix["close"].iloc[-1], rel=1e-9)

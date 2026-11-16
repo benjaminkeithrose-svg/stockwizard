@@ -5,6 +5,7 @@
 import { useEffect, useState } from "react";
 import type { BacktestRun, BacktestTrade, Metrics, StrategyDef } from "../data/model";
 import type { Store } from "../data/store";
+import LabView from "./Lab";
 
 const num = (v: unknown, digits = 0) =>
   typeof v === "number" && Number.isFinite(v) ? v.toLocaleString(undefined, { maximumFractionDigits: digits, minimumFractionDigits: digits }) : "—";
@@ -41,6 +42,10 @@ function StudyNote({ s, run }: { s: StrategyDef; run: BacktestRun }) {
 }
 
 export function BacktestsScreen(props: { store: Store; onOpen: (id: string) => void }) {
+  const [tab, setTab] = useState<"strategies" | "lab">(() => {
+    try { return localStorage.getItem("stockwizard.btTab") === "lab" ? "lab" : "strategies"; } catch { return "strategies"; }
+  });
+  useEffect(() => { try { localStorage.setItem("stockwizard.btTab", tab); } catch { /* fine */ } }, [tab]);
   const [strategies, setStrategies] = useState<StrategyDef[]>([]);
   const [runs, setRuns] = useState<Record<string, BacktestRun>>({});
   const [state, setState] = useState<"loading" | "ok" | "error">("loading");
@@ -51,8 +56,17 @@ export function BacktestsScreen(props: { store: Store; onOpen: (id: string) => v
       .catch((e) => { setError(String(e.message ?? e)); setState("error"); });
   }, [props.store]);
 
+  const tabs = (
+    <div className="seg" role="group" aria-label="Backtests or pattern lab" style={{ marginBottom: 10 }}>
+      <button className={tab === "strategies" ? "on" : ""} aria-pressed={tab === "strategies"} onClick={() => setTab("strategies")}>Strategies</button>
+      <button className={tab === "lab" ? "on" : ""} aria-pressed={tab === "lab"} onClick={() => setTab("lab")}>Pattern lab</button>
+    </div>
+  );
+  if (tab === "lab") return <div className="list">{tabs}<LabView store={props.store} /></div>;
+
   return (
     <div className="list">
+      {tabs}
       {state === "loading" && <p className="empty">Loading…</p>}
       {state === "error" && <div className="msg err">Couldn't load the backtests: {error}</div>}
       {state === "ok" && !strategies.length && <p className="empty">No strategies.</p>}

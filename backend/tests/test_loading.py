@@ -136,3 +136,9 @@ def test_a_failed_symbol_makes_the_run_fail(monkeypatch):
 
     monkeypatch.setattr(load, "run", lambda *a: 1)
     assert load.main(["--symbols", str(SYMBOLS_CSV)]) == 1
+
+
+def test_nan_is_written_as_null():
+    net = FakeNet()
+    SupabaseStore("https://x.supabase.co", "k", send=net).insert("t", [{"a": float("nan"), "b": {"c": float("inf")}, "d": [1.0, float("nan")]}])
+    assert net.calls[0][3] == [{"a": None, "b": {"c": None}, "d": [1.0, None]}]

@@ -24,7 +24,7 @@ from dataclasses import dataclass, field
 import pandas as pd
 
 from stockwizard import __version__
-from stockwizard.candles import TIMEFRAMES
+from stockwizard.candles import TIMEFRAMES, session_dates
 from stockwizard.data.store import SupabaseStore
 from stockwizard.scans import RULES, evaluate
 
@@ -86,7 +86,8 @@ def apply_scan(
         ts = df.index[-1]
         ctx = {}
         for csym, cdf in (context or {}).items():
-            at = cdf[cdf.index <= ts]
+            # Same trading day or earlier, by date: the VIX's daily candle is stamped an hour after SPY's.
+            at = cdf[session_dates(cdf.index) <= session_dates(pd.DatetimeIndex([ts]))[0]]
             if not at.empty:
                 ctx[csym] = _num(at["close"].iloc[-1])
         results.append(
@@ -193,6 +194,8 @@ class Scanner:
         scan = self.store.select("scans", {"select": "*", "id": f"eq.{old['scan_id']}"})[0]
         if old["rule_version"] != RULES[scan["rule"]].code_version:
             return f"Run {run_id} used {old['rule_version']}; the rule is now {RULES[scan['rule']].code_version}. Not comparable."
+        if old["code_version"] != __version__:
+            return f"Run {run_id} was made with Stock Wizard {old['code_version']}; this is {__version__}. Not comparable."
         as_of = pd.Timestamp(old["as_of"])
         out = self.compute(scan, as_of, old["symbols"], old["params"], source=old["source"].split(",")[0] if old["source"] != "none" else None)
         if out.data_hash != old["data_hash"]:

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "stockwizard"
-version = "0.2.0"
+version = "0.3.0"
 description = "Stock Wizard backend: candles, indicators, scanner, backtester"
 requires-python = ">=3.11"
 dependencies = [

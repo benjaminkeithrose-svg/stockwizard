@@ -100,10 +100,15 @@ def _ret(entry: float, exit: float, cost_pct: float) -> float:
     return (exit * (1 - c)) / (entry * (1 + c)) * 100 - 100
 
 
-def run(strategy: Strategy, signal_candles: pd.DataFrame, trade_candles: pd.DataFrame, start: pd.Timestamp) -> Result:
-    """Replay history and trade the strategy. Entries only from `start` on; earlier candles warm up the signal."""
+def run(strategy: Strategy, signal_candles: pd.DataFrame, trade_candles: pd.DataFrame, start: pd.Timestamp,
+        signals: pd.DataFrame | None = None) -> Result:
+    """Replay history and trade the strategy. Entries only from `start` on; earlier candles warm up the signal.
+
+    `signals` replaces the strategy's scan rule with signals made elsewhere (the pattern lab's patterns,
+    built from measures that are themselves truncation-tested).
+    """
     s = strategy
-    sig = evaluate(s.signal_rule, signal_candles, **s.signal_params)
+    sig = signals if signals is not None else evaluate(s.signal_rule, signal_candles, **s.signal_params)
     tc = validate(trade_candles)
     fired = sig[sig["hit"].fillna(False).to_numpy(dtype=bool)]
     fired = fired[fired.index >= start]

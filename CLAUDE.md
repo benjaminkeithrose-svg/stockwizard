@@ -3,7 +3,8 @@
 A technical-analysis workspace: charts, a scanner, a bar-by-bar backtester, a
 pattern lab and, last of all, a paper-trading bot on Interactive Brokers, all
 backed by Supabase. Phases 0 (indicators, loader, database), 1 (the chart
-workspace web app), 2 (the scanner) and 3 (the backtester) are built, plus chart
+workspace web app), 2 (the scanner), 3 (the backtester) and 3b (the pattern
+lab) are built, plus chart
 pages (cards on a grid, saved as views).
 
 ## Who you are working with
@@ -43,6 +44,9 @@ inputs listed under "Still needed from Ben" (Supabase project first).
 | `backend/stockwizard/scan.py` | Runs the enabled scans and saves each run with what it used; `--rerun N` repeats a run and checks it matches |
 | `backend/stockwizard/backtest.py` | The backtest engine: bar by bar, next-open fills, stop before target, costs per fill; metrics for build, held-back and 3-year windows. Pure, no database |
 | `backend/stockwizard/run_backtests.py` | Runs the saved strategies and saves runs, trades and metrics; `--rerun N` repeats a run and checks it matches; marks the held-back period burned when settings change |
+| `backend/stockwizard/features.py` | The pattern lab's measures of market conditions, one row per SPY day, all known at the close; other symbols matched by trading date (the VIX's daily candles are stamped an hour after SPY's) |
+| `backend/stockwizard/lab.py`, `backend/stockwizard/run_lab.py` | The pattern lab: one- and two-condition patterns on the discovery years, every one counted, Benjamini-Hochberg check, stability check, survivors tested once on the sealed years by the backtester; `--rerun N` checks a run repeats |
+| `web/src/ui/Lab.tsx` | The Pattern lab tab of the Backtests screen |
 | `web/src/ui/Backtests.tsx` | The Backtests screens: each strategy's build and held-back results side by side, the windows and every trade |
 | `web/src/ui/Scanner.tsx` | The Scanner screen: the latest run of each scan, in tabs |
 | `web/src/ui/Pages.tsx`, `web/src/data/grid.ts`, `web/src/data/useViews.ts` | Chart pages: up to 10 tabs as cards on a 12-column grid, dragged and resized with snapping on the PC, one per row on the phone; tap for full screen |
@@ -56,7 +60,7 @@ inputs listed under "Still needed from Ben" (Supabase project first).
 | `web/src/ui/` | Screens, sheets and styles. The look is Field CRM's (`benjaminkeithrose-svg/CRM`, `index.html`), without its logo |
 | `web/public/sw.js` | Service worker. `CACHE` must equal `stockwizard-` + `APP_BUILD` in `web/src/config.ts`; bump both on every change to the app |
 | `supabase/migrations/` | Database changes, one file per change, applied in order |
-| `.github/workflows/` | `pages.yml` publishes the app on each merge; `topup.yml` loads the last 10 days of candles every US trading day, then runs the scans (needs the repository secret `SUPABASE_SECRET_KEY`); `keepalive.yml` pings Supabase twice a week so the free project isn't paused; `backtests.yml` runs the backtests by hand from the Actions tab |
+| `.github/workflows/` | `pages.yml` publishes the app on each merge; `topup.yml` loads the last 10 days of candles every US trading day, then runs the scans (needs the repository secret `SUPABASE_SECRET_KEY`); `keepalive.yml` pings Supabase twice a week so the free project isn't paused; `backtests.yml` runs the backtests and the pattern lab by hand from the Actions tab |
 | `IDEAS.md` | Ben's ideas not yet scheduled. Add to it rather than building unasked |
 | `supabase/tests/` | Row-level security checks, run on a local Postgres with a stand-in for Supabase's sign-in |
 

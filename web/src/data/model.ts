@@ -167,3 +167,27 @@ export interface BacktestTrade {
   bars: number;
   return_pct: number | null;
 }
+
+// --- pattern lab (read-only in the app; the server writes) ---
+
+export interface PatternCandidate {
+  n: number;
+  label: string;
+  status: "survivor" | "stable" | "unstable" | "not_significant" | "too_rare";
+  discovery: { episodes: number; hits: number; rate: number | null; lift: number | null; p: number | null; q: number | null; stable: boolean };
+  sealed: { trades?: number; hits?: number; rate?: number | null; base_rate?: number | null; lift?: number | null; p?: number | null };
+}
+
+export interface PatternRun {
+  id: number;
+  question: string;
+  settings: { rise_pct: number; days: number; min_episodes: number; fdr_q: number; survivors: number };
+  start_date: string;
+  split_date: string;
+  ran_at: string;
+  as_of: string;
+  source: string;
+  counts: { tried: number; enough_episodes: number; passed_fdr: number; stable: number; survivors: number; base_rate: number | null; sealed_base_rate: number | null };
+  sealed_burned: boolean;
+  candidates: PatternCandidate[];
+}
