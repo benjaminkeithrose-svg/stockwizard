@@ -10,6 +10,8 @@ from __future__ import annotations
 import json
 import math
 import os
+import urllib.error
+import urllib.parse
 import urllib.request
 from typing import Callable, Iterable
 
@@ -19,14 +21,17 @@ from stockwizard import __version__
 
 BATCH = 1000
 
-# (method, url, headers, body) -> status code. Replaced in tests.
-Sender = Callable[[str, str, dict, bytes], int]
+# (method, url, headers, body) -> (status code, response body). Replaced in tests.
+Sender = Callable[[str, str, dict, bytes | None], tuple[int, bytes]]
 
 
-def _urllib_send(method: str, url: str, headers: dict, body: bytes) -> int:
+def _urllib_send(method: str, url: str, headers: dict, body: bytes | None) -> tuple[int, bytes]:
     req = urllib.request.Request(url, data=body, headers=headers, method=method)
-    with urllib.request.urlopen(req, timeout=60) as resp:
-        return resp.status
+    try:
+        with urllib.request.urlopen(req, timeout=60) as resp:
+            return resp.status, resp.read()
+    except urllib.error.HTTPError as e:
+        return e.code, e.read()
 
 
 class SupabaseStore:
@@ -51,16 +56,58 @@ class SupabaseStore:
         written = 0
         for i in range(0, len(rows), BATCH):
             chunk = rows[i : i + BATCH]
-            status = self.send(
+            status, body = self.send(
                 "POST",
                 f"{self.url}/rest/v1/{table}?on_conflict={on_conflict}",
                 self._headers(),
                 json.dumps(chunk).encode(),
             )
             if status >= 300:
-                raise RuntimeError(f"Supabase refused {table} batch starting at row {i}: HTTP {status}")
+                raise RuntimeError(f"Supabase refused {table} batch starting at row {i}: HTTP {status} {body[:300]!r}")
             written += len(chunk)
         return written
+
+    def select(self, table: str, query: dict[str, str]) -> list[dict]:
+        """Rows from a table. `query` is PostgREST's: {"select": "...", "symbol": "eq.SPY", "order": "ts.desc"}."""
+        rows: list[dict] = []
+        limit = int(query.get("limit", 10**9))
+        while len(rows) < limit:
+            q = {**query, "limit": str(min(BATCH, limit - len(rows))), "offset": str(len(rows))}
+            status, body = self.send("GET", f"{self.url}/rest/v1/{table}?{urllib.parse.urlencode(q)}", self._headers(), None)
+            if status >= 300:
+                raise RuntimeError(f"Supabase refused reading {table}: HTTP {status} {body[:300]!r}")
+            page = json.loads(body or b"[]")
+            rows.extend(page)
+            if len(page) < BATCH:
+                break
+        return rows
+
+    def insert(self, table: str, rows: list[dict], returning: bool = False) -> list[dict]:
+        headers = {**self._headers(), "Prefer": "return=representation" if returning else "return=minimal"}
+        status, body = self.send("POST", f"{self.url}/rest/v1/{table}", headers, json.dumps(rows).encode())
+        if status >= 300:
+            raise RuntimeError(f"Supabase refused writing {table}: HTTP {status} {body[:300]!r}")
+        return json.loads(body) if returning and body else []
+
+    def read_candles(self, symbol: str, timeframe: str, source: str, before: pd.Timestamp, count: int) -> pd.DataFrame:
+        """The last `count` candles that opened before `before`, oldest first, as a candle frame."""
+        rows = self.select(
+            "candles",
+            {
+                "select": "ts,open,high,low,close,volume",
+                "symbol": f"eq.{symbol}",
+                "timeframe": f"eq.{timeframe}",
+                "source": f"eq.{source}",
+                "ts": f"lt.{before.isoformat()}",
+                "order": "ts.desc",
+                "limit": str(count),
+            },
+        )
+        if not rows:
+            return pd.DataFrame(columns=["open", "high", "low", "close", "volume"], index=pd.DatetimeIndex([], tz="UTC"))
+        df = pd.DataFrame(rows)
+        df.index = pd.to_datetime(df.pop("ts"), utc=True)
+        return df.sort_index()[["open", "high", "low", "close", "volume"]].astype(float)
 
     def upsert_symbols(self, symbols: Iterable[dict]) -> int:
         return self._upsert("symbols", "symbol", list(symbols))

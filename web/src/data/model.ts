@@ -74,3 +74,36 @@ export function duplicateWorkspace(w: Workspace, position: number): Workspace {
     updated_at: undefined,
   };
 }
+
+// --- scanner (read-only in the app; the server writes) ---
+
+export interface ScanDef {
+  id: string;
+  label: string;
+  rule: string;
+  timeframe: Timeframe;
+  params: Record<string, number>;
+  symbols: string[] | null;
+  tab: "squeeze_on" | "squeeze_fired" | "breakout" | "spy";
+  position: number;
+}
+
+export interface ScanResult {
+  symbol: string;
+  candle_ts: string;
+  direction: "up" | "down" | null;
+  vals: Record<string, number | null>;
+  context: Record<string, number | null>;
+}
+
+export interface ScanRun {
+  id: number;
+  scan_id: string;
+  ran_at: string;
+  as_of: string;
+  symbols: string[];
+  source: string;
+  matches: number;
+  notes: string | null;
+  results: ScanResult[];
+}

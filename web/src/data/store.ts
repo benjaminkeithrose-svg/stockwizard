@@ -4,7 +4,7 @@
 
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
 import { Candles, emptyCandles, madeUpCandles, Timeframe } from "./candles";
-import { SymbolInfo, Watchlist, Workspace } from "./model";
+import { ScanDef, ScanResult, ScanRun, SymbolInfo, Watchlist, Workspace } from "./model";
 import { SUPABASE_KEY, SUPABASE_URL } from "../config";
 
 export interface User {
@@ -30,6 +30,10 @@ export interface Store {
   watchlists(): Promise<Watchlist[]>;
   saveWatchlist(w: Watchlist): Promise<Watchlist>;
   deleteWatchlist(id: Watchlist["id"]): Promise<void>;
+
+  scans(): Promise<ScanDef[]>;
+  /** The latest scheduled or manual run of each scan, with its matches. Re-runs are checks, not shown. */
+  latestRuns(): Promise<Record<string, ScanRun>>;
 }
 
 // Prefer the broker's data once it exists; the free source until then.
@@ -168,6 +172,36 @@ export class SupabaseStore implements Store {
   async deleteWatchlist(id: Watchlist["id"]) {
     this.check(await this.sb.from("watchlists").delete().eq("id", id));
   }
+
+  async scans() {
+    return this.check(await this.sb.from("scans").select("id,label,rule,timeframe,params,symbols,tab,position").eq("enabled", true).order("position")) as ScanDef[];
+  }
+
+  async latestRuns() {
+    const runs = this.check(
+      await this.sb.from("scan_runs").select("id,scan_id,ran_at,as_of,symbols,source,matches,notes")
+        .neq("trigger", "rerun").order("ran_at", { ascending: false }).limit(200),
+    ) as Omit<ScanRun, "results">[];
+    const latest = latestPerScan(runs, []);
+    const ids = Object.values(latest).map((r) => r.id);
+    if (!ids.length) return latest;
+    const results = this.check(
+      await this.sb.from("scan_results").select("run_id,symbol,candle_ts,direction,vals,context").in("run_id", ids),
+    ) as (ScanResult & { run_id: number })[];
+    return latestPerScan(runs, results);
+  }
+}
+
+export function latestPerScan(runs: Omit<ScanRun, "results">[], results: (ScanResult & { run_id: number })[]) {
+  const out: Record<string, ScanRun> = {};
+  for (const r of runs) if (!out[r.scan_id]) out[r.scan_id] = { ...r, results: [] };
+  const byId = new Map(Object.values(out).map((r) => [r.id, r]));
+  for (const res of results) {
+    const { run_id, ...rest } = res;
+    byId.get(run_id)?.results.push(rest);
+  }
+  for (const r of Object.values(out)) r.results.sort((a, b) => a.symbol.localeCompare(b.symbol));
+  return out;
 }
 
 /** Everything in this browser's storage, made-up candles. Never touches the network. */
@@ -242,5 +276,34 @@ export class DemoStore implements Store {
     const d = this.load();
     d.watchlists = d.watchlists.filter((x) => x.id !== id);
     this.save(d);
+  }
+
+  async scans(): Promise<ScanDef[]> {
+    const def = (id: string, label: string, rule: string, timeframe: Timeframe, tab: ScanDef["tab"], position: number): ScanDef =>
+      ({ id, label, rule, timeframe, params: {}, symbols: tab === "spy" ? ["SPY"] : null, tab, position });
+    return [
+      def("squeeze_on_1d", "Squeeze on", "squeeze_on", "1d", "squeeze_on", 0),
+      def("squeeze_on_1h", "Squeeze on", "squeeze_on", "1h", "squeeze_on", 1),
+      def("squeeze_fired_1d", "Squeeze fired", "squeeze_fired", "1d", "squeeze_fired", 0),
+      def("breakout_1d", "Breakouts", "breakout", "1d", "breakout", 0),
+      def("spy_trend_break", "SPY trend break", "trend_break", "1d", "spy", 0),
+      def("spy_drawdown", "SPY drawdown", "drawdown", "1d", "spy", 1),
+    ];
+  }
+
+  async latestRuns(): Promise<Record<string, ScanRun>> {
+    const when = new Date(Date.now() - 3600_000).toISOString();
+    const run = (id: number, scan_id: string, results: ScanResult[]): ScanRun =>
+      ({ id, scan_id, ran_at: when, as_of: when, symbols: ["DEMO", "TEST"], source: "made-up", matches: results.length, notes: null, results });
+    const r = (symbol: string, direction: ScanResult["direction"], vals: ScanResult["vals"], context = {}): ScanResult =>
+      ({ symbol, candle_ts: when, direction, vals, context });
+    return {
+      squeeze_on_1d: run(1, "squeeze_on_1d", [r("DEMO", "up", { candles_on: 6, momentum: 0.42 })]),
+      squeeze_on_1h: run(2, "squeeze_on_1h", []),
+      squeeze_fired_1d: run(3, "squeeze_fired_1d", [r("TEST", "down", { momentum: -0.8 })]),
+      breakout_1d: run(4, "breakout_1d", [r("DEMO", "up", { level: 101.5, volume_ratio: 1.3 })]),
+      spy_trend_break: run(5, "spy_trend_break", []),
+      spy_drawdown: run(6, "spy_drawdown", [r("SPY", "down", { drawdown_pct: -5.4, first_day: 1 }, { "^VIX": 19.2 })]),
+    };
   }
 }

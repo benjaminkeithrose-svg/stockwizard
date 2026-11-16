@@ -2,8 +2,8 @@
 
 A technical-analysis workspace: charts, a scanner, a bar-by-bar backtester, a
 pattern lab and, last of all, a paper-trading bot on Interactive Brokers, all
-backed by Supabase. Phase 0 (indicators, loader, database) and phase 1
-(the chart workspace web app) are built.
+backed by Supabase. Phases 0 (indicators, loader, database), 1 (the chart
+workspace web app) and 2 (the scanner) are built.
 
 ## Who you are working with
 
@@ -38,6 +38,9 @@ inputs listed under "Still needed from Ben" (Supabase project first).
 | `backend/stockwizard/indicators/` | The indicator library and its registry; bump an indicator's version when its maths changes |
 | `backend/stockwizard/data/` | Candle sources behind one interface (the free Yahoo source for now) and the Supabase writer |
 | `backend/stockwizard/load.py` | Loads a symbol list's candles into Supabase |
+| `backend/stockwizard/scans.py` | Scan rules: a signal for every candle, causal, truncation-tested; bump a rule's version when it changes |
+| `backend/stockwizard/scan.py` | Runs the enabled scans and saves each run with what it used; `--rerun N` repeats a run and checks it matches |
+| `web/src/ui/Scanner.tsx` | The Scanner screen: the latest run of each scan, in tabs |
 | `backend/tests/` | Truncation test on every indicator, hand-worked values, loader tests. Made-up candles only |
 | `backend/tools/make_golden.py` | Writes `web/src/indicators/golden.json`, the Python library's numbers the browser copy must match |
 | `web/` | The web app: React, Vite, TypeScript, Lightweight Charts (TradingView, Apache 2.0; keep its logo link on) |
@@ -47,7 +50,7 @@ inputs listed under "Still needed from Ben" (Supabase project first).
 | `web/src/ui/` | Screens, sheets and styles. The look is Field CRM's (`benjaminkeithrose-svg/CRM`, `index.html`), without its logo |
 | `web/public/sw.js` | Service worker. `CACHE` must equal `stockwizard-` + `APP_BUILD` in `web/src/config.ts`; bump both on every change to the app |
 | `supabase/migrations/` | Database changes, one file per change, applied in order |
-| `.github/workflows/` | `pages.yml` publishes the app on each merge; `topup.yml` loads the last 10 days of candles every US trading day (needs the repository secret `SUPABASE_SECRET_KEY`); `keepalive.yml` pings Supabase twice a week so the free project isn't paused |
+| `.github/workflows/` | `pages.yml` publishes the app on each merge; `topup.yml` loads the last 10 days of candles every US trading day, then runs the scans (needs the repository secret `SUPABASE_SECRET_KEY`); `keepalive.yml` pings Supabase twice a week so the free project isn't paused |
 | `IDEAS.md` | Ben's ideas not yet scheduled. Add to it rather than building unasked |
 | `supabase/tests/` | Row-level security checks, run on a local Postgres with a stand-in for Supabase's sign-in |
 
