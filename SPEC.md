@@ -24,6 +24,8 @@ These are settled, so do not reopen them:
 - Strategies, in order: VIX spike spreads, 0DTE condors and butterflies, then squeeze setups.
 - Starting account: $1,000 to $2,000. Early trades risk under $50.
 - Backtest history: up to 20 years where data allows. Daily SPX expiries only began in 2022, so 0DTE tests will be shorter.
+- Front end: React, with an open-source candlestick chart library whose licence is checked before it is added. This replaces the plain-JavaScript default in `PREFERENCES.md`. (Decided 16 Nov 2026.)
+- Development data: a free, unofficial candle source is used to build and test until IBKR or a paid source is in place. It sits behind the same loader interface so it can be swapped, every candle records it as its data source, and nothing tested on it is reported as validated. (Decided 16 Nov 2026.)
 
 Still needed from Ben before the dependent work starts:
 
@@ -38,7 +40,7 @@ Still needed from Ben before the dependent work starts:
 
 ## Build order
 
-Build in this order, and do not start a phase until the previous one meets its done-when. The indicator library and the backtest engine come before any screen that uses them.
+Build in this order, and do not start a phase until the previous one meets its done-when. Ben confirmed this order on 16 Nov 2026. The indicator library and the backtest engine come before any screen that uses them.
 
 | Phase | Build | Done when |
 | --- | --- | --- |
