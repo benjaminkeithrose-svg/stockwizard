@@ -57,9 +57,10 @@ def find_owner(store: SupabaseStore) -> str:
 
 
 class BotRunner:
-    def __init__(self, store, owner: str, clock=lambda: datetime.now(timezone.utc), broker=None):
+    def __init__(self, store, owner: str, clock=lambda: datetime.now(timezone.utc), broker=None, market=None):
         self.store, self.owner, self.clock = store, owner, clock
         self.db_ids: dict[int, int] = {}   # the bot's order number → paper_orders.id
+        self.strategy_of: dict[int, dict] = {}   # the bot's order number → the bot_strategies row that proposed it
         rows = store.select("paper_orders", {"select": "*", "owner": f"eq.{owner}", "status": f"in.({','.join(OPEN_STATUSES)})", "order": "id"})
         remembered = [BrokerOrder(r["broker_id"], request_from_dict(r), "working" if r["status"] == "sent" else "filled", r.get("fill_price"))
                       for r in rows if r.get("broker_id") and r["status"] in ("sent", "filled")]
@@ -72,7 +73,13 @@ class BotRunner:
                          None if r.get("max_loss") is None else float(r["max_loss"]), broker_id=r.get("broker_id"), reason=r.get("reason"))
             self.bot.adopt(p)
             self.db_ids[p.id] = r["id"]
+            if r.get("strategy_id"):
+                st = store.select("bot_strategies", {"select": "*", "id": f"eq.{r['strategy_id']}"})
+                if st:
+                    self.strategy_of[p.id] = st[0]
         self.bot.realised_loss_today = self.losses_today()
+        from stockwizard.strategy_runner import StrategyRunner  # noqa: PLC0415
+        self.strategies = StrategyRunner(self, market) if market is not None else None
         # Back from a restart: check against the broker before anything else.
         self.bot.reconciled = False
         self.bot.reconcile()
@@ -208,6 +215,9 @@ class BotRunner:
                     said.append(f"Order {r['id']}: cancelled by the kill switch")
         said += self.requests()
         said += self.record_quotes()
+        if self.strategies is not None:
+            now = self.clock()
+            said += self.strategies.propose_due(now)
         if isinstance(self.broker, PretendBroker):
             self.broker.step()   # the pretend market: working orders fill straight away, at their limit price
         pretend = " (pretend)" if isinstance(self.broker, PretendBroker) else ""
@@ -223,6 +233,9 @@ class BotRunner:
                 self.save(p)
                 self.audit("bot", "order_cancelled_at_broker", {"order": p.id, "broker_id": p.broker_id})
                 said.append(f"Order {self.db_ids[p.id]}: cancelled at the broker (rejected, or the day ended unfilled)")
+        if self.strategies is not None:
+            said += self.strategies.manage(self.clock())
+            said += self.strategies.settle(self.clock())
         return said
 
     # --- practice ---
@@ -254,7 +267,9 @@ def main(argv: list[str] | None = None) -> int:
         from stockwizard.broker.ibkr import IBKRBroker  # noqa: PLC0415 - needs ib_async, only on the PC
         broker = IBKRBroker(port=a.port, delayed=a.delayed)
         print(f"Connected to Interactive Brokers, paper account {broker.account}.")
-    runner = BotRunner(store, a.owner or find_owner(store), broker=broker)
+    from stockwizard.strategy_runner import IBKRMarket, PretendMarket  # noqa: PLC0415
+    market = IBKRMarket(broker, store) if broker is not None else PretendMarket(store)
+    runner = BotRunner(store, a.owner or find_owner(store), broker=broker, market=market)
     if a.practice:
         p = runner.practice()
         print(f"Practice order {runner.db_ids[p.id]}: {p.status}" + (f" ({'; '.join(r.why for r in p.refusals)})" if p.refusals else " — waiting for Ben"))

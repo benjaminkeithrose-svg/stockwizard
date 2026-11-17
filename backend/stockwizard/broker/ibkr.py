@@ -168,6 +168,9 @@ class IBKRBroker(Broker):
                 out.append(BrokerOrder(f"IB-position-{k[0]}-{k[1]}-{k[2]:g}{k[3]}", None, "filled"))
         return out
 
+    def settle(self, broker_id: str) -> None:
+        self._filled.pop(broker_id, None)   # IBKR settles cash-settled options itself; stop expecting the legs
+
     def remember(self, orders: list[BrokerOrder]) -> None:
         for o in orders:
             self._requests[o.broker_id] = o.request

@@ -24,7 +24,7 @@ class FakeStore:
                 continue
             op, _, arg = v.partition(".")
             val = row.get(k)
-            if op == "eq" and str(val) != arg:
+            if op == "eq" and (str(val).lower() if isinstance(val, bool) else str(val)) != arg:
                 return False
             if op == "in" and str(val) not in arg.strip("()").split(","):
                 return False
@@ -43,6 +43,8 @@ class FakeStore:
         out = []
         for r in rows:
             r = {**r}
+            if table == "audit_log":
+                r.setdefault("at", NOW.isoformat())   # the database stamps every entry
             if table in ("paper_orders", "bot_requests"):
                 r.setdefault("id", self.next_id)
                 r["updated_at"] = NOW.isoformat()

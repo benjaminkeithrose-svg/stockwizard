@@ -8,6 +8,7 @@ import { BotRequest, PaperOrder, SafetyLimits } from "../data/model";
 import type { Store } from "../data/store";
 import { expiryLabel, legName, structureLabel, Structure } from "../data/options";
 import { Sheet } from "./parts";
+import StrategiesSection from "./Strategies";
 
 const money = (v: number | null | undefined) => (v === null || v === undefined ? "—" : `$${v.toLocaleString(undefined, { maximumFractionDigits: 2 })}`);
 const STATUS: Record<PaperOrder["status"], string> = {
@@ -164,6 +165,8 @@ export default function SafetyScreen({ store }: { store: Store }) {
           </div>
         ))}
       </div>
+
+      <StrategiesSection store={store} onError={setError} />
 
       <h2>Limits</h2>
       <div className="card">

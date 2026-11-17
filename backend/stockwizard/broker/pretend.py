@@ -60,6 +60,11 @@ class PretendBroker(Broker):
         for o in orders:
             self.orders[o.broker_id] = o
 
+    def settle(self, broker_id: str) -> None:
+        if broker_id in self.orders:
+            self.orders[broker_id].status = "closed"
+        self.calls.append(("settle", broker_id))
+
     def status(self, broker_id: str) -> BrokerOrder | None:
         return self.orders.get(broker_id)
 
