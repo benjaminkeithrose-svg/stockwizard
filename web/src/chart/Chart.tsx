@@ -19,6 +19,7 @@ import {
 } from "lightweight-charts";
 import type { Candles, Timeframe } from "../data/candles";
 import type { Drawing, IndicatorInstance } from "../data/model";
+import { expiryLabel, legName, OptionPosition } from "../data/options";
 import { REGISTRY, unavailable } from "../indicators";
 
 export type TapMode = "none" | "level" | "trend" | "anchor";
@@ -33,7 +34,14 @@ interface Props {
   onTap?: (time: number, price: number) => void;
   /** A card on a chart page: no panning or zooming, so the card can be tapped and dragged. */
   still?: boolean;
+  /** Option structures on this symbol: a line per leg, purple while planned, green once bought. */
+  positions?: OptionPosition[];
+  /** The structure being adjusted: its lines are bold and can be dragged. */
+  editId?: string | null;
+  onDragLeg?: (positionId: string, leg: number, price: number) => void;
 }
+
+export const PLANNED = "#7A3E9D", BOUGHT = "#237F35";
 
 const nyTime = new Intl.DateTimeFormat("en-AU", {
   timeZone: "America/New_York", day: "numeric", month: "short", year: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false,
@@ -51,7 +59,7 @@ function histogramColour(values: number[], i: number) {
   return rising ? "#E8A0A6" : "#B2232F";
 }
 
-export default function Chart({ candles, timeframe, indicators, drawings, viewKey, onTap, still }: Props) {
+export default function Chart({ candles, timeframe, indicators, drawings, viewKey, onTap, still, positions, editId, onDragLeg }: Props) {
   const box = useRef<HTMLDivElement>(null);
   const chart = useRef<IChartApi | null>(null);
   const priceSeries = useRef<ISeriesApi<"Candlestick"> | null>(null);
@@ -59,6 +67,11 @@ export default function Chart({ candles, timeframe, indicators, drawings, viewKe
   const lastKey = useRef("");
   const tap = useRef(onTap);
   tap.current = onTap;
+  const optionLines = useRef<IPriceLine[]>([]);
+  const strikes = useRef<number[]>([]); // kept in view: the price scale stretches to show every leg
+  strikes.current = (positions ?? []).flatMap((p) => p.legs.map((l) => l.strike));
+  const editing = useRef<{ pos: OptionPosition | null; drag: typeof onDragLeg }>({ pos: null, drag: undefined });
+  editing.current = { pos: positions?.find((p) => p.id === editId) ?? null, drag: onDragLeg };
 
   // Create the chart once.
   useEffect(() => {
@@ -97,10 +110,52 @@ export default function Chart({ candles, timeframe, indicators, drawings, viewKe
       if (time !== null && price !== null) tap.current(time as number, price);
     };
     el.addEventListener("click", click);
+
+    // Dragging a leg of the structure being adjusted. Caught before the chart sees it, so the chart doesn't pan.
+    let drag: { id: string; leg: number } | null = null;
+    const grab = (e: PointerEvent | MouseEvent | TouchEvent) => {
+      const s = priceSeries.current, pos = editing.current.pos;
+      if (!s || !pos || !editing.current.drag) return;
+      if (e.type !== "pointerdown") { if (drag) { e.stopPropagation(); if (e.cancelable) e.preventDefault(); } return; }
+      const pe = e as PointerEvent;
+      const r = el.getBoundingClientRect();
+      const y = pe.clientY - r.top;
+      if (y > c.panes()[0].getHeight()) return;
+      const reach = pe.pointerType === "touch" ? 18 : 8;
+      let best = -1, dist = reach + 1;
+      pos.legs.forEach((l, i) => {
+        const ly = s.priceToCoordinate(l.strike);
+        if (ly !== null && Math.abs(ly - y) < dist) { dist = Math.abs(ly - y); best = i; }
+      });
+      if (best < 0) return;
+      drag = { id: pos.id, leg: best };
+      e.stopPropagation();
+      e.preventDefault();
+      c.applyOptions({ handleScroll: false, handleScale: false });
+    };
+    const move = (e: PointerEvent) => {
+      const s = priceSeries.current;
+      if (!drag || !s) return;
+      const price = s.coordinateToPrice(e.clientY - el.getBoundingClientRect().top);
+      if (price !== null) editing.current.drag?.(drag.id, drag.leg, price);
+    };
+    const drop = () => {
+      if (!drag) return;
+      drag = null;
+      if (!still) c.applyOptions({ handleScroll: true, handleScale: true });
+    };
+    for (const t of ["pointerdown", "mousedown", "touchstart"] as const) el.addEventListener(t, grab, { capture: true, passive: false });
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", drop);
+    window.addEventListener("pointercancel", drop);
     if (still) c.applyOptions({ handleScroll: false, handleScale: false, crosshair: { mode: 2 } });
     chart.current = c;
     return () => {
       el.removeEventListener("click", click);
+      for (const t of ["pointerdown", "mousedown", "touchstart"] as const) el.removeEventListener(t, grab, { capture: true });
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", drop);
+      window.removeEventListener("pointercancel", drop);
       c.remove();
       chart.current = null;
     };
@@ -124,6 +179,15 @@ export default function Chart({ candles, timeframe, indicators, drawings, viewKe
       upColor: UP, downColor: DOWN, borderUpColor: UP, borderDownColor: DOWN, wickUpColor: UP, wickDownColor: DOWN,
     });
     price.setData(t.map((time, i) => ({ time, open: candles.open[i], high: candles.high[i], low: candles.low[i], close: candles.close[i] })));
+    price.applyOptions({
+      autoscaleInfoProvider: (base: () => { priceRange: { minValue: number; maxValue: number } } | null) => {
+        const r = base();
+        if (!r || !strikes.current.length) return r;
+        return { ...r, priceRange: {
+          minValue: Math.min(r.priceRange.minValue, ...strikes.current), maxValue: Math.max(r.priceRange.maxValue, ...strikes.current),
+        } };
+      },
+    });
     priceSeries.current = price;
 
     let pane = 0;
@@ -187,6 +251,28 @@ export default function Chart({ candles, timeframe, indicators, drawings, viewKe
       }
     }
   }, [drawings, candles, timeframe, indicators, viewKey]);
+
+  // Option structures: a price line per leg. Short legs solid, long legs (the wings) dotted.
+  useEffect(() => {
+    const price = priceSeries.current;
+    if (!price) return;
+    optionLines.current.forEach((l) => price.removePriceLine(l));
+    optionLines.current = [];
+    for (const p of positions ?? []) {
+      const colour = p.status === "bought" ? BOUGHT : PLANNED;
+      const bold = p.id === editId;
+      for (const l of p.legs) {
+        optionLines.current.push(price.createPriceLine({
+          price: l.strike, color: colour, lineWidth: bold ? 3 : 1,
+          lineStyle: l.side === "sell" ? LineStyle.Solid : LineStyle.Dotted,
+          axisLabelVisible: true, title: still ? "" : `${legName(l)} · ${expiryLabel(p.expiry)}`,
+        }));
+      }
+    }
+    // Where the adjustable legs sit on screen right now (the browser test drags them).
+    const ed = positions?.find((p) => p.id === editId);
+    if (box.current) box.current.dataset.legs = ed ? JSON.stringify(ed.legs.map((l) => price.priceToCoordinate(l.strike))) : "";
+  }, [positions, editId, candles, timeframe, indicators, viewKey, still]);
 
   return <div className="chartbox" ref={box} data-testid="chart" />;
 }

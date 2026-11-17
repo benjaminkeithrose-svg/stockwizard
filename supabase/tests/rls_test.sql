@@ -151,6 +151,40 @@ do $$ begin
 end $$;
 reset role;
 
+-- Favourites and option structures: own rows only; a structure needs 1 to 4 legs and a known status.
+grant all on public.user_settings, public.option_positions to authenticated;
+set role authenticated;
+set request.jwt.claim.sub = '00000000-0000-0000-0000-00000000000a';
+insert into public.user_settings (favourites) values ('[{"kind":"indicator","name":"ema","params":{"length":21}}]');
+insert into public.option_positions (symbol, structure, expiry, legs)
+  values ('SPY', 'iron_condor', '2026-11-20', '[{"right":"P","side":"buy","strike":589,"qty":1},{"right":"P","side":"sell","strike":594,"qty":1},{"right":"C","side":"sell","strike":606,"qty":1},{"right":"C","side":"buy","strike":611,"qty":1}]');
+do $$ begin
+  begin
+    insert into public.option_positions (symbol, structure, expiry, legs) values ('SPY', 'call', '2026-11-20', '[]');
+    raise exception 'FAIL: a structure with no legs accepted';
+  exception when check_violation then null; end;
+  begin
+    insert into public.option_positions (symbol, structure, expiry, legs, status) values ('SPY', 'call', '2026-11-20', '[{"right":"C","side":"buy","strike":600,"qty":1}]', 'sent');
+    raise exception 'FAIL: an unknown status accepted';
+  exception when check_violation then null; end;
+end $$;
+set request.jwt.claim.sub = '00000000-0000-0000-0000-00000000000b';
+do $$ begin
+  if (select count(*) from public.option_positions) <> 0 then raise exception 'FAIL: B sees A''s option structures'; end if;
+  if (select count(*) from public.user_settings) <> 0 then raise exception 'FAIL: B sees A''s favourites'; end if;
+  update public.option_positions set status = 'bought';
+  begin
+    insert into public.option_positions (owner, symbol, structure, expiry, legs)
+      values ('00000000-0000-0000-0000-00000000000a', 'SPY', 'call', '2026-11-20', '[{"right":"C","side":"buy","strike":600,"qty":1}]');
+    raise exception 'FAIL: B wrote a structure as A';
+  exception when insufficient_privilege then null; end;
+end $$;
+set request.jwt.claim.sub = '00000000-0000-0000-0000-00000000000a';
+do $$ begin
+  if (select status from public.option_positions) <> 'planned' then raise exception 'FAIL: B changed A''s structure'; end if;
+end $$;
+reset role;
+
 -- Backtests: signed-in users read; only the server writes.
 grant all on public.strategies, public.backtest_runs, public.backtest_trades, public.backtest_metrics to anon, authenticated;
 set role authenticated;

@@ -191,3 +191,32 @@ export interface PatternRun {
   sealed_burned: boolean;
   candidates: PatternCandidate[];
 }
+
+// --- favourites (user_settings) ---
+
+/** A chip in the favourites row: an indicator with its settings, or an option structure. */
+export type Favourite =
+  | { kind: "indicator"; name: string; params: Params }
+  | { kind: "structure"; structure: import("./options").Structure };
+
+export interface UserSettings { favourites: Favourite[] }
+
+export const MAX_FAVOURITES = 20;
+
+export const DEFAULT_FAVOURITES: Favourite[] = [
+  { kind: "indicator", name: "ema", params: { length: 21 } },
+  { kind: "indicator", name: "sma", params: { length: 200 } },
+  { kind: "indicator", name: "bollinger", params: { length: 20, mult: 2 } },
+  { kind: "indicator", name: "rsi", params: { length: 14 } },
+  { kind: "indicator", name: "squeeze", params: { ...REGISTRY.squeeze.defaults } },
+  { kind: "structure", structure: "iron_condor" },
+];
+
+const sameParams = (a: Params, b: Params) => {
+  const keys = new Set([...Object.keys(a), ...Object.keys(b)]);
+  return [...keys].every((k) => String(a[k] ?? "") === String(b[k] ?? ""));
+};
+
+/** The same indicator with the same settings (a favourite matches an indicator on the chart). */
+export const sameIndicator = (a: { name: string; params: Params }, b: { name: string; params: Params }) =>
+  a.name === b.name && sameParams({ ...REGISTRY[a.name]?.defaults, ...a.params }, { ...REGISTRY[b.name]?.defaults, ...b.params });

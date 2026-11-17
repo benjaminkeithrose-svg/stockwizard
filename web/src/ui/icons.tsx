@@ -44,3 +44,12 @@ export const Flask = () => (
 export const Spark = () => (
   <svg className="ic" viewBox="0 0 24 24" aria-hidden="true"><path {...P} d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8L12 3zM19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8L19 15z" /></svg>
 );
+export const Star = ({ filled }: { filled?: boolean }) => (
+  <svg className="ic" viewBox="0 0 24 24" aria-hidden="true">
+    <path {...P} fill={filled ? "currentColor" : "none"} d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z" />
+  </svg>
+);
+/** Options: a short strike between two wings. */
+export const Legs = () => (
+  <svg className="ic" viewBox="0 0 24 24" aria-hidden="true"><path {...P} d="M3 5h18M3 19h18" strokeDasharray="2 3" /><path {...P} d="M3 9h18M3 15h18" /></svg>
+);

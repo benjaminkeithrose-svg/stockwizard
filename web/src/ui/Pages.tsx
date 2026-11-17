@@ -10,6 +10,7 @@ import { addCard, Card, COLS, MAX_CARDS, moveCard, ordered, removeCard, resizeCa
 import { ChartView, newId, Workspace } from "../data/model";
 import { cachedCandles, Store } from "../data/store";
 import type { useViews } from "../data/useViews";
+import type { OptionPosition } from "../data/options";
 import type { useWorkspaces } from "../data/useWorkspaces";
 import { Plus } from "./icons";
 import { AskText, ConfirmDelete, MoreMenu, Sheet } from "./parts";
@@ -31,7 +32,7 @@ function useWide() {
   return wide;
 }
 
-function CardChart({ store, w }: { store: Store; w: Workspace }) {
+function CardChart({ store, w, positions }: { store: Store; w: Workspace; positions: OptionPosition[] }) {
   const [candles, setCandles] = useState<Candles>(emptyCandles());
   const [state, setState] = useState<"loading" | "ok" | "error">("loading");
   useEffect(() => {
@@ -45,7 +46,7 @@ function CardChart({ store, w }: { store: Store; w: Workspace }) {
   return (
     <>
       <Chart candles={candles} timeframe={w.timeframe} indicators={w.indicators} drawings={w.drawings}
-        viewKey={`card|${w.id}|${w.symbol}|${w.timeframe}`} still />
+        viewKey={`card|${w.id}|${w.symbol}|${w.timeframe}`} still positions={positions} />
       {!candles.time.length && (
         <div className="chartmsg">{state === "loading" ? "Loading…" : state === "error" ? "Couldn't load candles" : `No ${w.symbol} ${w.timeframe} candles yet`}</div>
       )}
@@ -55,7 +56,7 @@ function CardChart({ store, w }: { store: Store; w: Workspace }) {
 
 type Drag = { id: string; kind: "move" | "size"; sx: number; sy: number; dx: number; dy: number };
 
-export default function PagesScreen(props: { store: Store; views: Views; ws: WS; onOpen: (workspaceId: string) => void }) {
+export default function PagesScreen(props: { store: Store; views: Views; ws: WS; positions: OptionPosition[]; onOpen: (workspaceId: string) => void }) {
   const { views, ws, store } = props;
   const v = views.active;
   const wide = useWide();
@@ -155,7 +156,7 @@ export default function PagesScreen(props: { store: Store; views: Views; ws: WS;
         </div>
         <div className="gbody" role="button" tabIndex={0} aria-label={`Open ${w.name} full screen`}
           onClick={() => !moved.current && props.onOpen(w.id)} onKeyDown={(e) => e.key === "Enter" && props.onOpen(w.id)}>
-          <CardChart store={store} w={w} />
+          <CardChart store={store} w={w} positions={props.positions.filter((p) => p.symbol === w.symbol)} />
         </div>
         {!phone && <div className="gsize" aria-hidden="true" onPointerDown={(e) => start(e, c.id, "size")} />}
       </div>

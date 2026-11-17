@@ -12,6 +12,7 @@ import { indicator } from "../data/model";
 import { BacktestScreen, BacktestsScreen } from "./Backtests";
 import PagesScreen from "./Pages";
 import { useViews } from "../data/useViews";
+import { useFavourites, usePositions } from "../data/usePositions";
 import { cameBackFresh, checkForUpdate, getLatestVersion } from "../update";
 import ScannerScreen from "./Scanner";
 import type { Timeframe } from "../data/candles";
@@ -68,6 +69,8 @@ function SignedIn({ store, user }: { store: Store; user: User }) {
   const ws = useWorkspaces(store, user.id, firstSymbol);
   const wl = useWatchlists(store);
   const views = useViews(store, user.id);
+  const pos = usePositions(store, user.id);
+  const fav = useFavourites(store, user.id);
   const [strategyLabels, setStrategyLabels] = useState<Record<string, string>>({});
   useEffect(() => { store.strategies().then((s) => setStrategyLabels(Object.fromEntries(s.map((x) => [x.id, x.label])))).catch(() => {}); }, [store]);
   const [screen, setScreen] = useState<Screen>({ name: "chart" });
@@ -137,12 +140,12 @@ function SignedIn({ store, user }: { store: Store; user: User }) {
       {screen.name === "backtests" && <BacktestsScreen store={store} onOpen={(id) => setScreen({ name: "backtest", id })} />}
       {screen.name === "backtest" && <BacktestScreen store={store} id={screen.id} />}
       {screen.name === "pages" && (
-        <PagesScreen store={store} views={views} ws={ws} onOpen={(id) => { ws.setActiveId(id); setScreen({ name: "card" }); }} />
+        <PagesScreen store={store} views={views} ws={ws} positions={pos.list} onOpen={(id) => { ws.setActiveId(id); setScreen({ name: "card" }); }} />
       )}
-      {screen.name === "card" && <ChartScreen store={store} ws={ws} symbols={symbols} firstSymbol={firstSymbol} single />}
+      {screen.name === "card" && <ChartScreen store={store} ws={ws} pos={pos} fav={fav} symbols={symbols} firstSymbol={firstSymbol} single />}
       {screen.name === "scanner" && <ScannerScreen store={store} onOpen={openOnChart} />}
       {toast && <div className="toast" role="status">{toast}</div>}
-      {screen.name === "chart" && <ChartScreen store={store} ws={ws} symbols={symbols} firstSymbol={firstSymbol} />}
+      {screen.name === "chart" && <ChartScreen store={store} ws={ws} pos={pos} fav={fav} symbols={symbols} firstSymbol={firstSymbol} />}
       {screen.name === "watchlists" && <WatchlistsScreen wl={wl} onOpen={(list) => setScreen({ name: "watchlist", list })} />}
       {screen.name === "watchlist" && (
         <WatchlistScreen wl={wl} list={screen.list} symbols={symbols}

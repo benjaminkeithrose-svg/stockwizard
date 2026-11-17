@@ -5,7 +5,8 @@
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
 import { Candles, emptyCandles, madeUpCandles, Timeframe } from "./candles";
 import type { ClaudeMessage, ClaudeReply } from "./claude";
-import { BacktestRun, BacktestTrade, ChartView, PatternRun, ScanDef, ScanResult, ScanRun, StrategyDef, SymbolInfo, Watchlist, Workspace } from "./model";
+import type { OptionPosition } from "./options";
+import { BacktestRun, BacktestTrade, ChartView, DEFAULT_FAVOURITES, PatternRun, UserSettings, ScanDef, ScanResult, ScanRun, StrategyDef, SymbolInfo, Watchlist, Workspace } from "./model";
 import { SUPABASE_KEY, SUPABASE_URL } from "../config";
 
 export interface User {
@@ -35,6 +36,15 @@ export interface Store {
   views(): Promise<ChartView[]>;
   saveView(v: ChartView): Promise<ChartView>;
   deleteView(id: string): Promise<void>;
+
+  /** The person's settings (favourites); the defaults until they change one. */
+  settings(): Promise<UserSettings>;
+  saveSettings(s: UserSettings): Promise<void>;
+
+  /** Option structures drawn on the charts (plans; never orders). */
+  positions(): Promise<OptionPosition[]>;
+  savePosition(p: OptionPosition): Promise<OptionPosition>;
+  deletePosition(id: string): Promise<void>;
 
   strategies(): Promise<StrategyDef[]>;
   /** The latest manual or scheduled run of each strategy, with its metrics. Re-runs are checks, not shown. */
@@ -201,6 +211,28 @@ export class SupabaseStore implements Store {
     this.check(await this.sb.from("views").delete().eq("id", id));
   }
 
+  async settings(): Promise<UserSettings> {
+    const rows = this.check(await this.sb.from("user_settings").select("favourites")) as UserSettings[];
+    return rows[0] ?? { favourites: DEFAULT_FAVOURITES };
+  }
+
+  async saveSettings(st: UserSettings) {
+    this.check(await this.sb.from("user_settings").upsert({ favourites: st.favourites }));
+  }
+
+  async positions() {
+    return this.check(await this.sb.from("option_positions").select("*").neq("status", "closed").order("created_at")) as OptionPosition[];
+  }
+
+  async savePosition(p: OptionPosition) {
+    const { updated_at: _skip, ...row } = p;
+    return this.check(await this.sb.from("option_positions").upsert(row).select().single()) as OptionPosition;
+  }
+
+  async deletePosition(id: string) {
+    this.check(await this.sb.from("option_positions").delete().eq("id", id));
+  }
+
   async strategies() {
     return this.check(await this.sb.from("strategies").select("id,label,family,config,version,start_date,split_date,position,notes").eq("enabled", true).order("position")) as StrategyDef[];
   }
@@ -291,23 +323,32 @@ export function latestPerScan(runs: Omit<ScanRun, "results">[], results: (ScanRe
 }
 
 /** Everything in this browser's storage, made-up candles. Never touches the network. */
+interface DemoData {
+  workspaces: Workspace[];
+  watchlists: Watchlist[];
+  views: ChartView[];
+  positions: OptionPosition[];
+  settings: UserSettings;
+}
+
 export class DemoStore implements Store {
   readonly demo = true;
   private key = "stockwizard.demo";
   private user: User | null = { id: "demo", email: "demo" };
   private listeners = new Set<(u: User | null) => void>();
 
-  private load(): { workspaces: Workspace[]; watchlists: Watchlist[]; views: ChartView[] } {
+  private load(): DemoData {
     try {
       const raw = localStorage.getItem(this.key);
-      if (raw) return { views: [], ...JSON.parse(raw) };
+      if (raw) return { views: [], positions: [], settings: { favourites: DEFAULT_FAVOURITES }, ...JSON.parse(raw) };
     } catch {
       /* storage blocked: start empty */
     }
-    return { workspaces: [], views: [], watchlists: [{ id: "demo-1", name: "Made-up list", is_universe: false, symbols: ["DEMO", "TEST"] }] };
+    return { workspaces: [], views: [], positions: [], settings: { favourites: DEFAULT_FAVOURITES },
+      watchlists: [{ id: "demo-1", name: "Made-up list", is_universe: false, symbols: ["DEMO", "TEST"] }] };
   }
 
-  private save(d: { workspaces: Workspace[]; watchlists: Watchlist[]; views: ChartView[] }) {
+  private save(d: DemoData) {
     try {
       localStorage.setItem(this.key, JSON.stringify(d));
     } catch {
@@ -377,6 +418,30 @@ export class DemoStore implements Store {
   async deleteView(id: string) {
     const d = this.load();
     d.views = d.views.filter((x) => x.id !== id);
+    this.save(d);
+  }
+
+  async settings() { return this.load().settings; }
+
+  async saveSettings(st: UserSettings) {
+    const d = this.load();
+    d.settings = st;
+    this.save(d);
+  }
+
+  async positions() { return this.load().positions.filter((p) => p.status !== "closed"); }
+
+  async savePosition(p: OptionPosition) {
+    const d = this.load();
+    const saved = { ...p, updated_at: new Date().toISOString() };
+    d.positions = [...d.positions.filter((x) => x.id !== p.id), saved];
+    this.save(d);
+    return saved;
+  }
+
+  async deletePosition(id: string) {
+    const d = this.load();
+    d.positions = d.positions.filter((x) => x.id !== id);
     this.save(d);
   }
 
