@@ -288,3 +288,31 @@ button.icon.star.on { color: #C99A00; }
 .card.order { border-left-color: var(--ink-3); }
 .card.order.proposed { border-left-color: var(--orange, #E07B00); }
 .card.order.sent, .card.order.filled { border-left-color: #237F35; }
+
+/* ---------- options analysis ---------- */
+.analysis { max-width: 980px; }
+.anahead { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; margin-bottom: 8px; }
+.anahead .t { font-weight: 700; font-size: 15px; }
+.anahead .meta { font-size: 12px; color: var(--ink-3); margin-top: 2px; }
+.anabtns { display: flex; gap: 8px; margin-bottom: 10px; }
+.sliders { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 16px; align-items: center; margin-bottom: 8px;
+  background: var(--surface); border: 1px solid var(--edge); border-radius: var(--r-sm); padding: 10px 12px; }
+.sliders label { font-size: 13px; color: var(--ink-2); grid-row: 1; }
+.sliders input[type=range] { width: 100%; min-height: 32px; accent-color: #7A3E9D; grid-row: 2; }
+.graph { background: var(--surface); border: 1px solid var(--edge); border-radius: var(--r-sm); padding: 6px 4px 6px; margin-bottom: 10px; overflow: hidden; }
+.graph .readout { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 12px; min-height: 18px; padding: 0 8px 4px; }
+.graph .legend { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 11.5px; color: var(--ink-2); padding: 2px 8px 0; }
+.graph .legend i { display: inline-block; width: 18px; vertical-align: middle; margin-right: 5px; }
+b.up { color: #237F35; } b.down { color: #B2232F; }
+.cmptable { display: grid; gap: 0; background: var(--surface); border: 1px solid var(--edge); border-radius: var(--r-sm); overflow-x: auto; margin-bottom: 12px; }
+.cmptable > div { display: grid; grid-template-columns: 1.3fr repeat(3, 1fr); border-top: 1px solid var(--line-2); }
+.cmptable > div.head { border-top: 0; font-weight: 700; font-size: 12px; }
+.cmptable span { padding: 7px 10px; font-size: 13px; }
+.cmptable span[role=rowheader] { color: var(--ink-3); font-size: 12px; }
+@media (max-width: 560px) {
+  .sliders { grid-template-columns: 1fr; }
+  .sliders label, .sliders input[type=range] { grid-row: auto; }
+  .anabtns button { padding: 10px 0; }
+  .cmptable > div { grid-template-columns: 1.1fr repeat(3, 1fr); }
+  .cmptable span { padding: 6px 6px; font-size: 12px; }
+}

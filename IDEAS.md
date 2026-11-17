@@ -57,7 +57,7 @@ backtest:
   (phase 5: orders only ever go out after Ben approves them, behind the
   safety rails).
 
-## Positions on every chart, and an analysis screen (17 Nov 2026) — positions on every chart built 17 Nov 2026; the analysis screen needs option prices
+## Positions on every chart, and an analysis screen (17 Nov 2026) — positions on every chart built 17 Nov 2026; the analysis screen and comparison built 18 Nov 2026 on theoretical prices, real quotes once IBKR is connected
 
 Follows on from the one-tap option structures above.
 

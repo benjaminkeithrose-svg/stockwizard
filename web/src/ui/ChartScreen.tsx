@@ -1,7 +1,7 @@
 // The chart workspace: tabs, then the toolbar, then the chart. Every control
 // sits above the chart, none below it.
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Chart, { TapMode } from "../chart/Chart";
 import { Candles, emptyCandles, TIMEFRAMES, Timeframe } from "../data/candles";
 import { Favourite, indicator, newId, sameIndicator, SymbolInfo, Workspace } from "../data/model";
@@ -28,6 +28,10 @@ function defaultExpiry() {
 
 export default function ChartScreen(props: {
   store: Store; ws: WS; pos: Pos; fav: Fav; symbols: SymbolInfo[]; firstSymbol: () => string; single?: boolean;
+  /** Tapping a structure's chip opens its analysis. */
+  onAnalyse?: (id: string) => void;
+  /** Start by adjusting this structure (back from its analysis). */
+  adjust?: string | null;
 }) {
   const { store, ws, pos, fav } = props;
   const w = ws.active;
@@ -37,7 +41,7 @@ export default function ChartScreen(props: {
   const [sheet, setSheet] = useState<"symbol" | "indicators" | "draw" | "options" | null>(null);
   const [openIndicator, setOpenIndicator] = useState<string | null>(null);
   const [expiry, setExpiryState] = useState(defaultExpiry);
-  const [adjusting, setAdjusting] = useState<string | null>(null);
+  const [adjusting, setAdjusting] = useState<string | null>(props.adjust ?? null);
   const [moveMode, setMoveMode] = useState<MoveMode>("whole");
   const [details, setDetails] = useState<OptionPosition | null>(null);
   const [deletingPos, setDeletingPos] = useState<OptionPosition | null>(null);
@@ -66,7 +70,8 @@ export default function ChartScreen(props: {
 
   const stopTapping = () => { setTapMode("none"); setTrendStart(null); setAnchorFor(null); };
   useEffect(stopTapping, [w?.id]);
-  useEffect(() => setAdjusting(null), [w?.id, w?.symbol]);
+  const firstRender = useRef(true);
+  useEffect(() => { if (firstRender.current) { firstRender.current = false; return; } setAdjusting(null); }, [w?.id, w?.symbol]);
 
   const onTap = (time: number, price: number) => {
     if (!w || tapMode === "none") return;
@@ -176,7 +181,8 @@ export default function ChartScreen(props: {
           const name = `${structureLabel(p.structure)} ${expiryLabel(p.expiry)}`;
           return (
             <span key={p.id} className={`xchip opt ${p.status}${p.id === adjusting ? " on" : ""}`}>
-              <button className="xname" aria-label={`${name}, adjust`} onClick={() => setAdjusting(p.id === adjusting ? null : p.id)}>{name}</button>
+              <button className="xname" aria-label={`${name}, analyse`}
+                onClick={() => (props.onAnalyse ? props.onAnalyse(p.id) : setAdjusting(p.id === adjusting ? null : p.id))}>{name}</button>
               <button className="x" aria-label={`Delete ${name}`} onClick={() => setDeletingPos(p)}><Close /></button>
             </span>
           );
@@ -201,6 +207,7 @@ export default function ChartScreen(props: {
               ))}
             </div>
             <button className="adjbtn" onClick={() => setDetails(adjustingPos)}>Details</button>
+            {props.onAnalyse && <button className="adjbtn" onClick={() => props.onAnalyse!(adjustingPos.id)}>Analyse</button>}
             <button className="adjbtn" onClick={() => setAdjusting(null)}>Done</button>
           </div>
         )}

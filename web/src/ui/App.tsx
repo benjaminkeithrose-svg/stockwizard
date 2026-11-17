@@ -7,6 +7,8 @@ import type { SymbolInfo, Watchlist } from "../data/model";
 import { useWorkspaces } from "../data/useWorkspaces";
 import ChartScreen from "./ChartScreen";
 import SafetyScreen from "./Safety";
+import AnalysisScreen from "./Analysis";
+import { structureLabel } from "../data/options";
 import { Back, Flask, Grid, Home, List, Radar, Spark } from "./icons";
 import ClaudePanel from "./ClaudePanel";
 import { indicator } from "../data/model";
@@ -22,7 +24,7 @@ import SignIn from "./SignIn";
 import { useWatchlists, WatchlistScreen, WatchlistsScreen } from "./Watchlists";
 import { APP_BUILD } from "../config";
 
-type Screen = { name: "chart" } | { name: "scanner" } | { name: "pages" } | { name: "card" } | { name: "backtests" } | { name: "backtest"; id: string } | { name: "watchlists" } | { name: "safety" } | { name: "watchlist"; list: Watchlist };
+type Screen = { name: "chart" } | { name: "scanner" } | { name: "pages" } | { name: "card" } | { name: "backtests" } | { name: "backtest"; id: string } | { name: "watchlists" } | { name: "safety" } | { name: "analysis"; id: string } | { name: "watchlist"; list: Watchlist };
 
 export function makeStore(): Store {
   return new URLSearchParams(location.search).has("demo") ? new DemoStore() : new SupabaseStore();
@@ -75,6 +77,14 @@ function SignedIn({ store, user }: { store: Store; user: User }) {
   const [strategyLabels, setStrategyLabels] = useState<Record<string, string>>({});
   useEffect(() => { store.strategies().then((s) => setStrategyLabels(Object.fromEntries(s.map((x) => [x.id, x.label])))).catch(() => {}); }, [store]);
   const [screen, setScreen] = useState<Screen>({ name: "chart" });
+  const [adjust, setAdjust] = useState<string | null>(null);
+  // "Adjust on the chart" is read once, when the chart opens; forget it after that.
+  useEffect(() => {
+    if (!adjust || screen.name !== "chart") return;
+    const t = setTimeout(() => setAdjust(null), 0);
+    return () => clearTimeout(t);
+  }, [adjust, screen.name]);
+  const analysing = screen.name === "analysis" ? pos.list.find((p) => p.id === screen.id) ?? null : null;
   const [toast, setToast] = useState<string | null>(null);
   const [claudeOpen, setClaudeOpen] = useState(false);
   useEffect(() => {
@@ -91,11 +101,11 @@ function SignedIn({ store, user }: { store: Store; user: User }) {
     : screen.name === "card" ? () => setScreen({ name: "pages" })
     : screen.name === "backtest" ? () => setScreen({ name: "backtests" })
     : screen.name === "backtests" ? () => setScreen({ name: "chart" })
-    : screen.name === "watchlists" || screen.name === "scanner" || screen.name === "pages" || screen.name === "safety" ? () => setScreen({ name: "chart" }) : undefined;
+    : screen.name === "watchlists" || screen.name === "scanner" || screen.name === "pages" || screen.name === "safety" || screen.name === "analysis" ? () => setScreen({ name: "chart" }) : undefined;
   const title = screen.name === "chart" ? "Stock Wizard" : screen.name === "scanner" ? "Scanner"
     : screen.name === "pages" ? "Chart pages" : screen.name === "backtests" ? "Backtests"
     : screen.name === "backtest" ? (strategyLabels[screen.id] ?? "Backtest") : screen.name === "card" ? (ws.active?.name ?? "Chart")
-    : screen.name === "watchlists" ? "Watchlists" : screen.name === "safety" ? "Safety" : screen.list.name;
+    : screen.name === "watchlists" ? "Watchlists" : screen.name === "safety" ? "Safety" : screen.name === "analysis" ? (analysing ? `${structureLabel(analysing.structure)} · ${analysing.symbol}` : "Analysis") : screen.list.name;
   // Open a symbol and timeframe in the current tab; a tab still on its automatic name follows.
   const openOnChart = (s: string, tf?: Timeframe) => {
     const w = ws.active;
@@ -144,11 +154,17 @@ function SignedIn({ store, user }: { store: Store; user: User }) {
       {screen.name === "pages" && (
         <PagesScreen store={store} views={views} ws={ws} positions={pos.list} onOpen={(id) => { ws.setActiveId(id); setScreen({ name: "card" }); }} />
       )}
-      {screen.name === "card" && <ChartScreen store={store} ws={ws} pos={pos} fav={fav} symbols={symbols} firstSymbol={firstSymbol} single />}
+      {screen.name === "card" && <ChartScreen store={store} ws={ws} pos={pos} fav={fav} symbols={symbols} firstSymbol={firstSymbol} single
+        onAnalyse={(id) => { setAdjust(null); setScreen({ name: "analysis", id }); }} adjust={adjust} />}
       {screen.name === "scanner" && <ScannerScreen store={store} onOpen={openOnChart} />}
       {toast && <div className="toast" role="status">{toast}</div>}
-      {screen.name === "chart" && <ChartScreen store={store} ws={ws} pos={pos} fav={fav} symbols={symbols} firstSymbol={firstSymbol} />}
+      {screen.name === "chart" && <ChartScreen store={store} ws={ws} pos={pos} fav={fav} symbols={symbols} firstSymbol={firstSymbol}
+        onAnalyse={(id) => { setAdjust(null); setScreen({ name: "analysis", id }); }} adjust={adjust} />}
       {screen.name === "safety" && <SafetyScreen store={store} />}
+      {screen.name === "analysis" && (analysing
+        ? <AnalysisScreen store={store} position={analysing} others={pos.list.filter((p) => p.symbol === analysing.symbol)}
+            onAdjust={() => { setAdjust(analysing.id); setScreen({ name: "chart" }); }} />
+        : <div className="list"><p className="empty">That structure has been deleted.</p></div>)}
       {screen.name === "watchlists" && <WatchlistsScreen wl={wl} onOpen={(list) => setScreen({ name: "watchlist", list })} />}
       {screen.name === "watchlist" && (
         <WatchlistScreen wl={wl} list={screen.list} symbols={symbols}
