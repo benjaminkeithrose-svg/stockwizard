@@ -50,7 +50,7 @@ Still needed from Ben before the dependent work starts:
 - [ ] How IBKR applies day-trade rules to a $1,000 to $2,000 Australian account.
 - [ ] Maximum loss per day, once real spread prices are known.
 - [x] Exit rules for the first strategy: profit target, stop loss, time limit. (17 Nov 2026: two rules tested side by side, see Decisions.)
-- [ ] Where the bot runs: home PC or a small VPS.
+- [x] Where the bot runs: Ben's home PC first (18 Nov 2026), running IB Gateway and the bot through US market hours (Sydney night); a small cloud server later if the PC misses nights. Supabase alone can't host it: an individual IBKR account connects only through IB Gateway (OAuth web access is for organisations, advisers and brokers).
 
 ## Build order
 
