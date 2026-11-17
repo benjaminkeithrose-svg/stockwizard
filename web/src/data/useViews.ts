@@ -4,6 +4,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Store } from "./store";
+import { keepUnsaved, readUnsaved } from "./unsaved";
 import { ChartView, newId } from "./model";
 import type { SyncState } from "./useWorkspaces";
 
@@ -18,7 +19,9 @@ export function useViews(store: Store, userId: string) {
   const [activeId, setActiveId] = useState<string | null>(() => localStorage.getItem(activeKey));
   const [sync, setSync] = useState<SyncState>("saved");
   const [loaded, setLoaded] = useState(false);
-  const pending = useRef(new Map<string, ChartView>());
+  const unsavedKey = `stockwizard.views.unsaved.${userId}`;
+  const pending = useRef(readUnsaved<ChartView>(unsavedKey));
+  const keepPending = () => keepUnsaved(unsavedKey, pending.current);
   const timer = useRef<number | undefined>(undefined);
   const listRef = useRef(list);
   listRef.current = list;
@@ -29,7 +32,7 @@ export function useViews(store: Store, userId: string) {
     for (const [id, v] of [...pending.current]) {
       try {
         await store.saveView(v);
-        if (pending.current.get(id) === v) pending.current.delete(id);
+        if (pending.current.get(id) === v) { pending.current.delete(id); keepPending(); }
       } catch {
         setSync(navigator.onLine ? "error" : "offline");
         return;
@@ -42,6 +45,7 @@ export function useViews(store: Store, userId: string) {
     setList(next);
     write(next);
     changed.forEach((v) => pending.current.set(v.id, v));
+    keepPending();
     window.clearTimeout(timer.current);
     timer.current = window.setTimeout(flush, SAVE_DELAY);
   }, [flush]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -56,6 +60,7 @@ export function useViews(store: Store, userId: string) {
       setList(merged);
       write(merged);
       setLoaded(true);
+      flush();
     }).catch(() => { setSync("offline"); setLoaded(true); });
     const online = () => flush();
     window.addEventListener("online", online);
@@ -85,6 +90,7 @@ export function useViews(store: Store, userId: string) {
 
   const remove = useCallback(async (v: ChartView) => {
     pending.current.delete(v.id);
+    keepPending();
     const next = listRef.current.filter((x) => x.id !== v.id);
     setList(next);
     write(next);

@@ -53,6 +53,7 @@ inputs listed under "Still needed from Ben" (Supabase project first).
 | `backend/stockwizard/bot.py`, `backend/stockwizard/broker/` | The only path from an order to a broker: propose, rails, Ben's approval, rails again, send; kill switch; reconcile after a reconnect; every step audited. `PretendBroker` stands in for IBKR; a live broker is refused outright |
 | `web/src/data/options.ts`, `web/src/ui/OptionSheets.tsx` | Calls and puts on the chart: structures, default placement (one daily range out, $5 wings), moving whole, by side or by leg. Plans only, saved in `option_positions` |
 | `web/src/data/usePositions.ts` | Option structures and the favourites row, kept on the device and saved to Supabase |
+| `web/src/data/unsaved.ts` | Changes waiting to be saved are kept on the device too, so closing the app straight after a change loses nothing; used by tabs, chart pages, structures and favourites |
 | `web/src/ui/Safety.tsx` | Safety and orders (⋯ menu): kill switch, orders waiting for approval, the limits. No live-trading control anywhere |
 | `web/src/engine/` | TypeScript copies of the scan rules and the backtester, for the Claude function; checked trade by trade against the Python library (golden.json) |
 | `web/src/ui/ClaudePanel.tsx`, `web/src/data/claude.ts` | The Claude panel: ask at the top, newest answer under it; the conversation kept in the browser and sent unchanged (thinking blocks included) |
