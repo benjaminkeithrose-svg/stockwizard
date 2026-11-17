@@ -185,6 +185,73 @@ do $$ begin
 end $$;
 reset role;
 
+-- Safety rails: the daily limit starts empty; every limit change is audited; Ben can't write orders,
+-- only decide them; the kill switch drops waiting proposals and blocks approval; no live setting exists.
+grant all on public.safety_limits, public.paper_orders to authenticated;
+grant select on public.audit_log to authenticated;
+insert into public.paper_orders (owner, symbol, structure, expiry, legs, quantity, limit_price, price_kind, max_loss)
+  select '00000000-0000-0000-0000-00000000000a', 'SPY', 'iron_condor', '2026-11-18', '[]', 1, 4.6, 'credit', 40 from generate_series(1, 3);
+set role authenticated;
+set request.jwt.claim.sub = '00000000-0000-0000-0000-00000000000a';
+insert into public.safety_limits default values;
+do $$ declare n int; begin
+  if (select max_loss_per_day from public.safety_limits) is not null then raise exception 'FAIL: the daily limit does not start empty'; end if;
+  if (select approval_mode from public.safety_limits) <> 'approval' then raise exception 'FAIL: approval is not the default'; end if;
+  if (select max_loss_per_trade from public.safety_limits) <> 50 then raise exception 'FAIL: the per-trade limit does not start at 50'; end if;
+  if exists (select 1 from information_schema.columns where table_name = 'safety_limits' and column_name ilike '%live%') then
+    raise exception 'FAIL: a live-trading setting exists';
+  end if;
+  update public.safety_limits set max_loss_per_day = 100;
+  if (select count(*) from public.audit_log where action in ('limits_set', 'limits_changed')) <> 2 then raise exception 'FAIL: limit changes are not audited'; end if;
+  if (select detail->'old'->>'max_loss_per_day' from public.audit_log where action = 'limits_changed') is not null
+     or (select (detail->'new'->>'max_loss_per_day')::numeric from public.audit_log where action = 'limits_changed') <> 100 then
+    raise exception 'FAIL: the audit entry does not show old and new';
+  end if;
+  begin
+    update public.safety_limits set max_loss_per_trade = -1;
+    raise exception 'FAIL: a negative limit accepted';
+  exception when check_violation then null; end;
+  begin
+    insert into public.paper_orders (owner, symbol, structure, expiry, legs, quantity, limit_price, price_kind)
+      values ('00000000-0000-0000-0000-00000000000a', 'SPY', 'call', '2026-11-18', '[]', 1, 1, 'debit');
+    raise exception 'FAIL: the app wrote an order';
+  exception when insufficient_privilege then null; end;
+  update public.paper_orders set status = 'sent';
+  if (select count(*) from public.paper_orders where status = 'sent') <> 0 then raise exception 'FAIL: the app changed an order directly'; end if;
+  if public.decide_order((select min(id) from public.paper_orders), true) <> 'approved' then raise exception 'FAIL: approval'; end if;
+  begin
+    perform public.decide_order((select min(id) from public.paper_orders), false);
+    raise exception 'FAIL: an order was decided twice';
+  exception when raise_exception then
+    if sqlerrm like 'FAIL%' then raise; end if;
+  end;
+  n := public.kill_switch();
+  if n <> 3 then raise exception 'FAIL: the kill switch dropped % orders, not 3', n; end if;
+  if not (select kill_switch from public.safety_limits) then raise exception 'FAIL: the kill switch is not on'; end if;
+  if not exists (select 1 from public.audit_log where action = 'kill_switch') then raise exception 'FAIL: the kill switch is not audited'; end if;
+  begin
+    delete from public.audit_log;
+    if exists (select 1 from public.audit_log where action = 'kill_switch') then null; else raise exception 'FAIL: audit rows deleted'; end if;
+  exception when insufficient_privilege or raise_exception then
+    if sqlerrm like 'FAIL%' then raise; end if;
+  end;
+end $$;
+set request.jwt.claim.sub = '00000000-0000-0000-0000-00000000000b';
+do $$ begin
+  if (select count(*) from public.paper_orders) <> 0 then raise exception 'FAIL: B sees A''s orders'; end if;
+  if (select count(*) from public.safety_limits) <> 0 then raise exception 'FAIL: B sees A''s limits'; end if;
+  begin
+    perform public.decide_order((select min(id) from public.paper_orders), true);
+    raise exception 'FAIL: B decided A''s order';
+  exception when raise_exception then
+    if sqlerrm like 'FAIL%' then raise; end if;
+  end;
+end $$;
+reset role;
+do $$ begin
+  if (select count(*) from public.paper_orders where status = 'cancelled') <> 3 then raise exception 'FAIL: kill switch did not cancel the waiting orders'; end if;
+end $$;
+
 -- Backtests: signed-in users read; only the server writes.
 grant all on public.strategies, public.backtest_runs, public.backtest_trades, public.backtest_metrics to anon, authenticated;
 set role authenticated;

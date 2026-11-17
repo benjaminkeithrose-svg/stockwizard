@@ -6,7 +6,7 @@ import { createClient, SupabaseClient } from "@supabase/supabase-js";
 import { Candles, emptyCandles, madeUpCandles, Timeframe } from "./candles";
 import type { ClaudeMessage, ClaudeReply } from "./claude";
 import type { OptionPosition } from "./options";
-import { BacktestRun, BacktestTrade, ChartView, DEFAULT_FAVOURITES, PatternRun, UserSettings, ScanDef, ScanResult, ScanRun, StrategyDef, SymbolInfo, Watchlist, Workspace } from "./model";
+import { BacktestRun, BacktestTrade, ChartView, DEFAULT_FAVOURITES, DEFAULT_LIMITS, PaperOrder, PatternRun, SafetyLimits, UserSettings, ScanDef, ScanResult, ScanRun, StrategyDef, SymbolInfo, Watchlist, Workspace } from "./model";
 import { SUPABASE_KEY, SUPABASE_URL } from "../config";
 
 export interface User {
@@ -45,6 +45,13 @@ export interface Store {
   positions(): Promise<OptionPosition[]>;
   savePosition(p: OptionPosition): Promise<OptionPosition>;
   deletePosition(id: string): Promise<void>;
+
+  /** Phase 5's safety limits (the defaults until Ben saves them), the bot's orders, and Ben's controls. */
+  safetyLimits(): Promise<SafetyLimits>;
+  saveSafetyLimits(l: SafetyLimits): Promise<SafetyLimits>;
+  paperOrders(): Promise<PaperOrder[]>;
+  decideOrder(id: number, approve: boolean): Promise<void>;
+  killSwitch(): Promise<number>;
 
   strategies(): Promise<StrategyDef[]>;
   /** The latest manual or scheduled run of each strategy, with its metrics. Re-runs are checks, not shown. */
@@ -233,6 +240,32 @@ export class SupabaseStore implements Store {
     this.check(await this.sb.from("option_positions").delete().eq("id", id));
   }
 
+  async safetyLimits(): Promise<SafetyLimits> {
+    const rows = this.check(await this.sb.from("safety_limits").select("*")) as (SafetyLimits & { owner: string })[];
+    if (!rows[0]) return DEFAULT_LIMITS;
+    const { owner: _o, ...l } = rows[0];
+    const num = (v: unknown) => (v === null || v === undefined ? null : Number(v));
+    return { ...l, max_loss_per_trade: Number(l.max_loss_per_trade), max_loss_per_day: num(l.max_loss_per_day), max_capital_at_risk: Number(l.max_capital_at_risk) };
+  }
+
+  async saveSafetyLimits(l: SafetyLimits) {
+    const { updated_at: _skip, ...row } = l;
+    this.check(await this.sb.from("safety_limits").upsert(row));
+    return this.safetyLimits();
+  }
+
+  async paperOrders() {
+    return this.check(await this.sb.from("paper_orders").select("*").order("created_at", { ascending: false }).limit(200)) as PaperOrder[];
+  }
+
+  async decideOrder(id: number, approve: boolean) {
+    this.check(await this.sb.rpc("decide_order", { order_id: id, approve }));
+  }
+
+  async killSwitch() {
+    return this.check(await this.sb.rpc("kill_switch")) as unknown as number;
+  }
+
   async strategies() {
     return this.check(await this.sb.from("strategies").select("id,label,family,config,version,start_date,split_date,position,notes").eq("enabled", true).order("position")) as StrategyDef[];
   }
@@ -329,7 +362,18 @@ interface DemoData {
   views: ChartView[];
   positions: OptionPosition[];
   settings: UserSettings;
+  limits: SafetyLimits;
+  orders: PaperOrder[];
 }
+
+/** A made-up proposal, so the demo's Safety screen has something to approve. */
+const DEMO_ORDER: PaperOrder = {
+  id: 1, created_at: "2026-11-18T14:45:00Z", symbol: "DEMO", structure: "iron_condor", expiry: "2026-11-18",
+  legs: [{ right: "P", side: "buy", strike: 117, qty: 1 }, { right: "P", side: "sell", strike: 122, qty: 1 },
+    { right: "C", side: "sell", strike: 132, qty: 1 }, { right: "C", side: "buy", strike: 137, qty: 1 }],
+  quantity: 1, limit_price: 4.6, price_kind: "credit", max_loss: 40, status: "proposed", refusals: [],
+  reason: "Made-up: squeeze on, inside the opening range", pnl: null,
+};
 
 export class DemoStore implements Store {
   readonly demo = true;
@@ -340,11 +384,11 @@ export class DemoStore implements Store {
   private load(): DemoData {
     try {
       const raw = localStorage.getItem(this.key);
-      if (raw) return { views: [], positions: [], settings: { favourites: DEFAULT_FAVOURITES }, ...JSON.parse(raw) };
+      if (raw) return { views: [], positions: [], settings: { favourites: DEFAULT_FAVOURITES }, limits: DEFAULT_LIMITS, orders: [structuredClone(DEMO_ORDER)], ...JSON.parse(raw) };
     } catch {
       /* storage blocked: start empty */
     }
-    return { workspaces: [], views: [], positions: [], settings: { favourites: DEFAULT_FAVOURITES },
+    return { workspaces: [], views: [], positions: [], settings: { favourites: DEFAULT_FAVOURITES }, limits: DEFAULT_LIMITS, orders: [structuredClone(DEMO_ORDER)],
       watchlists: [{ id: "demo-1", name: "Made-up list", is_universe: false, symbols: ["DEMO", "TEST"] }] };
   }
 
@@ -443,6 +487,35 @@ export class DemoStore implements Store {
     const d = this.load();
     d.positions = d.positions.filter((x) => x.id !== id);
     this.save(d);
+  }
+
+  async safetyLimits() { return this.load().limits; }
+
+  async saveSafetyLimits(l: SafetyLimits) {
+    const d = this.load();
+    d.limits = { ...l, updated_at: new Date().toISOString() };
+    this.save(d);
+    return d.limits;
+  }
+
+  async paperOrders() { return this.load().orders; }
+
+  async decideOrder(id: number, approve: boolean) {
+    const d = this.load();
+    const o = d.orders.find((x) => x.id === id);
+    if (!o || o.status !== "proposed") throw new Error(`Order ${id} isn't waiting for approval`);
+    if (approve && d.limits.kill_switch) throw new Error("The kill switch is on: nothing can be approved");
+    o.status = approve ? "approved" : "rejected";
+    this.save(d);
+  }
+
+  async killSwitch() {
+    const d = this.load();
+    d.limits = { ...d.limits, kill_switch: true };
+    let n = 0;
+    for (const o of d.orders) if (o.status === "proposed" || o.status === "approved") { o.status = "cancelled"; n++; }
+    this.save(d);
+    return n;
   }
 
   async strategies(): Promise<StrategyDef[]> {

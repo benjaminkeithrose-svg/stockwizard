@@ -280,3 +280,11 @@ button.icon.star.on { color: #C99A00; }
   .adjbanner > span { display: none; }
   .adjbanner { padding-left: 6px; }
 }
+
+/* ---------- safety ---------- */
+.kv { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; margin: 8px 0; }
+.kv > div { background: var(--sunk); border-radius: var(--r-sm); padding: 8px 10px; display: flex; flex-direction: column; gap: 2px; }
+.kv span { font-size: 11px; color: var(--ink-3); text-transform: uppercase; letter-spacing: .05em; }
+.card.order { border-left-color: var(--ink-3); }
+.card.order.proposed { border-left-color: var(--orange, #E07B00); }
+.card.order.sent, .card.order.filled { border-left-color: #237F35; }

@@ -291,6 +291,39 @@ try {
   await page.getByRole("button", { name: "Close Claude" }).click();
   await page.getByRole("button", { name: "Home" }).click().catch(() => {});
 
+  // Safety: the daily limit starts empty, approving records a decision, the kill switch drops what's waiting
+  await page.getByRole("button", { name: "More", exact: true }).click();
+  await page.getByRole("menuitem", { name: "Safety and orders" }).click();
+  check(await page.getByRole("heading", { name: "Safety" }).isVisible(), "Safety opens from the menu");
+  check(await page.getByText(/daily loss limit isn't set, so the bot refuses every order/).isVisible(), "an empty daily limit is flagged");
+  check(await page.getByText(/Live trading is disabled and can't be turned on/).isVisible(), "says live trading can't be turned on");
+  check(!(await page.getByRole("button", { name: /live/i }).count()) && !(await page.getByRole("checkbox", { name: /live/i }).count()), "no live-trading control");
+  await page.getByRole("button", { name: "Change limits" }).click();
+  await page.getByLabel("Most a day may lose ($)").fill("100");
+  await page.getByRole("button", { name: "Automatic" }).click();
+  check(await page.getByRole("dialog", { name: "Automatic orders?" }).isVisible(), "automatic mode asks first");
+  await page.getByRole("button", { name: "Cancel" }).click();
+  await page.getByRole("button", { name: "Done" }).click();
+  await wait(300);
+  check(await page.getByText(/\$100 a day/).isVisible() && await page.getByText(/you approve each order/).isVisible(), "the limit is saved, approval mode kept");
+  await page.getByRole("button", { name: /^Iron condor · DEMO/ }).click();
+  await page.getByRole("button", { name: "Approve (paper)" }).click();
+  await wait(300);
+  check(await page.getByText("Nothing waiting.").isVisible(), "approved: nothing left waiting");
+  await page.getByRole("tab", { name: "History" }).click();
+  check(await page.getByText(/Approved, bot checking again/).isVisible(), "history shows it approved");
+  await page.getByRole("button", { name: "Kill switch: stop all trading" }).click();
+  check(await page.getByText(/Blocks every new order/).isVisible(), "the kill switch says what it does");
+  await page.getByRole("button", { name: "Stop all trading", exact: true }).click();
+  await wait(300);
+  check(await page.getByText(/The kill switch is on/).isVisible(), "the kill switch shows as on");
+  check(await page.getByText("Cancelled").first().isVisible() || await page.getByText(/^Cancelled/).count() > 0, "the approved order is cancelled");
+  await page.getByRole("button", { name: "Turn trading back on" }).click();
+  await page.getByRole("button", { name: "Turn back on" }).click();
+  await wait(300);
+  check(await page.getByRole("button", { name: "Kill switch: stop all trading" }).isVisible(), "trading can be turned back on");
+  await page.getByRole("button", { name: "Back", exact: true }).click();
+
   // Watchlists: back goes up a level, picking a symbol opens it in the tab
   await page.getByRole("button", { name: "More", exact: true }).click();
   await page.getByRole("menuitem", { name: "Watchlists" }).click();
