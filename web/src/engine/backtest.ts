@@ -5,7 +5,7 @@
 // candle; costs on every fill; one position at a time. tests/engine.test.ts
 // checks trades and metrics against the Python library's (golden.json).
 
-import type { Candles } from "../data/candles.ts";
+import { Candles, nyParts } from "../data/candles.ts";
 import { evaluate, Hit } from "./scans.ts";
 
 export interface Strategy {
@@ -19,6 +19,9 @@ export interface Strategy {
   max_bars?: number;
   cost_pct?: number;
   study?: boolean;
+  filter_symbol?: string | null;   // take a signal only when this symbol's close that day is...
+  filter_max?: number | null;      // ...at or below this (e.g. the VIX at or below 15)
+  filter_min?: number | null;      // ...and/or at or above this
 }
 
 export interface Trade {
@@ -36,18 +39,35 @@ export interface Trade {
 
 export interface Result {
   trades: Trade[];
-  skipped: { already_in_trade: number; already_past_target: number; no_next_candle: number };
+  skipped: { already_in_trade: number; already_past_target: number; no_next_candle: number; filtered_out: number };
   inMarket: boolean[];   // per traded candle
   times: number[];       // the traded candles' times
 }
 
 const ret = (entry: number, exit: number, cost: number) => ((exit * (1 - cost / 100)) / (entry * (1 + cost / 100))) * 100 - 100;
 
-export function run(s: Strategy, signal: Candles, trade: Candles, start: number, signals?: { hit: Hit[] }): Result {
+/** The filter symbol's close on each trading date (matched by date: daily candles are stamped in each exchange's own time zone). */
+function closesByDate(c: Candles): Map<string, number> {
+  const m = new Map<string, number>();
+  c.time.forEach((t, i) => m.set(nyParts(t).date, c.close[i]));
+  return m;
+}
+
+export function run(s: Strategy, signal: Candles, trade: Candles, start: number, signals?: { hit: Hit[] }, filter?: Candles): Result {
   const sig = signals ? { hit: signals.hit, values: {} as Record<string, number[]> } : evaluate(s.signal_rule, signal, s.signal_params);
+  if (s.filter_symbol && !filter) throw new Error(`The strategy filters on ${s.filter_symbol} but no candles were given for it`);
+  const filterBy = s.filter_symbol && filter ? closesByDate(filter) : null;
+  const passes = (t: number) => {
+    if (!filterBy) return true;
+    const v = filterBy.get(nyParts(t).date);
+    if (v === undefined || Number.isNaN(v)) return false;
+    return (s.filter_max == null || v <= s.filter_max) && (s.filter_min == null || v >= s.filter_min);
+  };
+  let filteredOut = 0;
   const queue: { ts: number; vals: Record<string, number | null> }[] = [];
   sig.hit.forEach((h, i) => {
     if (h && signal.time[i] >= start) {
+      if (!passes(signal.time[i])) { filteredOut++; return; }
       const vals: Record<string, number | null> = {};
       for (const [k, v] of Object.entries(sig.values)) vals[k] = Number.isNaN(v[i]) ? null : v[i];
       queue.push({ ts: signal.time[i], vals });
@@ -55,7 +75,7 @@ export function run(s: Strategy, signal: Candles, trade: Candles, start: number,
   });
   const maxBars = s.max_bars ?? 20, cost = s.cost_pct ?? 0;
   const trades: Trade[] = [];
-  const skipped = { already_in_trade: 0, already_past_target: 0, no_next_candle: 0 };
+  const skipped = { already_in_trade: 0, already_past_target: 0, no_next_candle: 0, filtered_out: filteredOut };
   const inMarket = new Array<boolean>(trade.time.length).fill(false);
   let pos: Trade | null = null;
   let pending: { ts: number; vals: Record<string, number | null> } | null = null;

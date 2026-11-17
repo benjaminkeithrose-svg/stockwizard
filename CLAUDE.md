@@ -5,7 +5,9 @@ pattern lab and, last of all, a paper-trading bot on Interactive Brokers, all
 backed by Supabase. Phases 0 (indicators, loader, database), 1 (the chart
 workspace web app), 2 (the scanner), 3 (the backtester) and 3b (the pattern
 lab) and 4 (Claude in the app) are built, plus chart
-pages (cards on a grid, saved as views).
+pages (cards on a grid, saved as views), indicator chips and favourites,
+calls and puts placed on the chart, and phase 5's safety rails against a
+pretend broker (the Interactive Brokers adapter is still to come).
 
 ## Who you are working with
 
@@ -47,6 +49,11 @@ inputs listed under "Still needed from Ben" (Supabase project first).
 | `backend/stockwizard/features.py` | The pattern lab's measures of market conditions, one row per SPY day, all known at the close; other symbols matched by trading date (the VIX's daily candles are stamped an hour after SPY's) |
 | `backend/stockwizard/lab.py`, `backend/stockwizard/run_lab.py` | The pattern lab: one- and two-condition patterns on the discovery years, every one counted, Benjamini-Hochberg check, stability check, survivors tested once on the sealed years by the backtester; `--rerun N` checks a run repeats |
 | `supabase/functions/claude/` | Claude in the app (phase 4): `index.ts` (Opus 5.5, adaptive thinking, refusal fallback, the 100-a-day cap, the tool loop) and `tools.ts` (the only actions Claude has; none for orders, limits, keys or the audit log). `lib/` holds copies of `web/src`'s candles, indicators and engine: edit those in `web/src`, run `python3 tools/sync_function.py`; a web test fails if a copy differs. Deployed with the Supabase connection's deploy tool (all files), then checked by calling it. The Anthropic key is the Supabase secret `ANTHROPIC_API_KEY`, never in the repository |
+| `backend/stockwizard/rails.py` | Phase 5's safety rails, pure: defined risk, per-trade and per-day loss, positions and capital at risk, stale data, kill switch, limit orders only. `check()` lists every rail an order fails |
+| `backend/stockwizard/bot.py`, `backend/stockwizard/broker/` | The only path from an order to a broker: propose, rails, Ben's approval, rails again, send; kill switch; reconcile after a reconnect; every step audited. `PretendBroker` stands in for IBKR; a live broker is refused outright |
+| `web/src/data/options.ts`, `web/src/ui/OptionSheets.tsx` | Calls and puts on the chart: structures, default placement (one daily range out, $5 wings), moving whole, by side or by leg. Plans only, saved in `option_positions` |
+| `web/src/data/usePositions.ts` | Option structures and the favourites row, kept on the device and saved to Supabase |
+| `web/src/ui/Safety.tsx` | Safety and orders (⋯ menu): kill switch, orders waiting for approval, the limits. No live-trading control anywhere |
 | `web/src/engine/` | TypeScript copies of the scan rules and the backtester, for the Claude function; checked trade by trade against the Python library (golden.json) |
 | `web/src/ui/ClaudePanel.tsx`, `web/src/data/claude.ts` | The Claude panel: ask at the top, newest answer under it; the conversation kept in the browser and sent unchanged (thinking blocks included) |
 | `web/src/ui/Lab.tsx` | The Pattern lab tab of the Backtests screen |
@@ -54,7 +61,7 @@ inputs listed under "Still needed from Ben" (Supabase project first).
 | `web/src/ui/Scanner.tsx` | The Scanner screen: the latest run of each scan, in tabs |
 | `web/src/ui/Pages.tsx`, `web/src/data/grid.ts`, `web/src/data/useViews.ts` | Chart pages: up to 10 tabs as cards on a 12-column grid, dragged and resized with snapping on the PC, one per row on the phone; tap for full screen |
 | `web/src/update.ts` | "Get latest version" in the ⋯ menu: clears only Stock Wizard's own caches and service worker (the address is shared with Ben's other apps), then reloads fresh |
-| `backend/tests/` | Truncation test on every indicator, hand-worked values, loader tests. Made-up candles only |
+| `backend/tests/` | Truncation test on every indicator, hand-worked values, loader tests, a test per safety rail proving it blocks (`test_rails.py`). Made-up candles and orders only |
 | `backend/tools/make_golden.py` | Writes `web/src/indicators/golden.json`, the Python library's numbers the browser copy must match |
 | `web/` | The web app: React, Vite, TypeScript, Lightweight Charts (TradingView, Apache 2.0; keep its logo link on) |
 | `web/src/indicators/` | The browser's copy of the indicators. Change it with the Python library, regenerate `golden.json`, and both test suites must pass |

@@ -177,3 +177,21 @@ def test_report_splits_build_and_held_back_and_windows():
     assert sum(w["trades"] for w in rep["windows"]) == len(done)
     assert {w["period"] for w in rep["windows"]} <= {"build", "held_back", "both"}
     assert any("Few trades" in w for w in rep["warnings"]) or rep["build"]["trades"] >= 30
+
+
+def test_vix_filter_takes_signals_only_when_the_vix_is_low():
+    v = flat_vix(15.0)
+    v[70:73] = 18.0  # VIX high on the first signal days
+    vix_chicago = frame(v)
+    vix_chicago.index = vix_chicago.index + pd.Timedelta(hours=1)  # stamped an hour later, like the real VIX
+    s = strat(max_bars=5, filter_symbol="^VIX", filter_max=16.0)
+    res = run(s, spy_falls_at(70), frame(flat_vix()), START, filter_candles=vix_chicago)
+    assert res.trades[0].signal_ts == IDX[73]  # the first signal day with the VIX at or below 16
+    assert res.skipped["filtered_out"] == 3
+    unfiltered = run(strat(max_bars=5), spy_falls_at(70), frame(flat_vix()), START)
+    assert unfiltered.trades[0].signal_ts == IDX[70] and unfiltered.skipped["filtered_out"] == 0
+
+
+def test_a_filter_without_its_candles_is_an_error():
+    with pytest.raises(ValueError, match="filters on"):
+        run(strat(filter_symbol="^VIX", filter_max=15), spy_falls_at(70), frame(flat_vix()), START)

@@ -2,9 +2,9 @@
 
 import { useMemo, useState } from "react";
 import type { Timeframe } from "../data/candles";
-import { Drawing, indicator, IndicatorInstance, SymbolInfo } from "../data/model";
+import { Drawing, Favourite, indicator, IndicatorInstance, MAX_FAVOURITES, sameIndicator, SymbolInfo } from "../data/model";
 import { Params, REGISTRY, unavailable } from "../indicators";
-import { Bin, Search } from "./icons";
+import { Bin, Search, Star } from "./icons";
 import { ConfirmDelete, Sheet } from "./parts";
 
 const GROUPS = [
@@ -84,9 +84,17 @@ export function IndicatorSheet(props: {
   onChange: (list: IndicatorInstance[]) => void;
   onPickAnchor: (id: string) => void;
   onClose: () => void;
+  /** Open this indicator's settings to start with (its chip was tapped). */
+  open?: string | null;
+  favourites: Favourite[];
+  onFavourites: (f: Favourite[]) => void;
 }) {
   const [list, setList] = useState(props.indicators);
-  const [editing, setEditing] = useState<string | null>(null);
+  const [editing, setEditing] = useState<string | null>(props.open ?? null);
+  const isFav = (i: IndicatorInstance) => props.favourites.some((f) => f.kind === "indicator" && sameIndicator(f, i));
+  const toggleFav = (i: IndicatorInstance) => props.onFavourites(isFav(i)
+    ? props.favourites.filter((f) => !(f.kind === "indicator" && sameIndicator(f, i)))
+    : [...props.favourites, { kind: "indicator", name: i.name, params: { ...i.params } }]);
   const done = () => {
     // Settings left blank go back to their defaults.
     props.onChange(list.map((i) => ({
@@ -114,6 +122,10 @@ export function IndicatorSheet(props: {
                 <div className="t">{def.short(inst.params)}</div>
                 <div className="meta">{why ?? def.label}</div>
               </button>
+              <button className={`icon star${isFav(inst) ? " on" : ""}`} aria-pressed={isFav(inst)}
+                disabled={!isFav(inst) && props.favourites.length >= MAX_FAVOURITES}
+                aria-label={isFav(inst) ? `Remove ${def.short(inst.params)} from favourites` : `Add ${def.short(inst.params)} to favourites`}
+                onClick={() => toggleFav(inst)}><Star filled={isFav(inst)} /></button>
               <button className="icon bin" aria-label={`Remove ${def.short(inst.params)}`}
                 onClick={() => setList(list.filter((x) => x.id !== inst.id))}><Bin /></button>
             </div>
@@ -127,6 +139,7 @@ export function IndicatorSheet(props: {
           </div>
         );
       })}
+      <p className="hint">The star keeps an indicator, with its settings, in the favourites row above the chart for one-tap adding.</p>
       <h2>Add</h2>
       {GROUPS.map(([g, label]) => (
         <div key={g} style={{ marginBottom: 10 }}>

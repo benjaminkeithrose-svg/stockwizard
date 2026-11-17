@@ -96,6 +96,62 @@ try {
   await page.getByRole("button", { name: "Delete", exact: true }).click();
   check(!(await page.getByRole("tab", { name: "My copy" }).count()), "tab deleted");
 
+  // Chips above the chart: × removes, a favourite adds back in one tap, tapping a chip opens its settings
+  await page.getByRole("button", { name: "Remove RSI 14" }).click();
+  check(!(await page.getByRole("button", { name: "RSI 14 settings" }).count()), "× on a chip takes the indicator off");
+  check(await page.getByRole("button", { name: "Add RSI 14" }).isVisible(), "and it shows again in the favourites row");
+  await page.getByRole("button", { name: "Add RSI 14" }).click();
+  check(await page.getByRole("button", { name: "RSI 14 settings" }).isVisible(), "a favourite adds in one tap");
+  await page.getByRole("button", { name: "RSI 14 settings" }).click();
+  check(await page.getByLabel("length").isVisible(), "tapping a chip opens its settings");
+  check(await page.getByRole("button", { name: "Remove RSI 14 from favourites" }).getAttribute("aria-pressed") === "true", "favourites are starred");
+  await page.getByRole("button", { name: "Add VWAP to favourites" }).click();
+  await page.getByRole("button", { name: "Done" }).click();
+  await page.getByRole("button", { name: "Remove VWAP" }).click();
+  check(await page.getByRole("button", { name: "Add VWAP" }).isVisible(), "a starred indicator joins the favourites row");
+
+  // Calls and puts: place an iron condor, drag it, mark it bought, delete it
+  await page.getByRole("button", { name: "Options" }).click();
+  await page.getByRole("button", { name: /^Iron condor Sell a put/ }).click();
+  check(await page.getByText("Drag a line to move").isVisible(), "placing a structure starts adjusting it");
+  const ic = page.locator(".xchip.opt");
+  check(await ic.count() === 1 && (await ic.getAttribute("class")).includes("planned"), "it shows as a purple chip");
+  const legsAt = async () => JSON.parse(await page.locator("[data-testid=chart]").getAttribute("data-legs") || "[]");
+  const ys = await legsAt();
+  check(ys.length === 4 && ys.every((y) => y !== null) && ys[0] > ys[1] && ys[1] > ys[2] && ys[2] > ys[3], `four legs drawn, wings outside (${ys.map(Math.round)})`);
+  const chartBox = await page.locator("[data-testid=chart]").boundingBox();
+  const strikes = async () => (await page.locator("[data-testid=chart]").evaluate(() => JSON.parse(localStorage.getItem("stockwizard.demo")).positions[0].legs.map((l) => l.strike)));
+  await wait(800);
+  const before = await strikes();
+  const dragY = async (from, by) => {
+    await page.mouse.move(chartBox.x + chartBox.width / 2, chartBox.y + from);
+    await page.mouse.down();
+    for (let k = 1; k <= 5; k++) await page.mouse.move(chartBox.x + chartBox.width / 2, chartBox.y + from + (by * k) / 5);
+    await page.mouse.up();
+    await wait(900);
+  };
+  await dragY(ys[1], -40);
+  const whole = await strikes();
+  const d = whole[1] - before[1];
+  check(d > 0 && whole.every((s, i) => s - before[i] === d), `dragging with All moves every leg together (${before} → ${whole})`);
+  await page.getByRole("button", { name: "Leg", exact: true }).click();
+  const ys2 = await legsAt();
+  await dragY(ys2[3], -30);
+  const leg = await strikes();
+  check(leg[3] > whole[3] && leg.slice(0, 3).join() === whole.slice(0, 3).join(), `dragging with Leg moves just that wing (${whole} → ${leg})`);
+  await page.getByRole("button", { name: "Details" }).click();
+  await page.getByRole("button", { name: "Bought", exact: true }).click();
+  await page.getByRole("button", { name: "Done" }).click();
+  check((await ic.getAttribute("class")).includes("bought"), "marking it bought turns it green");
+  await page.reload();
+  await page.waitForSelector("[data-testid=chart] canvas");
+  check(await page.locator(".xchip.opt.bought").count() === 1, "it is still there after a reload");
+  await page.getByRole("button", { name: /^Delete Iron condor/ }).click();
+  const posDetail = await page.locator(".sheet .hint").textContent();
+  check(/4 legs/.test(posDetail) && /doesn't close anything at a broker/.test(posDetail), `deleting names the legs and says nothing is closed at a broker (${posDetail})`);
+  await page.getByRole("button", { name: "Delete", exact: true }).click();
+  check(!(await page.locator(".xchip.opt").count()), "structure deleted");
+
   // Scanner: tabs, nothing-matched shown plainly, a result opens its chart
   await page.getByRole("button", { name: "Scanner" }).click();
   check(await page.getByRole("heading", { name: "Scanner" }).isVisible(), "scanner opens from the header");
@@ -234,6 +290,39 @@ try {
   check(!(await page.getByText("Test trend breaks against the VIX", { exact: true }).count()), "a new conversation starts empty");
   await page.getByRole("button", { name: "Close Claude" }).click();
   await page.getByRole("button", { name: "Home" }).click().catch(() => {});
+
+  // Safety: the daily limit starts empty, approving records a decision, the kill switch drops what's waiting
+  await page.getByRole("button", { name: "More", exact: true }).click();
+  await page.getByRole("menuitem", { name: "Safety and orders" }).click();
+  check(await page.getByRole("heading", { name: "Safety" }).isVisible(), "Safety opens from the menu");
+  check(await page.getByText(/daily loss limit isn't set, so the bot refuses every order/).isVisible(), "an empty daily limit is flagged");
+  check(await page.getByText(/Live trading is disabled and can't be turned on/).isVisible(), "says live trading can't be turned on");
+  check(!(await page.getByRole("button", { name: /live/i }).count()) && !(await page.getByRole("checkbox", { name: /live/i }).count()), "no live-trading control");
+  await page.getByRole("button", { name: "Change limits" }).click();
+  await page.getByLabel("Most a day may lose ($)").fill("100");
+  await page.getByRole("button", { name: "Automatic" }).click();
+  check(await page.getByRole("dialog", { name: "Automatic orders?" }).isVisible(), "automatic mode asks first");
+  await page.getByRole("button", { name: "Cancel" }).click();
+  await page.getByRole("button", { name: "Done" }).click();
+  await wait(300);
+  check(await page.getByText(/\$100 a day/).isVisible() && await page.getByText(/you approve each order/).isVisible(), "the limit is saved, approval mode kept");
+  await page.getByRole("button", { name: /^Iron condor · DEMO/ }).click();
+  await page.getByRole("button", { name: "Approve (paper)" }).click();
+  await wait(300);
+  check(await page.getByText("Nothing waiting.").isVisible(), "approved: nothing left waiting");
+  await page.getByRole("tab", { name: "History" }).click();
+  check(await page.getByText(/Approved, bot checking again/).isVisible(), "history shows it approved");
+  await page.getByRole("button", { name: "Kill switch: stop all trading" }).click();
+  check(await page.getByText(/Blocks every new order/).isVisible(), "the kill switch says what it does");
+  await page.getByRole("button", { name: "Stop all trading", exact: true }).click();
+  await wait(300);
+  check(await page.getByText(/The kill switch is on/).isVisible(), "the kill switch shows as on");
+  check(await page.getByText("Cancelled").first().isVisible() || await page.getByText(/^Cancelled/).count() > 0, "the approved order is cancelled");
+  await page.getByRole("button", { name: "Turn trading back on" }).click();
+  await page.getByRole("button", { name: "Turn back on" }).click();
+  await wait(300);
+  check(await page.getByRole("button", { name: "Kill switch: stop all trading" }).isVisible(), "trading can be turned back on");
+  await page.getByRole("button", { name: "Back", exact: true }).click();
 
   // Watchlists: back goes up a level, picking a symbol opens it in the tab
   await page.getByRole("button", { name: "More", exact: true }).click();

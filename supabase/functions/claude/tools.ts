@@ -13,7 +13,7 @@ import { compute, REGISTRY } from "./lib/indicators/index.ts";
 import { RULES } from "./lib/engine/scans.ts";
 import { report, run, Strategy } from "./lib/engine/backtest.ts";
 
-export const ENGINE_VERSION = "ts-0.3.0";
+export const ENGINE_VERSION = "ts-0.4.0";
 const START = "2006-01-02";
 const SPLIT = "2021-11-17"; // the last 5 years held back (Ben, 17 Nov 2026)
 const WARM_UP_DAYS = 500;
@@ -66,7 +66,9 @@ export const TOOLS: Anthropic.Tool[] = [
       trade_symbol: str("e.g. ^VIX"), target_pct: numOrNull("exit when up this %, or null"), target_level: numOrNull("or exit at this price, or null"),
       stop_pct: numOrNull("exit when down this %, or null"), max_bars: { type: "integer", description: "time limit in trading days" },
       cost_pct: { type: "number", description: "cost per fill in %, 0 for a study on an index that can't be traded" }, notes: str("one line: what counts as working"),
-    }, ["label", "family", "signal_symbol", "signal_rule", "signal_params_json", "trade_symbol", "target_pct", "target_level", "stop_pct", "max_bars", "cost_pct", "notes"]),
+      filter_symbol: { anyOf: [{ type: "string" }, { type: "null" }], description: "take a signal only when this symbol's close that day is inside the limits below, e.g. ^VIX; null for no filter" },
+      filter_max: numOrNull("the filter symbol at or below this, e.g. 15; or null"), filter_min: numOrNull("the filter symbol at or above this; or null"),
+    }, ["label", "family", "signal_symbol", "signal_rule", "signal_params_json", "trade_symbol", "target_pct", "target_level", "stop_pct", "max_bars", "cost_pct", "notes", "filter_symbol", "filter_max", "filter_min"]),
   },
   {
     name: "run_backtest", strict: true,
@@ -226,6 +228,7 @@ export async function runTool(name: string, input: Record<string, unknown>, ctx:
         signal_symbol: String(input.signal_symbol), signal_rule: rule, signal_params: { ...RULES[rule].defaults, ...parseParams(String(input.signal_params_json)) },
         trade_symbol: String(input.trade_symbol), target_pct: input.target_pct as number | null, target_level: input.target_level as number | null,
         stop_pct: input.stop_pct as number | null, max_bars: Math.max(1, Number(input.max_bars)), cost_pct: Number(input.cost_pct), study: Number(input.cost_pct) === 0,
+        filter_symbol: (input.filter_symbol as string | null) || null, filter_max: input.filter_max as number | null, filter_min: input.filter_min as number | null,
       };
       const id = `claude_${slug(String(input.label))}_${suffix()}`;
       check(await db.from("strategies").insert({
@@ -243,8 +246,11 @@ export async function runTool(name: string, input: Record<string, unknown>, ctx:
       const start = Date.parse(`${st.start_date}T00:00:00Z`) / 1000, split = Date.parse(`${st.split_date}T00:00:00Z`) / 1000;
       const from = new Date((start - WARM_UP_DAYS * 86400) * 1000).toISOString();
       const asOf = new Date().toISOString();
-      const [sig, trd] = await Promise.all([readCandles(db, cfg.signal_symbol, "1d", { from }), readCandles(db, cfg.trade_symbol, "1d", { from })]);
-      const res = run(cfg, sig, trd, start);
+      const [sig, trd, flt] = await Promise.all([
+        readCandles(db, cfg.signal_symbol, "1d", { from }), readCandles(db, cfg.trade_symbol, "1d", { from }),
+        cfg.filter_symbol ? readCandles(db, cfg.filter_symbol, "1d", { from }) : Promise.resolve(undefined),
+      ]);
+      const res = run(cfg, sig, trd, start, undefined, flt);
       const rep = report(res, start, split);
       const configHash = await sha256(cfg);
       // The held-back years are single-use per family: seen before with other settings, they no longer test fairly.

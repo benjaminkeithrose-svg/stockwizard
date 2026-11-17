@@ -191,3 +191,69 @@ export interface PatternRun {
   sealed_burned: boolean;
   candidates: PatternCandidate[];
 }
+
+// --- favourites (user_settings) ---
+
+/** A chip in the favourites row: an indicator with its settings, or an option structure. */
+export type Favourite =
+  | { kind: "indicator"; name: string; params: Params }
+  | { kind: "structure"; structure: import("./options").Structure };
+
+export interface UserSettings { favourites: Favourite[] }
+
+export const MAX_FAVOURITES = 20;
+
+export const DEFAULT_FAVOURITES: Favourite[] = [
+  { kind: "indicator", name: "ema", params: { length: 21 } },
+  { kind: "indicator", name: "sma", params: { length: 200 } },
+  { kind: "indicator", name: "bollinger", params: { length: 20, mult: 2 } },
+  { kind: "indicator", name: "rsi", params: { length: 14 } },
+  { kind: "indicator", name: "squeeze", params: { ...REGISTRY.squeeze.defaults } },
+  { kind: "structure", structure: "iron_condor" },
+];
+
+const sameParams = (a: Params, b: Params) => {
+  const keys = new Set([...Object.keys(a), ...Object.keys(b)]);
+  return [...keys].every((k) => String(a[k] ?? "") === String(b[k] ?? ""));
+};
+
+/** The same indicator with the same settings (a favourite matches an indicator on the chart). */
+export const sameIndicator = (a: { name: string; params: Params }, b: { name: string; params: Params }) =>
+  a.name === b.name && sameParams({ ...REGISTRY[a.name]?.defaults, ...a.params }, { ...REGISTRY[b.name]?.defaults, ...b.params });
+
+// --- safety rails (phase 5) ---
+
+/** The limits the bot checks before every order. The daily limit starts empty: every order is refused until it's set. */
+export interface SafetyLimits {
+  max_loss_per_trade: number;
+  max_loss_per_day: number | null;
+  max_open_positions: number;
+  max_capital_at_risk: number;
+  max_data_age_seconds: number;
+  approval_mode: "approval" | "automatic";
+  kill_switch: boolean;
+  updated_at?: string;
+}
+
+export const DEFAULT_LIMITS: SafetyLimits = {
+  max_loss_per_trade: 50, max_loss_per_day: null, max_open_positions: 1, max_capital_at_risk: 100,
+  max_data_age_seconds: 120, approval_mode: "approval", kill_switch: false,
+};
+
+/** An order the bot proposed (paper only), and what became of it. Written by the bot; Ben only decides. */
+export interface PaperOrder {
+  id: number;
+  created_at: string;
+  symbol: string;
+  structure: string;
+  expiry: string;
+  legs: { right: "C" | "P"; side: "buy" | "sell"; strike: number; qty: number }[];
+  quantity: number;
+  limit_price: number;
+  price_kind: "credit" | "debit";
+  max_loss: number | null;
+  status: "proposed" | "refused" | "approved" | "rejected" | "sent" | "filled" | "cancelled" | "closed" | "failed";
+  refusals: { rail: string; why: string }[];
+  reason: string | null;
+  pnl: number | null;
+}

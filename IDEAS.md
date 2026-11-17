@@ -2,7 +2,7 @@
 
 Captured from Ben, not yet scheduled. Each goes into a phase when he picks it.
 
-## Indicator chips on the chart (16 Nov 2026)
+## Indicator chips on the chart (16 Nov 2026) — built 17 Nov 2026
 
 - Every indicator on a chart shows as a chip (bubble) along the top of the
   chart, with an × to take it off straight away, no sheet to open.
@@ -40,7 +40,7 @@ Captured from Ben, not yet scheduled. Each goes into a phase when he picks it.
   scan and indicator settings (SPEC.md, In-app Claude). This may come with
   it rather than as a separate feature.
 
-## One-tap option structures on the chart (17 Nov 2026)
+## One-tap option structures on the chart (17 Nov 2026) — placing and dragging built 17 Nov 2026; feeding a backtest and an order still to come
 
 For building positions, whether as an order to send to the broker or as a
 backtest:
@@ -57,7 +57,7 @@ backtest:
   (phase 5: orders only ever go out after Ben approves them, behind the
   safety rails).
 
-## Positions on every chart, and an analysis screen (17 Nov 2026)
+## Positions on every chart, and an analysis screen (17 Nov 2026) — positions on every chart built 17 Nov 2026; the analysis screen needs option prices
 
 Follows on from the one-tap option structures above.
 

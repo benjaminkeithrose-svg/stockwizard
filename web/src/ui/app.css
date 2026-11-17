@@ -189,9 +189,9 @@ button.bin { color: var(--warn); }
 @media (max-width: 560px) {
   .tool .word { display: none; }
   .main { padding: 8px; gap: 6px; }
-  .seg button { padding: 0 4px; min-width: 34px; }
+  .bar .seg button { padding: 0 2px; min-width: 33px; }
   .bar { gap: 4px; }
-  .tool { padding: 0 9px; }
+  .tool { padding: 0 8px; }
 }
 
 /* ---------- chart pages ---------- */
@@ -242,3 +242,49 @@ table.bt tr:last-child td { border-bottom: 0; }
 .claude .did { font-size: 12px; color: var(--cyan-dk); margin-bottom: 6px; }
 .claude .said { white-space: pre-wrap; line-height: 1.5; margin-bottom: 6px; }
 @media (max-width: 720px) { .claude { width: 100vw; border-left: 0; } }
+
+/* ---------- chips above the chart: what's on it, then favourites ---------- */
+.chipbar { display: flex; gap: 6px; align-items: center; overflow-x: auto; scrollbar-width: thin; padding-bottom: 2px; flex-shrink: 0; }
+.chipbar > * { flex-shrink: 0; }
+.xchip { display: inline-flex; align-items: center; border: 1px solid var(--act); background: var(--act-lt, #E8EDF7); color: var(--act);
+  border-radius: var(--r-pill); min-height: 34px; font-size: 13px; font-weight: 700; }
+.xchip .xname { background: none; border: 0; color: inherit; font: inherit; padding: 0 4px 0 12px; min-height: 34px; cursor: pointer; }
+.xchip .x { background: none; border: 0; color: inherit; min-width: 32px; min-height: 34px; display: flex; align-items: center;
+  justify-content: center; cursor: pointer; border-radius: var(--r-pill); }
+.xchip .x .ic { width: 15px; height: 15px; }
+.xchip.opt { border-color: #7A3E9D; background: #F3ECF7; color: #7A3E9D; }
+.xchip.opt.bought { border-color: #237F35; background: #E9F4EB; color: #237F35; }
+.xchip.opt.on { box-shadow: 0 0 0 2px currentColor inset; }
+.chipbar .chip.fav { min-height: 34px; padding: 0 12px; border-style: dashed; }
+.chipbar .chip.fav.opt { color: #7A3E9D; }
+.favmark { color: #C99A00; display: flex; padding-left: 4px; }
+.favmark .ic { width: 16px; height: 16px; }
+button.icon.star { color: var(--ink-3); }
+button.icon.star.on { color: #C99A00; }
+.chips.scrollx { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 4px; }
+.chips.scrollx .chip { flex-shrink: 0; }
+.chip .sub { font-size: 11px; opacity: .7; font-weight: 400; }
+.card.opt { border-left-color: #7A3E9D; }
+.card.opt.bought { border-left-color: #237F35; }
+.card .cmain:disabled { opacity: .5; cursor: default; }
+.seg.wide button { min-height: 40px; }
+
+/* adjusting a structure: one strip at the top of the chart */
+.adjbanner { position: absolute; top: 8px; left: 50%; transform: translateX(-50%); z-index: 5; display: flex; align-items: center; gap: 8px;
+  background: #7A3E9D; color: #fff; border-radius: var(--r-pill); padding: 4px 6px 4px 14px; font-size: 13px; box-shadow: var(--lift-2); white-space: nowrap; }
+.adjbanner .seg { background: rgba(255,255,255,.15); border-color: rgba(255,255,255,.3); }
+.adjbanner .seg button { color: #fff; min-height: 32px; padding: 0 10px; border-left-color: rgba(255,255,255,.3); }
+.adjbanner .seg button.on { background: #fff; color: #7A3E9D; }
+.adjbtn { background: rgba(255,255,255,.18); border: 0; color: #fff; border-radius: var(--r-pill); min-height: 32px; padding: 0 12px; font-weight: 700; cursor: pointer; }
+@media (max-width: 560px) {
+  .adjbanner > span { display: none; }
+  .adjbanner { padding-left: 6px; }
+}
+
+/* ---------- safety ---------- */
+.kv { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; margin: 8px 0; }
+.kv > div { background: var(--sunk); border-radius: var(--r-sm); padding: 8px 10px; display: flex; flex-direction: column; gap: 2px; }
+.kv span { font-size: 11px; color: var(--ink-3); text-transform: uppercase; letter-spacing: .05em; }
+.card.order { border-left-color: var(--ink-3); }
+.card.order.proposed { border-left-color: var(--orange, #E07B00); }
+.card.order.sent, .card.order.filled { border-left-color: #237F35; }

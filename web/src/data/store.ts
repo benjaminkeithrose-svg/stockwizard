@@ -5,7 +5,8 @@
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
 import { Candles, emptyCandles, madeUpCandles, Timeframe } from "./candles";
 import type { ClaudeMessage, ClaudeReply } from "./claude";
-import { BacktestRun, BacktestTrade, ChartView, PatternRun, ScanDef, ScanResult, ScanRun, StrategyDef, SymbolInfo, Watchlist, Workspace } from "./model";
+import type { OptionPosition } from "./options";
+import { BacktestRun, BacktestTrade, ChartView, DEFAULT_FAVOURITES, DEFAULT_LIMITS, PaperOrder, PatternRun, SafetyLimits, UserSettings, ScanDef, ScanResult, ScanRun, StrategyDef, SymbolInfo, Watchlist, Workspace } from "./model";
 import { SUPABASE_KEY, SUPABASE_URL } from "../config";
 
 export interface User {
@@ -35,6 +36,22 @@ export interface Store {
   views(): Promise<ChartView[]>;
   saveView(v: ChartView): Promise<ChartView>;
   deleteView(id: string): Promise<void>;
+
+  /** The person's settings (favourites); the defaults until they change one. */
+  settings(): Promise<UserSettings>;
+  saveSettings(s: UserSettings): Promise<void>;
+
+  /** Option structures drawn on the charts (plans; never orders). */
+  positions(): Promise<OptionPosition[]>;
+  savePosition(p: OptionPosition): Promise<OptionPosition>;
+  deletePosition(id: string): Promise<void>;
+
+  /** Phase 5's safety limits (the defaults until Ben saves them), the bot's orders, and Ben's controls. */
+  safetyLimits(): Promise<SafetyLimits>;
+  saveSafetyLimits(l: SafetyLimits): Promise<SafetyLimits>;
+  paperOrders(): Promise<PaperOrder[]>;
+  decideOrder(id: number, approve: boolean): Promise<void>;
+  killSwitch(): Promise<number>;
 
   strategies(): Promise<StrategyDef[]>;
   /** The latest manual or scheduled run of each strategy, with its metrics. Re-runs are checks, not shown. */
@@ -201,6 +218,54 @@ export class SupabaseStore implements Store {
     this.check(await this.sb.from("views").delete().eq("id", id));
   }
 
+  async settings(): Promise<UserSettings> {
+    const rows = this.check(await this.sb.from("user_settings").select("favourites")) as UserSettings[];
+    return rows[0] ?? { favourites: DEFAULT_FAVOURITES };
+  }
+
+  async saveSettings(st: UserSettings) {
+    this.check(await this.sb.from("user_settings").upsert({ favourites: st.favourites }));
+  }
+
+  async positions() {
+    return this.check(await this.sb.from("option_positions").select("*").neq("status", "closed").order("created_at")) as OptionPosition[];
+  }
+
+  async savePosition(p: OptionPosition) {
+    const { updated_at: _skip, ...row } = p;
+    return this.check(await this.sb.from("option_positions").upsert(row).select().single()) as OptionPosition;
+  }
+
+  async deletePosition(id: string) {
+    this.check(await this.sb.from("option_positions").delete().eq("id", id));
+  }
+
+  async safetyLimits(): Promise<SafetyLimits> {
+    const rows = this.check(await this.sb.from("safety_limits").select("*")) as (SafetyLimits & { owner: string })[];
+    if (!rows[0]) return DEFAULT_LIMITS;
+    const { owner: _o, ...l } = rows[0];
+    const num = (v: unknown) => (v === null || v === undefined ? null : Number(v));
+    return { ...l, max_loss_per_trade: Number(l.max_loss_per_trade), max_loss_per_day: num(l.max_loss_per_day), max_capital_at_risk: Number(l.max_capital_at_risk) };
+  }
+
+  async saveSafetyLimits(l: SafetyLimits) {
+    const { updated_at: _skip, ...row } = l;
+    this.check(await this.sb.from("safety_limits").upsert(row));
+    return this.safetyLimits();
+  }
+
+  async paperOrders() {
+    return this.check(await this.sb.from("paper_orders").select("*").order("created_at", { ascending: false }).limit(200)) as PaperOrder[];
+  }
+
+  async decideOrder(id: number, approve: boolean) {
+    this.check(await this.sb.rpc("decide_order", { order_id: id, approve }));
+  }
+
+  async killSwitch() {
+    return this.check(await this.sb.rpc("kill_switch")) as unknown as number;
+  }
+
   async strategies() {
     return this.check(await this.sb.from("strategies").select("id,label,family,config,version,start_date,split_date,position,notes").eq("enabled", true).order("position")) as StrategyDef[];
   }
@@ -291,23 +356,43 @@ export function latestPerScan(runs: Omit<ScanRun, "results">[], results: (ScanRe
 }
 
 /** Everything in this browser's storage, made-up candles. Never touches the network. */
+interface DemoData {
+  workspaces: Workspace[];
+  watchlists: Watchlist[];
+  views: ChartView[];
+  positions: OptionPosition[];
+  settings: UserSettings;
+  limits: SafetyLimits;
+  orders: PaperOrder[];
+}
+
+/** A made-up proposal, so the demo's Safety screen has something to approve. */
+const DEMO_ORDER: PaperOrder = {
+  id: 1, created_at: "2026-11-18T14:45:00Z", symbol: "DEMO", structure: "iron_condor", expiry: "2026-11-18",
+  legs: [{ right: "P", side: "buy", strike: 117, qty: 1 }, { right: "P", side: "sell", strike: 122, qty: 1 },
+    { right: "C", side: "sell", strike: 132, qty: 1 }, { right: "C", side: "buy", strike: 137, qty: 1 }],
+  quantity: 1, limit_price: 4.6, price_kind: "credit", max_loss: 40, status: "proposed", refusals: [],
+  reason: "Made-up: squeeze on, inside the opening range", pnl: null,
+};
+
 export class DemoStore implements Store {
   readonly demo = true;
   private key = "stockwizard.demo";
   private user: User | null = { id: "demo", email: "demo" };
   private listeners = new Set<(u: User | null) => void>();
 
-  private load(): { workspaces: Workspace[]; watchlists: Watchlist[]; views: ChartView[] } {
+  private load(): DemoData {
     try {
       const raw = localStorage.getItem(this.key);
-      if (raw) return { views: [], ...JSON.parse(raw) };
+      if (raw) return { views: [], positions: [], settings: { favourites: DEFAULT_FAVOURITES }, limits: DEFAULT_LIMITS, orders: [structuredClone(DEMO_ORDER)], ...JSON.parse(raw) };
     } catch {
       /* storage blocked: start empty */
     }
-    return { workspaces: [], views: [], watchlists: [{ id: "demo-1", name: "Made-up list", is_universe: false, symbols: ["DEMO", "TEST"] }] };
+    return { workspaces: [], views: [], positions: [], settings: { favourites: DEFAULT_FAVOURITES }, limits: DEFAULT_LIMITS, orders: [structuredClone(DEMO_ORDER)],
+      watchlists: [{ id: "demo-1", name: "Made-up list", is_universe: false, symbols: ["DEMO", "TEST"] }] };
   }
 
-  private save(d: { workspaces: Workspace[]; watchlists: Watchlist[]; views: ChartView[] }) {
+  private save(d: DemoData) {
     try {
       localStorage.setItem(this.key, JSON.stringify(d));
     } catch {
@@ -378,6 +463,59 @@ export class DemoStore implements Store {
     const d = this.load();
     d.views = d.views.filter((x) => x.id !== id);
     this.save(d);
+  }
+
+  async settings() { return this.load().settings; }
+
+  async saveSettings(st: UserSettings) {
+    const d = this.load();
+    d.settings = st;
+    this.save(d);
+  }
+
+  async positions() { return this.load().positions.filter((p) => p.status !== "closed"); }
+
+  async savePosition(p: OptionPosition) {
+    const d = this.load();
+    const saved = { ...p, updated_at: new Date().toISOString() };
+    d.positions = [...d.positions.filter((x) => x.id !== p.id), saved];
+    this.save(d);
+    return saved;
+  }
+
+  async deletePosition(id: string) {
+    const d = this.load();
+    d.positions = d.positions.filter((x) => x.id !== id);
+    this.save(d);
+  }
+
+  async safetyLimits() { return this.load().limits; }
+
+  async saveSafetyLimits(l: SafetyLimits) {
+    const d = this.load();
+    d.limits = { ...l, updated_at: new Date().toISOString() };
+    this.save(d);
+    return d.limits;
+  }
+
+  async paperOrders() { return this.load().orders; }
+
+  async decideOrder(id: number, approve: boolean) {
+    const d = this.load();
+    const o = d.orders.find((x) => x.id === id);
+    if (!o || o.status !== "proposed") throw new Error(`Order ${id} isn't waiting for approval`);
+    if (approve && d.limits.kill_switch) throw new Error("The kill switch is on: nothing can be approved");
+    o.status = approve ? "approved" : "rejected";
+    this.save(d);
+  }
+
+  async killSwitch() {
+    const d = this.load();
+    d.limits = { ...d.limits, kill_switch: true };
+    let n = 0;
+    for (const o of d.orders) if (o.status === "proposed" || o.status === "approved") { o.status = "cancelled"; n++; }
+    this.save(d);
+    return n;
   }
 
   async strategies(): Promise<StrategyDef[]> {
