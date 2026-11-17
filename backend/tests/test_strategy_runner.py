@@ -41,6 +41,9 @@ class FakeMarket:
     def vix_prev(self, day):
         return self.vix
 
+    def vol_now(self, now):
+        return 0.16
+
 
 def at(h, m):
     return datetime.combine(DAY, datetime.min.time(), NY).replace(hour=h, minute=m).astimezone(timezone.utc)
@@ -163,3 +166,20 @@ def test_a_restart_remembers_which_strategy_an_order_came_from():
     r2 = BotRunner(s, OWNER, clock=lambda: at(15, 5), market=FakeMarket())
     said = r2.cycle()
     assert any("closed (time)" in x for x in said), said
+
+
+def test_the_today_snapshot_is_saved_during_the_session_only():
+    s, r, clock = setup(CONDOR)
+    clock["t"] = at(9, 0)
+    r.cycle()
+    assert not s.tables.get("market_snapshots")
+    clock["t"] = at(11, 0)
+    r.cycle()
+    clock["t"] = at(11, 30)
+    r.cycle()
+    snaps = s.tables["market_snapshots"]
+    assert len(snaps) == 1, "one row per symbol, overwritten"
+    sn = snaps[0]
+    assert sn["symbol"] == "SPY" and sn["vix1d"] == 16.0 and sn["vix"] == 16.0 and sn["source"] == "pretend"
+    assert sn["or_high"] >= sn["or_low"] and sn["expected_move"] > 0 and sn["direction"] in ("bullish", "bearish", "neutral")
+    assert sn["taken_at"].startswith("2026-11-18T16:30")

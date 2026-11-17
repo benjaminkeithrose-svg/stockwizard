@@ -53,6 +53,12 @@ class FakeStore:
             out.append(dict(r))
         return out if returning else []
 
+    def upsert(self, table, on_conflict, rows):
+        t = self.tables.setdefault(table, [])
+        for r in rows:
+            t[:] = [x for x in t if x.get(on_conflict) != r[on_conflict]] + [dict(r)]
+        return len(rows)
+
     def update(self, table, match, values):
         changed = []
         for r in self.tables[table]:

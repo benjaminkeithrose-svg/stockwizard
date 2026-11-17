@@ -78,6 +78,9 @@ class PretendMarket:
         self._bars[key] = df
         return df[df.index.date == day]
 
+    def vol_now(self, now):
+        return self._vol(now)
+
     def _vol(self, now):
         try:
             v = self.source.fetch("^VIX1D", "5m", start=now.astimezone(NY).date(), end=now.astimezone(NY).date() + timedelta(days=1))
@@ -127,6 +130,29 @@ class StrategyRunner:
     def _no_trade(self, st: dict, why: str) -> str:
         self.r.audit("bot", "strategy_no_trade", {"strategy": st["id"], "label": st["label"], "why": why})
         return f"{st['label']}: no trade today ({why})"
+
+    # 0. what the Today screen shows
+    def snapshot(self, now: datetime, symbol: str = "SPY") -> list[str]:
+        """During the session, save what the bot sees (price, VIX, VIX1D, expected move, opening range, VWAP, direction)."""
+        ny = now.astimezone(NY)
+        if ny.weekday() >= 5 or not (time(9, 35) <= ny.time() <= time(16, 5)):
+            return []
+        bars = self.market.bars_today(symbol, ny)
+        if bars is None or bars.empty:
+            return []
+        sig = signals.at_entry(bars, min(ny.time(), time(16, 0)), self.market.bar_minutes)
+        if sig is None:
+            return []
+        vol = self.market.vol_now(ny)
+        left = max((datetime.combine(ny.date(), time(16, 0), NY) - ny).total_seconds(), 0)
+        em = sig.price * vol * math.sqrt(left / (252 * 6.5 * 3600)) if vol else None
+        r = lambda v, d=2: None if v is None else round(float(v), d)  # noqa: E731
+        row = {"symbol": symbol, "taken_at": now.astimezone(ZoneInfo("UTC")).isoformat(), "session_date": ny.date().isoformat(),
+               "price": r(sig.price), "vix": r(self.market.vix_prev(ny.date() + timedelta(days=1))), "vix1d": r(vol * 100 if vol else None),
+               "expected_move": r(em), "or_high": r(sig.or_high), "or_low": r(sig.or_low), "vwap": r(sig.vwap),
+               "direction": sig.direction, "source": "ibkr" if isinstance(self.market, IBKRMarket) else "pretend"}
+        self.r.store.upsert("market_snapshots", "symbol", [row])
+        return []
 
     # 1. propose
     def propose_due(self, now: datetime) -> list[str]:
@@ -304,3 +330,15 @@ class IBKRMarket:
 
     def vix_prev(self, day):
         return PretendMarket.vix_prev(self, day)
+
+    def vol_now(self, now):
+        """VIX1D from IBKR when the data is subscribed; otherwise the VIX's last close."""
+        try:
+            t = self.b.ib.reqTickers(self.b.ib.qualifyContracts(self.b.lib.Index("VIX1D", "CBOE", "USD"))[0])[0]
+            v = t.marketPrice()
+            if v and not math.isnan(v):
+                return float(v) / 100
+        except Exception:  # noqa: BLE001
+            pass
+        prev = self.vix_prev(now.astimezone(NY).date() + timedelta(days=1))
+        return prev / 100 if prev else None

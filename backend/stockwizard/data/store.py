@@ -104,6 +104,10 @@ class SupabaseStore:
             raise RuntimeError(f"Supabase refused writing {table}: HTTP {status} {body[:300]!r}")
         return json.loads(body) if returning and body else []
 
+    def upsert(self, table: str, on_conflict: str, rows: list[dict]) -> int:
+        """Insert rows, or replace the ones whose `on_conflict` column already exists."""
+        return self._upsert(table, on_conflict, rows)
+
     def update(self, table: str, match: dict[str, str], values: dict) -> list[dict]:
         """Change the rows matching `match` (PostgREST filters, e.g. {"id": "eq.5"}); returns them as changed."""
         headers = {**self._headers(), "Prefer": "return=representation"}

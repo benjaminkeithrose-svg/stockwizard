@@ -8,6 +8,7 @@ import { useWorkspaces } from "../data/useWorkspaces";
 import ChartScreen from "./ChartScreen";
 import SafetyScreen from "./Safety";
 import HelpScreen from "./Help";
+import TodayScreen from "./Today";
 import AnalysisScreen from "./Analysis";
 import { OptionBacktestScreen } from "./OptionBacktests";
 import { structureLabel } from "../data/options";
@@ -26,7 +27,7 @@ import SignIn from "./SignIn";
 import { useWatchlists, WatchlistScreen, WatchlistsScreen } from "./Watchlists";
 import { APP_BUILD } from "../config";
 
-type Screen = { name: "chart" } | { name: "scanner" } | { name: "pages" } | { name: "card" } | { name: "backtests" } | { name: "backtest"; id: string } | { name: "watchlists" } | { name: "safety" } | { name: "help" } | { name: "analysis"; id: string } | { name: "optbacktest"; id: string } | { name: "watchlist"; list: Watchlist };
+type Screen = { name: "chart" } | { name: "scanner" } | { name: "pages" } | { name: "card" } | { name: "backtests" } | { name: "backtest"; id: string } | { name: "watchlists" } | { name: "safety" } | { name: "help" } | { name: "today" } | { name: "analysis"; id: string } | { name: "optbacktest"; id: string } | { name: "watchlist"; list: Watchlist };
 
 export function makeStore(): Store {
   return new URLSearchParams(location.search).has("demo") ? new DemoStore() : new SupabaseStore();
@@ -44,7 +45,7 @@ export default function App({ store }: { store: Store }) {
   return <SignedIn store={store} user={user} key={user.id} />;
 }
 
-function Header(props: { title: string; sub?: string; onBack?: () => void; onHome?: () => void; onScanner?: () => void; onPages?: () => void; onBacktests?: () => void; onClaude?: () => void; menu?: React.ReactNode }) {
+function Header(props: { title: string; sub?: string; onBack?: () => void; onHome?: () => void; onScanner?: () => void; onPages?: () => void; onBacktests?: () => void; onClaude?: () => void; onToday?: () => void; menu?: React.ReactNode }) {
   return (
     <header>
       {props.onBack
@@ -54,6 +55,7 @@ function Header(props: { title: string; sub?: string; onBack?: () => void; onHom
         <h1>{props.title}</h1>
         {props.sub && <div className="sub">{props.sub}</div>}
       </div>
+      {props.onToday && <button className="menubtn word" onClick={props.onToday}>Today</button>}
       {props.onClaude && <button className="menubtn" aria-label="Claude" onClick={props.onClaude}><Spark /></button>}
       {props.onPages && <button className="menubtn" aria-label="Chart pages" onClick={props.onPages}><Grid /></button>}
       {props.onScanner && <button className="menubtn" aria-label="Scanner" onClick={props.onScanner}><Radar /></button>}
@@ -103,11 +105,11 @@ function SignedIn({ store, user }: { store: Store; user: User }) {
     : screen.name === "card" ? () => setScreen({ name: "pages" })
     : screen.name === "backtest" || screen.name === "optbacktest" ? () => setScreen({ name: "backtests" })
     : screen.name === "backtests" ? () => setScreen({ name: "chart" })
-    : screen.name === "watchlists" || screen.name === "scanner" || screen.name === "pages" || screen.name === "safety" || screen.name === "analysis" || screen.name === "help" ? () => setScreen({ name: "chart" }) : undefined;
+    : screen.name === "watchlists" || screen.name === "scanner" || screen.name === "pages" || screen.name === "safety" || screen.name === "analysis" || screen.name === "help" || screen.name === "today" ? () => setScreen({ name: "chart" }) : undefined;
   const title = screen.name === "chart" ? "Stock Wizard" : screen.name === "scanner" ? "Scanner"
     : screen.name === "pages" ? "Chart pages" : screen.name === "backtests" ? "Backtests"
     : screen.name === "backtest" ? (strategyLabels[screen.id] ?? "Backtest") : screen.name === "card" ? (ws.active?.name ?? "Chart")
-    : screen.name === "watchlists" ? "Watchlists" : screen.name === "optbacktest" ? "Option backtest" : screen.name === "safety" ? "Safety" : screen.name === "help" ? "Help" : screen.name === "analysis" ? (analysing ? `${structureLabel(analysing.structure)} · ${analysing.symbol}` : "Analysis") : screen.list.name;
+    : screen.name === "watchlists" ? "Watchlists" : screen.name === "optbacktest" ? "Option backtest" : screen.name === "safety" ? "Safety" : screen.name === "help" ? "Help" : screen.name === "today" ? "Today" : screen.name === "analysis" ? (analysing ? `${structureLabel(analysing.structure)} · ${analysing.symbol}` : "Analysis") : screen.list.name;
   // Open a symbol and timeframe in the current tab; a tab still on its automatic name follows.
   const openOnChart = (s: string, tf?: Timeframe) => {
     const w = ws.active;
@@ -140,6 +142,7 @@ function SignedIn({ store, user }: { store: Store; user: User }) {
         onScanner={screen.name === "chart" ? () => setScreen({ name: "scanner" }) : undefined}
         onPages={screen.name === "chart" ? () => setScreen({ name: "pages" }) : undefined}
         onBacktests={screen.name === "chart" ? () => setScreen({ name: "backtests" }) : undefined}
+        onToday={screen.name === "chart" ? () => setScreen({ name: "today" }) : undefined}
         onClaude={() => setClaudeOpen(!claudeOpen)} menu={menu} />
       {claudeOpen && (
         <ClaudePanel store={store} userId={user.id} onClose={() => setClaudeOpen(false)}
@@ -167,6 +170,7 @@ function SignedIn({ store, user }: { store: Store; user: User }) {
         onAnalyse={(id) => { setAdjust(null); setScreen({ name: "analysis", id }); }} adjust={adjust} />}
       {screen.name === "safety" && <SafetyScreen store={store} />}
       {screen.name === "help" && <HelpScreen />}
+      {screen.name === "today" && <TodayScreen store={store} onSafety={() => setScreen({ name: "safety" })} />}
       {screen.name === "analysis" && (analysing
         ? <AnalysisScreen store={store} position={analysing} others={pos.list.filter((p) => p.symbol === analysing.symbol)}
             onAdjust={() => { setAdjust(analysing.id); setScreen({ name: "chart" }); }} />
