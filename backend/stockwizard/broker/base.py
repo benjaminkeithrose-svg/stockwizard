@@ -19,7 +19,7 @@ class LiveTradingDisabled(RuntimeError):
 @dataclass
 class BrokerOrder:
     broker_id: str
-    request: OrderRequest
+    request: OrderRequest | None   # None: an order or position the bot didn't make (reconcile flags it)
     status: str  # working, filled, cancelled, closed
     fill_price: float | None = None
 
@@ -44,6 +44,17 @@ class Broker(ABC):
     @abstractmethod
     def close(self, broker_id: str, price: float) -> None:
         """Close a filled structure with one combo limit order at `price` per share."""
+
+    @abstractmethod
+    def status(self, broker_id: str) -> BrokerOrder | None:
+        """Where one order stands now: working, filled (with its price) or cancelled. None if unknown."""
+
+    @abstractmethod
+    def quote(self, order: OrderRequest) -> OrderRequest:
+        """The order with a fresh limit price and price time."""
+
+    def remember(self, orders: list[BrokerOrder]) -> None:
+        """Orders sent or filled before a restart, from the database."""
 
     @abstractmethod
     def positions(self) -> list[BrokerOrder]:

@@ -3,6 +3,7 @@
     python -m stockwizard.run_bot                 # one cycle with the pretend broker
     python -m stockwizard.run_bot --practice      # also propose one made-up practice order
     python -m stockwizard.run_bot --loop 30       # a cycle every 30 seconds until stopped
+    python -m stockwizard.run_bot --broker ibkr --loop 30   # on Ben's PC, with IB Gateway (paper) running
 
 Each cycle:
 1. Reads safety_limits (the defaults while Ben hasn't saved any: the daily
@@ -54,13 +55,14 @@ def find_owner(store: SupabaseStore) -> str:
 
 
 class BotRunner:
-    def __init__(self, store, owner: str, clock=lambda: datetime.now(timezone.utc)):
+    def __init__(self, store, owner: str, clock=lambda: datetime.now(timezone.utc), broker=None):
         self.store, self.owner, self.clock = store, owner, clock
         self.db_ids: dict[int, int] = {}   # the bot's order number → paper_orders.id
         rows = store.select("paper_orders", {"select": "*", "owner": f"eq.{owner}", "status": f"in.({','.join(OPEN_STATUSES)})", "order": "id"})
         remembered = [BrokerOrder(r["broker_id"], request_from_dict(r), "working" if r["status"] == "sent" else "filled", r.get("fill_price"))
                       for r in rows if r.get("broker_id") and r["status"] in ("sent", "filled")]
-        self.broker = PretendBroker(remembered, clock=clock)
+        self.broker = broker or PretendBroker(clock=clock)
+        self.broker.remember(remembered)
         self.bot = Bot(self.broker, self.limits, self.audit, clock=clock, on_change=self.save, requote=self.broker.quote)
         for r in rows:
             p = Proposal(0, request_from_dict(r), "proposed" if r["status"] == "approved" else r["status"],
@@ -182,13 +184,21 @@ class BotRunner:
                     self.bot.orders[bid].status = "cancelled"   # the app's kill switch dropped it (already recorded)
                     said.append(f"Order {r['id']}: cancelled by the kill switch")
         said += self.requests()
-        # The pretend market: working orders fill straight away, at their limit price.
-        sent_before = {p.broker_id for p in self.bot.orders.values() if p.status == "sent"}
-        for bid in self.broker.step():
-            if bid in sent_before:
-                p = next(p for p in self.bot.orders.values() if p.broker_id == bid)
-                self.bot.record_fill(p.id, self.broker.orders[bid].fill_price)
-                said.append(f"Order {self.db_ids[p.id]}: filled (pretend) at {self.broker.orders[bid].fill_price}")
+        if isinstance(self.broker, PretendBroker):
+            self.broker.step()   # the pretend market: working orders fill straight away, at their limit price
+        pretend = " (pretend)" if isinstance(self.broker, PretendBroker) else ""
+        for p in [p for p in self.bot.orders.values() if p.status == "sent"]:
+            o = self.broker.status(p.broker_id)
+            if o is None:
+                continue
+            if o.status == "filled":
+                self.bot.record_fill(p.id, o.fill_price)
+                said.append(f"Order {self.db_ids[p.id]}: filled{pretend} at {o.fill_price}")
+            elif o.status == "cancelled":
+                p.status = "cancelled"
+                self.save(p)
+                self.audit("bot", "order_cancelled_at_broker", {"order": p.id, "broker_id": p.broker_id})
+                said.append(f"Order {self.db_ids[p.id]}: cancelled at the broker (rejected, or the day ended unfilled)")
         return said
 
     # --- practice ---
@@ -210,9 +220,17 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--owner", help="the person's user id (found automatically when there is one)")
     ap.add_argument("--practice", action="store_true", help="propose one made-up practice order")
     ap.add_argument("--loop", type=int, metavar="SECONDS", help="run a cycle every SECONDS until stopped")
+    ap.add_argument("--broker", choices=["pretend", "ibkr"], default="pretend")
+    ap.add_argument("--port", type=int, default=4002, help="IB Gateway's paper port (4002; TWS paper is 7497). Live ports are refused")
+    ap.add_argument("--delayed", action="store_true", help="delayed market data (no subscription): quotes count as 15 minutes old")
     a = ap.parse_args(argv)
     store = SupabaseStore()
-    runner = BotRunner(store, a.owner or find_owner(store))
+    broker = None
+    if a.broker == "ibkr":
+        from stockwizard.broker.ibkr import IBKRBroker  # noqa: PLC0415 - needs ib_async, only on the PC
+        broker = IBKRBroker(port=a.port, delayed=a.delayed)
+        print(f"Connected to Interactive Brokers, paper account {broker.account}.")
+    runner = BotRunner(store, a.owner or find_owner(store), broker=broker)
     if a.practice:
         p = runner.practice()
         print(f"Practice order {runner.db_ids[p.id]}: {p.status}" + (f" ({'; '.join(r.why for r in p.refusals)})" if p.refusals else " — waiting for Ben"))
@@ -222,6 +240,8 @@ def main(argv: list[str] | None = None) -> int:
         if not a.loop:
             return 0
         time.sleep(a.loop)
+        if broker is not None and not broker.connected():
+            print("IB Gateway disconnected: trading stopped. Waiting for it to come back...")
 
 
 if __name__ == "__main__":
