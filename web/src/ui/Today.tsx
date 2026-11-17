@@ -95,11 +95,12 @@ export default function TodayScreen({ store, onSafety }: { store: Store; onSafet
       <h2>Strategies today</h2>
       {!strategies.length && <p className="empty">None switched on.</p>}
       {strategies.map((st) => {
-        const o = todays.find((x) => x.strategy_id === st.id);
+        const o = todays.find((x) => x.strategy_id === st.id)
+          ?? orders.find((x) => x.strategy_id === st.id && ["proposed", "sent", "filled"].includes(x.status));   // a multi-day position from an earlier day
         const nt = noTrades.find((x) => x.strategy === st.id);
         const entry = nyAt(today, st.config.entry);
         const status = o
-          ? (o.status === "closed" ? `Closed ${money(o.pnl)}` : o.status === "proposed" ? "Waiting for your approval" : o.status === "refused" ? `Refused: ${o.refusals[0]?.why ?? ""}` : o.status === "filled" ? "Open (filled)" : o.status)
+          ? (o.status === "closed" ? `Closed ${money(o.pnl)}` : o.status === "proposed" ? "Waiting for your approval" : o.status === "refused" ? `Refused: ${o.refusals[0]?.why ?? ""}` : o.status === "filled" ? `Open (filled)${String(o.expiry).slice(0, 10) > today ? `, expires ${String(o.expiry).slice(0, 10)}` : ""}` : o.status)
           : nt ? `No trade: ${nt.why}` : now < entry ? `Due at ${st.config.entry} New York (${sydTime(entry)} Sydney)` : "No proposal (the bot may not have run in time)";
         return (
           <div key={st.id} className="card strat" style={{ borderLeftColor: o?.status === "closed" ? ((o.pnl ?? 0) >= 0 ? "#237F35" : "var(--warn)") : undefined }}>

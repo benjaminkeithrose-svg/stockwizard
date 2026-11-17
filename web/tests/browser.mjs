@@ -389,7 +389,13 @@ try {
   await page.getByRole("button", { name: "20", exact: true }).click();
   await page.getByRole("dialog", { name: "New strategy" }).getByRole("button", { name: "Done" }).click();
   await wait(300);
-  check(await page.getByText(/XSP · directional · 10:30 · 20 delta · \$1 wide/).isVisible(), "a strategy is added from a preset, with its settings");
+  // a multi-day preset carries its expiry and placement
+  await page.getByRole("button", { name: "+ Add a strategy" }).click();
+  await page.getByRole("button", { name: /^9-day condor, take 50%/ }).click({ timeout: 5000 });
+  check(await page.getByText(/SPY · Iron condor · 10:00 · expires 9 days · shorts 1× daily range · \$5 wide · take 50%/).first().isVisible(), "the 9-day condor preset");
+  await page.keyboard.press("Escape");
+  await wait(200);
+  check(await page.getByText(/XSP · Credit spread by direction · 10:30 · expires same day · 20 delta · \$1 wide/).isVisible(), "a strategy is added from a preset, with its settings");
   const sw = page.getByRole("switch", { name: /Directional/ });
   check(await sw.getAttribute("aria-checked") === "false", "a new strategy starts switched off");
   await sw.click();
