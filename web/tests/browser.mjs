@@ -179,6 +179,12 @@ try {
   check((await page.getByRole("columnheader").count()) === 3, "with a column for each structure");
   await page.locator("#ana-date").fill("2");
   check(await page.getByText(/^Date: (?!today)/).isVisible(), "the date slider moves the date on");
+  await page.getByRole("button", { name: "Order (paper)" }).click();
+  check(await page.getByRole("dialog", { name: "Order (paper)" }).isVisible(), "Order (paper) opens with the estimate");
+  await page.getByRole("button", { name: "3", exact: true }).click();
+  await page.getByRole("button", { name: "Send to the bot" }).click();
+  check(await page.getByText(/Sent to the bot/).isVisible(), "the order request goes to the bot");
+  await page.getByRole("dialog", { name: "Order (paper)" }).getByRole("button", { name: "Done" }).click();
   await page.getByRole("button", { name: "Adjust on the chart" }).click();
   await page.waitForSelector("[data-testid=chart] canvas");
   check(await page.getByText("Drag a line to move").isVisible(), "Adjust on the chart goes back to dragging it");
@@ -355,6 +361,8 @@ try {
   check(await page.getByText("Nothing waiting.").isVisible(), "approved: nothing left waiting");
   await page.getByRole("tab", { name: "History" }).click();
   check(await page.getByText(/Approved, bot checking again/).isVisible(), "history shows it approved");
+  check(await page.getByText(/Iron condor · DEMO.*Refused by the rails/).first().isVisible()
+    || await page.getByText(/Refused by the rails/).first().isVisible(), "the chart's condor was checked by the rails (too much risk for $50)");
   await page.getByRole("button", { name: "Kill switch: stop all trading" }).click();
   check(await page.getByText(/Blocks every new order/).isVisible(), "the kill switch says what it does");
   await page.getByRole("button", { name: "Stop all trading", exact: true }).click();

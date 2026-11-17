@@ -252,6 +252,35 @@ do $$ begin
   if (select count(*) from public.paper_orders where status = 'cancelled') <> 3 then raise exception 'FAIL: kill switch did not cancel the waiting orders'; end if;
 end $$;
 
+-- Requests to the bot: Ben adds his own, waiting; can't mark one done or change it; each is audited.
+grant all on public.bot_requests to authenticated;
+set role authenticated;
+set request.jwt.claim.sub = '00000000-0000-0000-0000-00000000000a';
+insert into public.bot_requests (kind, position_id, quantity) select 'open', id, 2 from public.option_positions limit 1;
+do $$ begin
+  if (select count(*) from public.bot_requests) <> 1 then raise exception 'FAIL: the request was not added'; end if;
+  if not exists (select 1 from public.audit_log where action = 'order_requested') then raise exception 'FAIL: the request is not audited'; end if;
+  begin
+    insert into public.bot_requests (kind, position_id, status, result) select 'open', id, 'done', 'pretend' from public.option_positions limit 1;
+    raise exception 'FAIL: a request was added already done';
+  exception when insufficient_privilege then null; end;
+  begin
+    insert into public.bot_requests (kind) values ('close');
+    raise exception 'FAIL: a close request without an order was accepted';
+  exception when check_violation then null; end;
+  begin
+    insert into public.bot_requests (kind, position_id, quantity) select 'open', id, 50 from public.option_positions limit 1;
+    raise exception 'FAIL: 50 contracts accepted';
+  exception when check_violation then null; end;
+  update public.bot_requests set status = 'done';
+  if (select status from public.bot_requests) <> 'waiting' then raise exception 'FAIL: the app marked its own request done'; end if;
+end $$;
+set request.jwt.claim.sub = '00000000-0000-0000-0000-00000000000b';
+do $$ begin
+  if (select count(*) from public.bot_requests) <> 0 then raise exception 'FAIL: B sees A''s requests'; end if;
+end $$;
+reset role;
+
 -- Backtests: signed-in users read; only the server writes.
 grant all on public.strategies, public.backtest_runs, public.backtest_trades, public.backtest_metrics to anon, authenticated;
 set role authenticated;

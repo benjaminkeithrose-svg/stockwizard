@@ -11,7 +11,10 @@ Each cycle:
    Ben turns trading back on.
 3. Acts on Ben's decisions in paper_orders: an approval gets a fresh quote and
    every rail checked again before it is sent; a rejection is closed.
-4. Records fills from the broker.
+4. Acts on Ben's requests from the app (bot_requests): a structure from the
+   chart is priced and proposed (it then waits for his approval like any
+   other); a close request closes a filled position at the current price.
+5. Records fills from the broker.
 
 Every order the bot makes or changes is written to paper_orders, and every
 step to the audit log. On start it takes back its open orders from the
@@ -34,6 +37,7 @@ from zoneinfo import ZoneInfo
 from stockwizard.bot import Bot, Proposal
 from stockwizard.broker import BrokerOrder, PretendBroker
 from stockwizard.data.store import SupabaseStore
+from stockwizard.pricing import historical_vol, limit_price, net_value, years_left
 from stockwizard.rails import Leg, Limits, OrderRequest, request_from_dict, request_to_dict
 
 NY = ZoneInfo("America/New_York")
@@ -94,6 +98,67 @@ class BotRunner:
         else:
             self.db_ids[p.id] = self.store.insert("paper_orders", [{**row, "owner": self.owner}], returning=True)[0]["id"]
 
+    # --- prices (theoretical until Interactive Brokers supplies quotes) ---
+    def market(self, symbol: str) -> tuple[float, str, float, str]:
+        """(price, when, volatility, where the volatility came from) from the latest stored candles."""
+        latest = None
+        for tf in ("5m", "1d"):
+            rows = self.store.select("candles", {"select": "ts,close", "symbol": f"eq.{symbol}", "timeframe": f"eq.{tf}", "order": "ts.desc", "limit": "1"})
+            if rows and (latest is None or rows[0]["ts"] > latest["ts"]):
+                latest = rows[0]
+        if latest is None:
+            raise ValueError(f"No candles for {symbol}")
+        if symbol == "SPY":
+            vix = self.store.select("candles", {"select": "close", "symbol": "eq.^VIX", "timeframe": "eq.1d", "order": "ts.desc", "limit": "1"})
+            if vix:
+                return float(latest["close"]), latest["ts"], float(vix[0]["close"]) / 100, "the VIX"
+        daily = self.store.select("candles", {"select": "close", "symbol": f"eq.{symbol}", "timeframe": "eq.1d", "order": "ts.desc", "limit": "21"})
+        hv = historical_vol([float(r["close"]) for r in reversed(daily)])
+        return float(latest["close"]), latest["ts"], hv or 0.2, "the last 20 days' moves" if hv else "a default 20%"
+
+    def requests(self) -> list[str]:
+        said: list[str] = []
+        waiting = self.store.select("bot_requests", {"select": "*", "owner": f"eq.{self.owner}", "status": "eq.waiting", "order": "id"})
+        for q in waiting:
+            try:
+                result = self._open(q) if q["kind"] == "open" else self._close(q)
+                status = "done"
+            except Exception as e:  # noqa: BLE001 - a bad request is marked failed with the reason, never retried blindly
+                result, status = f"Couldn't: {e}", "failed"
+            self.store.update("bot_requests", {"id": f"eq.{q['id']}"}, {"status": status, "result": result, "done_at": self.clock().isoformat()})
+            said.append(f"Request {q['id']} ({q['kind']}): {result}")
+        return said
+
+    def _open(self, q: dict) -> str:
+        rows = self.store.select("option_positions", {"select": "*", "id": f"eq.{q['position_id']}", "owner": f"eq.{self.owner}"})
+        if not rows:
+            raise ValueError("that structure has been deleted")
+        pos = rows[0]
+        legs = tuple(Leg(l["right"], l["side"], float(l["strike"]), int(l.get("qty", 1))) for l in pos["legs"])
+        expiry = datetime.fromisoformat(str(pos["expiry"])[:10]).date()
+        spot, when, vol, source = self.market(pos["symbol"])
+        price, kind = limit_price(legs, spot, years_left(expiry, self.clock()), vol)
+        req = OrderRequest(symbol=pos["symbol"], structure=pos["structure"], expiry=expiry, legs=legs, quantity=int(q["quantity"]),
+                           limit_price=round(price, 2), price_kind=kind, prices_as_of=self.clock())
+        p = self.bot.propose(req, reason=(f"From your {pos['structure'].replace('_', ' ')} on the chart. Theoretical {kind} of ${price:.2f} "
+                                          f"(Black-Scholes from {pos['symbol']} {spot:.2f} at {when[:16]} UTC, volatility {vol * 100:.0f}% from {source}); "
+                                          f"the pretend broker treats it as a quote."))
+        if p.status == "refused":
+            return f"order {self.db_ids[p.id]} refused: " + "; ".join(r.why for r in p.refusals)
+        return f"order {self.db_ids[p.id]} {'sent (automatic mode)' if p.status in ('sent', 'filled') else 'waiting for your approval'}"
+
+    def _close(self, q: dict) -> str:
+        by_db = {db: bid for bid, db in self.db_ids.items()}
+        bid = by_db.get(q["order_id"])
+        if bid is None or self.bot.orders[bid].status != "filled":
+            raise ValueError(f"order {q['order_id']} isn't an open position")
+        p = self.bot.orders[bid]
+        spot, when, vol, source = self.market(p.request.symbol)
+        v = net_value(p.request.legs, spot, years_left(p.request.expiry, self.clock()), vol)
+        price = round(round(abs(v) / 0.05) * 0.05, 2)
+        self.bot.close(bid, price)
+        return f"order {q['order_id']} closed at a theoretical ${price:.2f} for ${p.pnl:+,.2f}"
+
     # --- one cycle ---
     def cycle(self) -> list[str]:
         said: list[str] = []
@@ -116,6 +181,7 @@ class BotRunner:
                 elif r["status"] == "cancelled":
                     self.bot.orders[bid].status = "cancelled"   # the app's kill switch dropped it (already recorded)
                     said.append(f"Order {r['id']}: cancelled by the kill switch")
+        said += self.requests()
         # The pretend market: working orders fill straight away, at their limit price.
         sent_before = {p.broker_id for p in self.bot.orders.values() if p.status == "sent"}
         for bid in self.broker.step():

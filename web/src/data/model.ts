@@ -257,3 +257,15 @@ export interface PaperOrder {
   reason: string | null;
   pnl: number | null;
 }
+
+/** Ben's request to the bot from the app: order a chart structure (paper) or close a paper position. Not an order. */
+export interface BotRequest {
+  id: number;
+  created_at: string;
+  kind: "open" | "close";
+  position_id: string | null;
+  order_id: number | null;
+  quantity: number;
+  status: "waiting" | "done" | "failed";
+  result: string | null;
+}

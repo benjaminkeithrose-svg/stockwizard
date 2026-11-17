@@ -33,13 +33,17 @@ class FakeStore:
         return True
 
     def select(self, table, query):
-        return [dict(r) for r in self.tables[table] if self._match(r, query)]
+        rows = [dict(r) for r in self.tables.setdefault(table, []) if self._match(r, query)]
+        if "order" in query:
+            col, _, way = query["order"].partition(".")
+            rows.sort(key=lambda r: r.get(col), reverse=way == "desc")
+        return rows[: int(query["limit"])] if "limit" in query else rows
 
     def insert(self, table, rows, returning=False):
         out = []
         for r in rows:
             r = {**r}
-            if table == "paper_orders":
+            if table in ("paper_orders", "bot_requests"):
                 r.setdefault("id", self.next_id)
                 r["updated_at"] = NOW.isoformat()
                 self.next_id += 1
@@ -187,3 +191,82 @@ def test_an_approval_waiting_through_a_restart_is_still_acted_on():
     r2, _ = runner(s)
     r2.cycle()
     assert order(s)["status"] == "filled"
+
+
+POSITION = {"id": "pos-1", "owner": OWNER, "symbol": "SPY", "structure": "iron_condor", "expiry": "2026-11-27", "status": "planned",
+            "legs": [{"right": "P", "side": "buy", "strike": 589, "qty": 1}, {"right": "P", "side": "sell", "strike": 590, "qty": 1},
+                     {"right": "C", "side": "sell", "strike": 610, "qty": 1}, {"right": "C", "side": "buy", "strike": 611, "qty": 1}]}
+
+
+def market(store, spy=600.0, vix=15.0):
+    store.tables["candles"] += [
+        {"symbol": "SPY", "timeframe": "1d", "ts": "2026-11-17T05:00:00+00:00", "close": spy},
+        {"symbol": "^VIX", "timeframe": "1d", "ts": "2026-11-17T06:00:00+00:00", "close": vix},
+    ]
+    store.tables.setdefault("option_positions", []).append(dict(POSITION))
+
+
+def request(store, **kw):
+    store.tables.setdefault("bot_requests", []).append({"id": 500 + len(store.tables.get("bot_requests", [])), "owner": OWNER, "status": "waiting", **kw})
+    return store.tables["bot_requests"][-1]
+
+
+def test_a_structure_from_the_chart_is_priced_checked_and_waits_for_approval():
+    s = FakeStore()
+    s.set_limits(**{**LIMITS, "max_loss_per_trade": 100})
+    market(s)
+    q = request(s, kind="open", position_id="pos-1", quantity=1)
+    r, _ = runner(s)
+    said = r.cycle()
+    assert q["status"] == "done" and "waiting for your approval" in q["result"], said
+    o = order(s)
+    assert o["status"] == "proposed" and o["price_kind"] == "credit" and o["symbol"] == "SPY"
+    assert 0 < o["limit_price"] < 1 and o["max_loss"] <= 100
+    assert "Theoretical" in o["reason"] and "the VIX" in o["reason"]
+    assert not r.broker.calls, "nothing is sent before Ben approves"
+
+
+def test_a_request_the_rails_refuse_says_why():
+    s = FakeStore()
+    s.set_limits(**{**LIMITS, "max_loss_per_trade": 10})
+    market(s)
+    q = request(s, kind="open", position_id="pos-1", quantity=1)
+    r, _ = runner(s)
+    r.cycle()
+    assert q["status"] == "done" and "refused" in q["result"] and "limit per trade" in q["result"]
+
+
+def test_a_request_for_a_deleted_structure_fails_plainly():
+    s = FakeStore()
+    s.set_limits(**LIMITS)
+    q = request(s, kind="open", position_id="gone", quantity=1)
+    r, _ = runner(s)
+    r.cycle()
+    assert q["status"] == "failed" and "deleted" in q["result"]
+
+
+def test_closing_a_filled_position_counts_its_loss_today():
+    s = FakeStore()
+    s.set_limits(**{**LIMITS, "approval_mode": "automatic", "max_loss_per_trade": 100})
+    market(s)
+    request(s, kind="open", position_id="pos-1", quantity=1)
+    r, _ = runner(s)
+    r.cycle()
+    o = order(s)
+    assert o["status"] == "filled"
+    s.tables["candles"].append({"symbol": "SPY", "timeframe": "1d", "ts": "2026-11-18T05:00:00+00:00", "close": 612.0})  # through the call side
+    q = request(s, kind="close", order_id=o["id"], quantity=1)
+    r.cycle()
+    assert q["status"] == "done" and "closed" in q["result"], q["result"]
+    assert o["status"] == "closed" and o["pnl"] < 0
+    assert r.bot.realised_loss_today == -o["pnl"]
+    assert "close_sent" in actions(s) and "position_closed" in actions(s)
+
+
+def test_closing_something_that_isnt_open_fails():
+    s = FakeStore()
+    s.set_limits(**LIMITS)
+    q = request(s, kind="close", order_id=12345, quantity=1)
+    r, _ = runner(s)
+    r.cycle()
+    assert q["status"] == "failed"
