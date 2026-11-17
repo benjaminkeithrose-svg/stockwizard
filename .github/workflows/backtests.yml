@@ -29,4 +29,5 @@ jobs:
           python-version: '3.12'
       - run: pip install .
       - run: python -m stockwizard.run_backtests
+      - run: python -m stockwizard.run_option_backtests
       - run: python -m stockwizard.run_lab

@@ -281,6 +281,27 @@ do $$ begin
 end $$;
 reset role;
 
+-- Option backtests: signed-in users read the 8 starting strategies; nobody in the app writes.
+grant all on public.option_strategies, public.option_runs to anon, authenticated;
+set role authenticated;
+set request.jwt.claim.sub = '00000000-0000-0000-0000-00000000000a';
+do $$ begin
+  if (select count(*) from public.option_strategies) <> 8 then raise exception 'FAIL: the 8 option strategies are not readable'; end if;
+  update public.option_strategies set enabled = false;
+  if exists (select 1 from public.option_strategies where not enabled) then raise exception 'FAIL: the app changed an option strategy'; end if;
+  begin
+    insert into public.option_runs (strategy_id, strategy_version, config, config_hash, as_of, start_date, split_date, code_version, source, data_hash, result_hash, report, trades)
+      values ('ic_0dte_daily', 1, '{}', 'x', now(), '2006-01-02', '2021-11-17', 'x', 'x', 'x', 'x', '{}', '[]');
+    raise exception 'FAIL: the app wrote an option run';
+  exception when insufficient_privilege then null; end;
+end $$;
+reset role;
+set role anon;
+do $$ begin
+  if (select count(*) from public.option_strategies) <> 0 then raise exception 'FAIL: signed-out users read option strategies'; end if;
+end $$;
+reset role;
+
 -- Backtests: signed-in users read; only the server writes.
 grant all on public.strategies, public.backtest_runs, public.backtest_trades, public.backtest_metrics to anon, authenticated;
 set role authenticated;

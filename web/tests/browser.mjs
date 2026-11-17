@@ -316,6 +316,16 @@ try {
   check(await page.getByText(/Sealed years \(blind backtest\)/).isVisible(), "survivors show their sealed-years result");
   check(await page.getByText(/Discovery \(saw the future\)/).first().isVisible(), "discovery numbers are labelled as having seen the future");
   check(await page.getByText(/needs 0.05 or less/).isVisible(), "near-misses say why they failed");
+  await page.getByRole("button", { name: "Options", exact: true }).click();
+  check(await page.getByText(/Build 64% won, \+\$39 a trade · Held back 51% won, \+\$31 a trade/).isVisible(), "the Options tab shows build and held back side by side");
+  await page.getByRole("button", { name: /^Made-up 9-day iron condor/ }).click();
+  check(await page.getByRole("heading", { name: "Option backtest" }).isVisible(), "an option strategy opens its own page");
+  check(await page.getByText(/Modelled option prices/).isVisible(), "it says the prices are modelled");
+  check(await page.getByRole("row", { name: /Likely wins in the next 100.*56–72.*43–59/ }).isVisible(), "with the likely range for the next 100 trades");
+  check(await page.getByRole("img", { name: "Running total, trade by trade" }).isVisible(), "the running profit or loss draws");
+  check(await page.locator(".card", { hasText: "settled" }).count() === 30, "the newest 30 trades are listed");
+  await page.getByRole("button", { name: "Back", exact: true }).click();
+  check(await page.getByRole("heading", { name: "Backtests" }).isVisible(), "Back returns to the Backtests screen");
   await page.getByRole("button", { name: "Strategies" }).click();
   await page.getByRole("button", { name: "Back", exact: true }).click();
 
