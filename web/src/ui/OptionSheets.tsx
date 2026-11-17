@@ -10,7 +10,9 @@ import {
 import { Star } from "./icons";
 import { Sheet } from "./parts";
 
-export const isFavStructure = (fav: Favourite[], s: Structure) => fav.some((f) => f.kind === "structure" && f.structure === s);
+/** Is `s` a favourite everywhere (symbol null) or on just this symbol? */
+export const isFavStructure = (fav: Favourite[], s: Structure, symbol: string | null = null) =>
+  fav.some((f) => f.kind === "structure" && f.structure === s && (f.symbol ?? null) === symbol);
 
 export function ExpiryChips(props: { value: string; onChange: (e: string) => void }) {
   const today = todayNY();
@@ -36,7 +38,7 @@ export function OptionsSheet(props: {
   onExpiry: (e: string) => void;
   onPlace: (s: Structure) => void;
   onOpen: (p: OptionPosition) => void;
-  onFavourite: (s: Structure, on: boolean) => void;
+  onFavourite: (s: Structure, symbol: string | null, on: boolean) => void;
   onClose: () => void;
 }) {
   return (
@@ -48,18 +50,23 @@ export function OptionsSheet(props: {
       {!props.canPlace && <p className="msg warn">No candles on this chart, so there's no price to place around.</p>}
       {STRUCTURES.map((s) => {
         const fav = isFavStructure(props.favourites, s.id);
+        const here = isFavStructure(props.favourites, s.id, props.symbol);
         return (
           <div key={s.id} className="card opt">
             <button className="cmain" disabled={!props.canPlace} onClick={() => props.onPlace(s.id)}>
               <div className="t">{s.label}</div>
               <div className="meta">{s.what}</div>
             </button>
+            <button className={`symfav${here ? " on" : ""}`} aria-pressed={here}
+              aria-label={here ? `Remove ${s.label} from ${props.symbol}'s favourites` : `Add ${s.label} to ${props.symbol}'s favourites`}
+              onClick={() => props.onFavourite(s.id, props.symbol, !here)}>{props.symbol}</button>
             <button className={`icon star${fav ? " on" : ""}`} aria-pressed={fav}
               aria-label={fav ? `Remove ${s.label} from favourites` : `Add ${s.label} to favourites`}
-              onClick={() => props.onFavourite(s.id, !fav)}><Star filled={fav} /></button>
+              onClick={() => props.onFavourite(s.id, null, !fav)}><Star filled={fav} /></button>
           </div>
         );
       })}
+      <p className="hint">The star puts a structure in the favourites row on every chart; the {props.symbol} button puts it there on {props.symbol}'s charts only.</p>
       <p className="hint">Placed one daily range (ATR 14) either side of the latest session's mean price, wings $5 beyond. Drag the lines to adjust.</p>
       <h2>On {props.symbol}</h2>
       {!props.positions.length && <p className="empty">None.</p>}

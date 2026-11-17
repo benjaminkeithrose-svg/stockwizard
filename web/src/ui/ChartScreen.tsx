@@ -4,11 +4,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Chart, { TapMode } from "../chart/Chart";
 import { Candles, emptyCandles, TIMEFRAMES, Timeframe } from "../data/candles";
-import { Favourite, indicator, newId, sameIndicator, SymbolInfo, Workspace } from "../data/model";
+import { Favourite, newId, SymbolInfo, Workspace } from "../data/model";
 import { expiryChoices, expiryLabel, MoveMode, moveLeg, newPosition, OptionPosition, placementBasis, Structure, structureLabel, todayNY } from "../data/options";
 import type { useFavourites, usePositions } from "../data/usePositions";
 import { cachedCandles, Store } from "../data/store";
-import { REGISTRY } from "../indicators";
 import { Close, Indicators, Legs, Pencil, Plus, Star } from "./icons";
 import { AskText, ConfirmDelete, MoreMenu } from "./parts";
 import { DrawSheet, IndicatorSheet, SymbolSearch } from "./sheets";
@@ -128,15 +127,10 @@ export default function ChartScreen(props: {
     if (p) { const next = moveLeg(p, leg, price, moveMode); if (next !== p) pos.save(next); }
   };
 
-  // Favourites: indicators already on this chart and structures already placed show as chips of their own, not again here.
-  const favShown = fav.list.filter((f) => (f.kind === "indicator"
-    ? !w.indicators.some((i) => sameIndicator(i, f)) && !(REGISTRY[f.name]?.intradayOnly && w.timeframe === "1d")
-    : true));
-  const addFavourite = (f: Favourite) => {
-    if (f.kind === "indicator") ws.update({ ...w, indicators: [...w.indicators, indicator(f.name, f.params)] });
-    else place(f.structure);
-  };
-  const favLabel = (f: Favourite) => (f.kind === "indicator" ? REGISTRY[f.name]?.short({ ...REGISTRY[f.name].defaults, ...f.params }) : structureLabel(f.structure));
+  // The favourites row holds structures only (indicators live in the Indicators sheet): the shared ones, then this symbol's own.
+  const favShown = fav.list.filter((f): f is Extract<Favourite, { kind: "structure" }> => f.kind === "structure" && (!f.symbol || f.symbol === w.symbol))
+    .filter((f, n, all) => all.findIndex((x) => x.structure === f.structure) === n);
+  const nIndicators = w.indicators.length;
 
   return (
     <div className="main">
@@ -162,21 +156,14 @@ export default function ChartScreen(props: {
             <button key={tf} className={tf === w.timeframe ? "on" : ""} aria-pressed={tf === w.timeframe} onClick={() => setTf(tf)}>{tf}</button>
           ))}
         </div>
-        <button className="tool" aria-label="Indicators" onClick={() => { setOpenIndicator(null); setSheet("indicators"); }}><Indicators /><span className="word">Indicators</span></button>
+        <button className="tool" aria-label={`Indicators, ${nIndicators} on this chart`} onClick={() => { setOpenIndicator(null); setSheet("indicators"); }}>
+          <Indicators /><span className="word">Indicators</span>{nIndicators > 0 && <span className="count">{nIndicators}</span>}
+        </button>
         <button className={`tool${adjusting ? " on" : ""}`} aria-label="Options" onClick={() => setSheet("options")}><Legs /><span className="word">Options</span></button>
         <button className={`tool${tapMode === "level" || tapMode === "trend" ? " on" : ""}`} aria-label="Draw" onClick={() => setSheet("draw")}><Pencil /><span className="word">Draw</span></button>
       </div>
 
       <div className="chipbar" aria-label="On this chart">
-        {w.indicators.map((i) => {
-          const name = REGISTRY[i.name]?.short(i.params) ?? i.name;
-          return (
-            <span key={i.id} className="xchip">
-              <button className="xname" onClick={() => { setOpenIndicator(i.id); setSheet("indicators"); }} aria-label={`${name} settings`}>{name}</button>
-              <button className="x" aria-label={`Remove ${name}`} onClick={() => ws.update({ ...w, indicators: w.indicators.filter((x) => x.id !== i.id) })}><Close /></button>
-            </span>
-          );
-        })}
         {positions.map((p) => {
           const name = `${structureLabel(p.structure)} ${expiryLabel(p.expiry)}`;
           return (
@@ -188,9 +175,9 @@ export default function ChartScreen(props: {
           );
         })}
         {favShown.length > 0 && <span className="favmark" aria-hidden="true"><Star filled /></span>}
-        {favShown.map((f, n) => (
-          <button key={n} className={`chip fav${f.kind === "structure" ? " opt" : ""}`} disabled={f.kind === "structure" && !basis}
-            aria-label={`Add ${favLabel(f)}`} onClick={() => addFavourite(f)}>+ {favLabel(f)}</button>
+        {favShown.map((f) => (
+          <button key={f.structure} className="chip fav opt" disabled={!basis}
+            aria-label={`Add ${structureLabel(f.structure)}`} onClick={() => place(f.structure)}>+ {structureLabel(f.structure)}</button>
         ))}
       </div>
 
@@ -244,7 +231,8 @@ export default function ChartScreen(props: {
         <OptionsSheet symbol={w.symbol} positions={positions} expiry={expiry} favourites={fav.list} canPlace={!!basis}
           onExpiry={setExpiry} onPlace={place} onClose={() => setSheet(null)}
           onOpen={(p) => { setSheet(null); setDetails(p); }}
-          onFavourite={(st, on) => fav.set(on ? [...fav.list, { kind: "structure", structure: st }] : fav.list.filter((f) => !(f.kind === "structure" && f.structure === st)))} />
+          onFavourite={(st, symbol, on) => fav.set(on ? [...fav.list, { kind: "structure", structure: st, ...(symbol ? { symbol } : {}) }]
+            : fav.list.filter((f) => !(f.kind === "structure" && f.structure === st && (f.symbol ?? null) === symbol)))} />
       )}
       {details && (
         <PositionSheet position={details} onChange={(p) => { pos.save(p); if (p.status === "closed" && adjusting === p.id) setAdjusting(null); }}

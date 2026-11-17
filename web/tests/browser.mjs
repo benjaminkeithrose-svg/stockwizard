@@ -40,8 +40,10 @@ try {
   await page.getByRole("button", { name: "VWAP", exact: true }).click();
   await page.getByRole("button", { name: "Done" }).click();
   await wait(300);
-  check(await page.getByText(/RSI 14/).isVisible(), "RSI added");
-  check(await page.getByText(/VWAP/).first().isVisible(), "VWAP added");
+  const onChart = () => page.evaluate(() => JSON.parse(localStorage.getItem("stockwizard.demo") ?? "{}").workspaces?.flatMap((w) => w.indicators.map((i) => i.name)) ?? []);
+  await wait(900);
+  check((await onChart()).includes("rsi"), "RSI added");
+  check((await onChart()).includes("vwap"), "VWAP added");
   const panes = await page.locator("[data-testid=chart] table tr").count();
   check(panes >= 3, `RSI gets its own pane (${panes} rows)`);
 
@@ -81,7 +83,9 @@ try {
   check(await page.evaluate(() => JSON.parse(localStorage.getItem("stockwizard.demo")).workspaces.some((w) => w.timeframe === "1h")), "and is sent on the next start");
   await page.getByRole("button", { name: "5m", exact: true }).click();
   await wait(900);
-  check(await page.getByText(/RSI 14/).isVisible(), "indicators kept after reload");
+  await page.getByRole("button", { name: /^Indicators, \d+ on this chart/ }).click();
+  check(await page.locator(".sheet .card .t", { hasText: "RSI 14" }).count() === 1, "indicators kept after reload");
+  await page.getByRole("button", { name: "Done" }).click();
   await page.getByRole("button", { name: "Draw" }).click();
   const kept = await page.locator(".sheet .card .t").allTextContents();
   check(kept.length === 2 && kept.some((t) => t.startsWith("Level")) && kept.some((t) => t.startsWith("Trendline")),
@@ -105,22 +109,40 @@ try {
   await page.getByRole("button", { name: "Delete", exact: true }).click();
   check(!(await page.getByRole("tab", { name: "My copy" }).count()), "tab deleted");
 
-  // Chips above the chart: × removes, a favourite adds back in one tap, tapping a chip opens its settings
-  await page.getByRole("button", { name: "Remove RSI 14" }).click();
-  check(!(await page.getByRole("button", { name: "RSI 14 settings" }).count()), "× on a chip takes the indicator off");
-  check(await page.getByRole("button", { name: "Add RSI 14" }).isVisible(), "and it shows again in the favourites row");
+  // Indicators: one button with the count; the sheet lists them, its favourites add in one tap; the chip row has no indicators
+  check(!(await page.locator(".chipbar .xchip:not(.opt)").count()), "no indicator chips crowd the row above the chart");
+  const indBtn = page.getByRole("button", { name: /^Indicators, \d+ on this chart/ });
+  const nInd = Number((await indBtn.getAttribute("aria-label")).match(/\d+/)[0]);
+  check(nInd > 0 && (await indBtn.textContent()).includes(String(nInd)), `the Indicators button shows how many are on (${nInd})`);
+  await indBtn.click();
+  await page.getByRole("button", { name: "Remove RSI 14", exact: true }).click();
+  check(await page.getByRole("button", { name: "Add RSI 14" }).isVisible(), "a favourite taken off shows under Favourites");
   await page.getByRole("button", { name: "Add RSI 14" }).click();
-  check(await page.getByRole("button", { name: "RSI 14 settings" }).isVisible(), "a favourite adds in one tap");
-  await page.getByRole("button", { name: "RSI 14 settings" }).click();
-  check(await page.getByLabel("length").isVisible(), "tapping a chip opens its settings");
+  check(await page.locator(".sheet .card .t", { hasText: "RSI 14" }).count() === 1, "a favourite adds in one tap");
   check(await page.getByRole("button", { name: "Remove RSI 14 from favourites" }).getAttribute("aria-pressed") === "true", "favourites are starred");
   await page.getByRole("button", { name: "Add VWAP to favourites" }).click();
   await page.getByRole("button", { name: "Done" }).click();
   await page.reload();
   await page.waitForSelector("[data-testid=chart] canvas");
   await wait(300);
-  await page.getByRole("button", { name: "Remove VWAP" }).click();
-  check(await page.getByRole("button", { name: "Add VWAP" }).isVisible(), "a starred indicator joins the favourites row");
+  await page.getByRole("button", { name: /^Indicators, \d+ on this chart/ }).click();
+  await page.getByRole("button", { name: "Remove VWAP", exact: true }).click();
+  check(await page.getByRole("button", { name: "Add VWAP" }).isVisible(), "a starred indicator stays in Favourites after a reload");
+  await page.getByRole("button", { name: "Done" }).click();
+  // Structure favourites: the star for every chart, the symbol button for this symbol only
+  await page.getByRole("button", { name: "Options" }).click();
+  await page.getByRole("button", { name: "Add Bull put (credit) to DEMO's favourites" }).click();
+  await page.getByRole("button", { name: "Close" }).click();
+  check(await page.locator(".chipbar").getByRole("button", { name: "Add Bull put (credit)" }).isVisible(), "a symbol's own favourite shows on its chart");
+  await page.getByRole("button", { name: /^Symbol DEMO/ }).click();
+  await page.getByRole("textbox").first().fill("TEST");
+  await page.getByRole("button", { name: /^TEST/ }).first().click();
+  await wait(400);
+  check(!(await page.locator(".chipbar").getByRole("button", { name: "Add Bull put (credit)" }).count()), "and not on another symbol's");
+  await page.getByRole("button", { name: /^Symbol TEST/ }).click();
+  await page.getByRole("textbox").first().fill("DEMO");
+  await page.getByRole("button", { name: /^DEMO/ }).first().click();
+  await wait(400);
 
   // Calls and puts: place an iron condor, drag it, mark it bought, delete it
   await page.getByRole("button", { name: "Options" }).click();
