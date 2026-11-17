@@ -2,6 +2,7 @@
 
     python -m stockwizard.run_0dte_research                  # the initial grid, development and validation only
     python -m stockwizard.run_0dte_research --final          # also the untouched final period (use once)
+    python -m stockwizard.run_0dte_research --publish docs/research/results/2026-11-17-0dte-model.json   # save a past run for the app
 
 Until real option quotes are bought or recorded, prices come from the model
 (zerodte.quotes.ModelQuotes) on SPY's and QQQ's free hourly candles, so entries
@@ -108,12 +109,25 @@ NOTES = [
 ]
 
 
+def publish(store, result: dict, title: str) -> None:
+    """Save a run for the app's 0DTE tab. Development rows keep only what the app shows."""
+    keep_dev = ("strategy", "trades", "win_rate", "expectancy", "profit_factor", "largest_loss", "max_drawdown", "p_value")
+    slim = {**result, "all_development": [{k: r.get(k) for k in keep_dev} for r in result["all_development"]]}
+    store.insert("research_runs", [{"kind": "0dte_matrix", "title": title, "modelled": True, "result": slim}])
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--final", action="store_true", help="also run the untouched final period (only once)")
     ap.add_argument("--q", type=float, default=0.10)
+    ap.add_argument("--publish", metavar="JSON", help="save an existing run's results for the app, without running again")
     a = ap.parse_args(argv)
-    data = load(SupabaseStore())
+    store = SupabaseStore()
+    if a.publish:
+        publish(store, json.loads(Path(a.publish).read_text()), Path(a.publish).stem)
+        print(f"Saved {a.publish} for the app.")
+        return 0
+    data = load(store)
     grid = initial_grid()
     print(f"{len(grid)} strategies...")
     out = matrix.run(grid, data, PERIODS, q=a.q, final=a.final, progress=lambda i, n: i % 25 == 0 and print(f"  {i}/{n}"))
@@ -121,11 +135,13 @@ def main(argv: list[str] | None = None) -> int:
     stamp = date.today().isoformat()
     (OUT / f"{stamp}-0dte-model.md").write_text(matrix.report_markdown(out, f"0DTE experiment matrix, modelled prices ({stamp})", NOTES))
     keep = lambda r: {"strategy": matrix.describe(r["config"]), "config": r["config"].__dict__, "development": r["dev"], **({k: r[k] for k in ("validation", "walk_forward", "by_regime", "final") if k in r})}  # noqa: E731
-    (OUT / f"{stamp}-0dte-model.json").write_text(json.dumps({
+    result = {
         "notes": NOTES, "periods": out["periods"], "tried": out["tried"], "q": out["q"], "final_used": out["final_used"],
         "survivors": [keep(r) for r in out["survivors"]], "best_in_development": [keep(r) for r in out["best_in_development"]],
         "all_development": [{"strategy": matrix.describe(r["config"]), **r["dev"]} for r in out["rows"]],
-    }, indent=1, default=str))
+    }
+    (OUT / f"{stamp}-0dte-model.json").write_text(json.dumps(result, indent=1, default=str))
+    publish(store, json.loads(json.dumps(result, default=str)), f"{stamp}-0dte-model")
     print(f"Tried {out['tried']}; {len(out['survivors'])} survived. Report: docs/research/results/{stamp}-0dte-model.md")
     return 0
 

@@ -7,6 +7,7 @@ import type { BacktestRun, BacktestTrade, Metrics, StrategyDef } from "../data/m
 import type { Store } from "../data/store";
 import LabView from "./Lab";
 import { OptionBacktestList } from "./OptionBacktests";
+import ResearchView from "./Research";
 
 const num = (v: unknown, digits = 0) =>
   typeof v === "number" && Number.isFinite(v) ? v.toLocaleString(undefined, { maximumFractionDigits: digits, minimumFractionDigits: digits }) : "—";
@@ -43,8 +44,8 @@ function StudyNote({ s, run }: { s: StrategyDef; run: BacktestRun }) {
 }
 
 export function BacktestsScreen(props: { store: Store; onOpen: (id: string) => void; onOpenOption: (id: string) => void }) {
-  const [tab, setTab] = useState<"strategies" | "options" | "lab">(() => {
-    try { const t = localStorage.getItem("stockwizard.btTab"); return t === "lab" || t === "options" ? t : "strategies"; } catch { return "strategies"; }
+  const [tab, setTab] = useState<"strategies" | "options" | "zerodte" | "lab">(() => {
+    try { const t = localStorage.getItem("stockwizard.btTab"); return t === "lab" || t === "options" || t === "zerodte" ? t : "strategies"; } catch { return "strategies"; }
   });
   useEffect(() => { try { localStorage.setItem("stockwizard.btTab", tab); } catch { /* fine */ } }, [tab]);
   const [strategies, setStrategies] = useState<StrategyDef[]>([]);
@@ -61,10 +62,12 @@ export function BacktestsScreen(props: { store: Store; onOpen: (id: string) => v
     <div className="seg" role="group" aria-label="Backtests or pattern lab" style={{ marginBottom: 10 }}>
       <button className={tab === "strategies" ? "on" : ""} aria-pressed={tab === "strategies"} onClick={() => setTab("strategies")}>Strategies</button>
       <button className={tab === "options" ? "on" : ""} aria-pressed={tab === "options"} onClick={() => setTab("options")}>Options</button>
+      <button className={tab === "zerodte" ? "on" : ""} aria-pressed={tab === "zerodte"} onClick={() => setTab("zerodte")}>0DTE</button>
       <button className={tab === "lab" ? "on" : ""} aria-pressed={tab === "lab"} onClick={() => setTab("lab")}>Pattern lab</button>
     </div>
   );
   if (tab === "lab") return <div className="list">{tabs}<LabView store={props.store} /></div>;
+  if (tab === "zerodte") return <div className="list">{tabs}<ResearchView store={props.store} /></div>;
   if (tab === "options") return <div className="list">{tabs}<OptionBacktestList store={props.store} onOpen={props.onOpenOption} /></div>;
 
   return (
