@@ -316,3 +316,10 @@ b.up { color: #237F35; } b.down { color: #B2232F; }
   .cmptable > div { grid-template-columns: 1.1fr repeat(3, 1fr); }
   .cmptable span { padding: 6px 6px; font-size: 12px; }
 }
+
+/* the box naming an option leg under the finger or mouse */
+.legtip { position: absolute; z-index: 6; pointer-events: none; background: #fff; border: 1px solid var(--edge);
+  border-left: 3px solid #7A3E9D; border-radius: var(--r-sm); box-shadow: var(--lift-2); padding: 6px 10px;
+  font-size: 12px; display: flex; flex-direction: column; gap: 2px; white-space: nowrap; color: var(--ink-2); }
+.legtip b { color: var(--ink); font-size: 13px; }
+.legtip.bought { border-left-color: #237F35; }

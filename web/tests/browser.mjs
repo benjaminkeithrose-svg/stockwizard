@@ -129,9 +129,18 @@ try {
   const ic = page.locator(".xchip.opt");
   check(await ic.count() === 1 && (await ic.getAttribute("class")).includes("planned"), "it shows as a purple chip");
   const legsAt = async () => JSON.parse(await page.locator("[data-testid=chart]").getAttribute("data-legs") || "[]");
+  await wait(300);
   const ys = await legsAt();
   check(ys.length === 4 && ys.every((y) => y !== null) && ys[0] > ys[1] && ys[1] > ys[2] && ys[2] > ys[3], `four legs drawn, wings outside (${ys.map(Math.round)})`);
   const chartBox = await page.locator("[data-testid=chart]").boundingBox();
+  // The lines carry only ▲ or ▼; hovering on one shows what it is
+  await page.mouse.move(chartBox.x + chartBox.width / 3, chartBox.y + ys[1]);
+  const tip = page.getByRole("tooltip");
+  check(await tip.isVisible() && /▼ Short put \d/.test(await tip.textContent()) && /expires/.test(await tip.textContent()) && /Planned/.test(await tip.textContent()),
+    `hovering on a leg names it, with its expiry (${await tip.textContent().catch(() => "no box")})`);
+  await page.screenshot({ path: "/tmp/sw-legtip.png" });
+  await page.mouse.move(chartBox.x + chartBox.width / 3, chartBox.y + (ys[1] + ys[2]) / 2);
+  check(!(await tip.count()), "and the box goes when the pointer moves off");
   const strikes = async () => (await page.locator("[data-testid=chart]").evaluate(() => JSON.parse(localStorage.getItem("stockwizard.demo")).positions[0].legs.map((l) => l.strike)));
   await wait(800);
   const before = await strikes();
@@ -147,6 +156,7 @@ try {
   const d = whole[1] - before[1];
   check(d > 0 && whole.every((s, i) => s - before[i] === d), `dragging with All moves every leg together (${before} → ${whole})`);
   await page.getByRole("button", { name: "Leg", exact: true }).click();
+  await wait(300);
   const ys2 = await legsAt();
   await dragY(ys2[3], -30);
   const leg = await strikes();
