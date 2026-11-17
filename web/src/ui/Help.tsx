@@ -21,6 +21,11 @@ const SCREENS: [string, string[]][] = [
     "Order (paper) sends it to the bot. The bot prices it, checks every limit, and it waits for you in Safety and orders.",
     "All prices here are theoretical (Black-Scholes) until Interactive Brokers supplies real ones.",
   ]],
+  ["Today", [
+    "Today (top of the chart screen) is the morning checklist: whether the US market is open and when it opens in Sydney time, the latest SPY price, VIX, VIX1D, expected move to the close, opening range, VWAP and direction.",
+    "Under it, each strategy that's switched on and what it did today, the orders waiting for you, today's profit or loss and how much of the daily limit is used.",
+    "The bot saves the market numbers every cycle during the US session; between sessions you see the last session's.",
+  ]],
   ["Chart pages", ["Up to 10 charts as cards on a page. On the PC, drag a card to move it and its corner to resize it; Tidy closes the gaps. Tap a card to open it full screen."]],
   ["Scanner", ["The latest run of each scan, in tabs. Scans run every US trading day after the close. Tap a result to open it on the chart."]],
   ["Backtests", [

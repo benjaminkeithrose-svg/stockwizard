@@ -314,6 +314,25 @@ do $$ begin
 end $$;
 reset role;
 
+-- Market snapshots: signed-in users read; the app can't write; signed-out users see nothing.
+insert into public.market_snapshots (symbol, taken_at, session_date, price, source) values ('SPY', now(), current_date, 600, 'pretend');
+grant all on public.market_snapshots to anon, authenticated;
+set role authenticated;
+set request.jwt.claim.sub = '00000000-0000-0000-0000-00000000000a';
+do $$ begin
+  if (select count(*) from public.market_snapshots) <> 1 then raise exception 'FAIL: signed-in user cannot read the snapshot'; end if;
+  begin
+    update public.market_snapshots set price = 1;
+    if (select price from public.market_snapshots) = 1 then raise exception 'FAIL: the app changed the snapshot'; end if;
+  exception when insufficient_privilege then null; end;
+end $$;
+reset role;
+set role anon;
+do $$ begin
+  if (select count(*) from public.market_snapshots) <> 0 then raise exception 'FAIL: signed-out users read the snapshot'; end if;
+end $$;
+reset role;
+
 -- The bot's strategies: own only; every change audited; switching on and off recorded as such.
 grant all on public.bot_strategies to authenticated;
 set role authenticated;

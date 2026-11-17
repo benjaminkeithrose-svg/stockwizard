@@ -217,6 +217,10 @@ class BotRunner:
         said += self.record_quotes()
         if self.strategies is not None:
             now = self.clock()
+            try:
+                said += self.strategies.snapshot(now)
+            except Exception as e:  # noqa: BLE001 - the snapshot is a display, never a reason to stop trading
+                said.append(f"Couldn't save the market snapshot: {e}")
             said += self.strategies.propose_due(now)
         if isinstance(self.broker, PretendBroker):
             self.broker.step()   # the pretend market: working orders fill straight away, at their limit price

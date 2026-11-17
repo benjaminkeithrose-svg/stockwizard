@@ -256,6 +256,7 @@ export interface PaperOrder {
   refusals: { rail: string; why: string }[];
   reason: string | null;
   pnl: number | null;
+  strategy_id?: string | null;
 }
 
 /** Ben's request to the bot from the app: order a chart structure (paper) or close a paper position. Not an order. */
@@ -354,4 +355,11 @@ export interface ResearchRun {
     survivors: ResearchStrategy[];
     best_in_development: ResearchStrategy[];
   };
+}
+
+/** What the bot saw at its last cycle during the US session (market_snapshots). */
+export interface MarketSnapshot {
+  symbol: string; taken_at: string; session_date: string; price: number; vix: number | null; vix1d: number | null;
+  expected_move: number | null; or_high: number | null; or_low: number | null; vwap: number | null;
+  direction: "bullish" | "bearish" | "neutral" | null; source: string;
 }

@@ -412,6 +412,14 @@ try {
   check(await page.getByRole("button", { name: "Kill switch: stop all trading" }).isVisible(), "trading can be turned back on");
   await page.getByRole("button", { name: "Back", exact: true }).click();
 
+  // Today: the checklist on one page
+  await page.getByRole("button", { name: "Today", exact: true }).click();
+  check(await page.getByRole("heading", { name: "Today", exact: true }).isVisible(), "Today opens from the header");
+  check(await page.getByText(/US market (open|closed)/).isVisible() && await page.getByText(/Sydney/).first().isVisible(), "it says whether the market is open, in Sydney time");
+  check(await page.getByText("Expected move to the close").isVisible() && await page.getByText("±3.90").isVisible(), "with the latest snapshot");
+  check(await page.getByText("Daily limit used").isVisible(), "and today's result against the limit");
+  await page.getByRole("button", { name: "Back", exact: true }).click();
+
   // Help: in the menu, each topic folded, terms explained
   await page.getByRole("button", { name: "More", exact: true }).click();
   await page.getByRole("menuitem", { name: "Help" }).click();

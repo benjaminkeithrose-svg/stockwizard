@@ -345,3 +345,7 @@ details.notes summary { cursor: pointer; font-weight: 700; min-height: 32px; }
 .helpitem ul, .helpitem p { margin: 0 12px 12px; padding-left: 16px; font-size: 14px; color: var(--ink-2); }
 .helpitem p { padding-left: 0; }
 .helpitem li + li { margin-top: 6px; }
+
+/* ---------- today ---------- */
+.menubtn.word { width: auto; padding: 0 10px; font-weight: 700; font-size: 13.5px; }
+@media (max-width: 560px) { .menubtn.word { padding: 0 7px; } }

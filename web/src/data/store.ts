@@ -7,7 +7,7 @@ import { Candles, emptyCandles, madeUpCandles, Timeframe } from "./candles";
 import type { ClaudeMessage, ClaudeReply } from "./claude";
 import type { OptionPosition } from "./options";
 import { analyse, historicalVol, positionAt } from "./pricing";
-import { BacktestRun, BacktestTrade, BotRequest, BotStrategy, ResearchRun, OptionRun, OptionStrategyDef, OptionTradeRow, ChartView, DEFAULT_FAVOURITES, DEFAULT_LIMITS, PaperOrder, PatternRun, SafetyLimits, UserSettings, ScanDef, ScanResult, ScanRun, StrategyDef, SymbolInfo, Watchlist, Workspace } from "./model";
+import { BacktestRun, BacktestTrade, BotRequest, BotStrategy, MarketSnapshot, ResearchRun, OptionRun, OptionStrategyDef, OptionTradeRow, ChartView, DEFAULT_FAVOURITES, DEFAULT_LIMITS, PaperOrder, PatternRun, SafetyLimits, UserSettings, ScanDef, ScanResult, ScanRun, StrategyDef, SymbolInfo, Watchlist, Workspace } from "./model";
 import { SUPABASE_KEY, SUPABASE_URL } from "../config";
 
 export interface User {
@@ -59,6 +59,9 @@ export interface Store {
   botRequests(): Promise<BotRequest[]>;
   /** The bot's own strategies: added, switched on and off, and removed by Ben; every change audited. */
   botStrategies(): Promise<BotStrategy[]>;
+  /** The bot's latest market snapshot, and today's no-trade notes from its strategies. */
+  marketSnapshot(symbol: string): Promise<MarketSnapshot | null>;
+  strategyNoTrades(sinceIso: string): Promise<{ strategy: string; why: string }[]>;
   /** The latest 0DTE research matrix run. */
   latestResearch(): Promise<ResearchRun | null>;
   saveBotStrategy(s: BotStrategy): Promise<void>;
@@ -287,6 +290,19 @@ export class SupabaseStore implements Store {
 
   async requestClose(orderId: number) {
     this.check(await this.sb.from("bot_requests").insert({ kind: "close", order_id: orderId, quantity: 1 }));
+  }
+
+  async marketSnapshot(symbol: string) {
+    const rows = this.check(await this.sb.from("market_snapshots").select("*").eq("symbol", symbol)) as MarketSnapshot[];
+    if (!rows[0]) return null;
+    const n = (v: unknown) => (v === null || v === undefined ? null : Number(v));
+    const r = rows[0];
+    return { ...r, price: Number(r.price), vix: n(r.vix), vix1d: n(r.vix1d), expected_move: n(r.expected_move), or_high: n(r.or_high), or_low: n(r.or_low), vwap: n(r.vwap) };
+  }
+
+  async strategyNoTrades(sinceIso: string) {
+    const rows = this.check(await this.sb.from("audit_log").select("detail").eq("action", "strategy_no_trade").gte("at", sinceIso)) as { detail: { strategy: string; why: string } }[];
+    return rows.map((r) => ({ strategy: r.detail.strategy, why: r.detail.why }));
   }
 
   async latestResearch() {
@@ -603,6 +619,14 @@ export class DemoStore implements Store {
   async botRequests() { return this.load().requests.filter((q) => q.status === "waiting"); }
 
   async botStrategies() { return this.load().strategies; }
+
+  async marketSnapshot(): Promise<MarketSnapshot | null> {
+    const now = new Date();
+    return { symbol: "SPY", taken_at: now.toISOString(), session_date: new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York" }).format(now),
+      price: 600.12, vix: 15.4, vix1d: 13.8, expected_move: 3.9, or_high: 601.5, or_low: 598.2, vwap: 599.6, direction: "neutral", source: "pretend" };
+  }
+
+  async strategyNoTrades() { return []; }
 
   async latestResearch(): Promise<ResearchRun | null> {
     const m = (expectancy: number, win_rate: number) => ({ trades: 140, win_rate, expectancy, profit_factor: 1.4, largest_loss: -420, max_drawdown: -900,
