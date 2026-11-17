@@ -151,6 +151,27 @@ try {
   await dragY(ys2[3], -30);
   const leg = await strikes();
   check(leg[3] > whole[3] && leg.slice(0, 3).join() === whole.slice(0, 3).join(), `dragging with Leg moves just that wing (${whole} → ${leg})`);
+  // Analysis: the chip opens it; theoretical prices, sliders, graphs, comparison; Adjust goes back to dragging
+  await page.getByRole("button", { name: /^Iron condor .*, analyse$/ }).click();
+  await page.waitForSelector(".analysis .graph svg");
+  check(await page.getByText("Theoretical", { exact: true }).isVisible(), "the analysis says its prices are theoretical");
+  check(await page.getByRole("img", { name: "Profit or loss across prices" }).isVisible(), "the profit and loss graph draws");
+  check(await page.getByRole("img", { name: /from today to expiry/ }).isVisible(), "the time-decay graph draws");
+  const pop1 = await page.locator(".kv > div", { hasText: "Chance of profit" }).locator("b").textContent();
+  await page.locator("#ana-vol").fill("60");
+  const pop2 = await page.locator(".kv > div", { hasText: "Chance of profit" }).locator("b").textContent();
+  check(pop1 !== pop2, `the volatility slider changes the numbers (${pop1} → ${pop2})`);
+  check(await page.getByRole("button", { name: /^back to/ }).isVisible(), "and offers the way back to the estimate");
+  await page.getByRole("button", { name: "+ Compare" }).click();
+  await page.locator(".sheet .chips .chip").nth(6).click();
+  await page.getByRole("button", { name: /^Compare with/ }).click();
+  check(await page.getByRole("table", { name: "Comparison" }).isVisible(), "comparing adds a side-by-side table");
+  check((await page.getByRole("columnheader").count()) === 3, "with a column for each structure");
+  await page.locator("#ana-date").fill("2");
+  check(await page.getByText(/^Date: (?!today)/).isVisible(), "the date slider moves the date on");
+  await page.getByRole("button", { name: "Adjust on the chart" }).click();
+  await page.waitForSelector("[data-testid=chart] canvas");
+  check(await page.getByText("Drag a line to move").isVisible(), "Adjust on the chart goes back to dragging it");
   await page.getByRole("button", { name: "Details" }).click();
   await page.getByRole("button", { name: "Bought", exact: true }).click();
   await page.getByRole("button", { name: "Done" }).click();
