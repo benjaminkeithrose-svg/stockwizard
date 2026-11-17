@@ -409,6 +409,14 @@ try {
   check(await page.getByRole("button", { name: "Kill switch: stop all trading" }).isVisible(), "trading can be turned back on");
   await page.getByRole("button", { name: "Back", exact: true }).click();
 
+  // Help: in the menu, each topic folded, terms explained
+  await page.getByRole("button", { name: "More", exact: true }).click();
+  await page.getByRole("menuitem", { name: "Help" }).click();
+  check(await page.getByRole("heading", { name: "Help" }).isVisible(), "Help opens from the menu");
+  await page.getByText("Iron condor", { exact: true }).click();
+  check(await page.getByText(/profits if the price stays inside a range/).isVisible(), "a term opens to its plain-English meaning");
+  await page.getByRole("button", { name: "Back", exact: true }).click();
+
   // Watchlists: back goes up a level, picking a symbol opens it in the tab
   await page.getByRole("button", { name: "More", exact: true }).click();
   await page.getByRole("menuitem", { name: "Watchlists" }).click();
