@@ -33,6 +33,10 @@ class Lib:
         return SimpleNamespace(symbol=symbol, lastTradeDateOrContractMonth=expiry, strike=strike, right=right, conId=0, secType="OPT")
 
     @staticmethod
+    def Stock(symbol, exchange, currency):
+        return SimpleNamespace(symbol=symbol, secType="STK", conId=0)
+
+    @staticmethod
     def ComboLeg(**kw):
         return SimpleNamespace(**kw)
 
@@ -74,8 +78,13 @@ class FakeIB:
 
     def qualifyContracts(self, *cs):
         for c in cs:
-            c.conId = int(c.strike * 10) + (1 if c.right == "C" else 0)
+            c.conId = 756733 if c.secType == "STK" else int(c.strike * 10) + (1 if c.right == "C" else 0)
         return list(cs)
+
+    def reqSecDefOptParams(self, symbol, exchange, sec_type, con_id):
+        assert con_id == 756733
+        return [SimpleNamespace(exchange="SMART", expirations=["20261117", "20261118", "20261119", "20261120", "20261123", "20261124"],
+                                strikes=[float(k) for k in range(580, 621)])]
 
     def placeOrder(self, contract, order):
         self.next_id += 1
@@ -97,7 +106,16 @@ class FakeIB:
         return self.held
 
     def reqTickers(self, *cs):
-        return [SimpleNamespace(midpoint=lambda c=c: self.mids.get((c.strike, c.right), float("nan"))) for c in cs]
+        out = []
+        for c in cs:
+            if c.secType == "STK":
+                out.append(SimpleNamespace(marketPrice=lambda: 600.0))
+            else:
+                m = self.mids.get((c.strike, c.right), 1.0)
+                out.append(SimpleNamespace(midpoint=lambda m=m: m, bid=m - 0.05, ask=m + 0.05, last=float("nan"),
+                                           modelGreeks=SimpleNamespace(impliedVol=0.16)))
+        self.ticker_batches = getattr(self, "ticker_batches", []) + [len(cs)]
+        return out
 
     # test helpers
     def fill(self, t, price):
@@ -206,7 +224,8 @@ def test_delayed_data_is_stamped_old_so_the_stale_rail_refuses_it():
 
 
 def test_no_quote_says_so():
-    b, _ = broker()
+    b, ib = broker()
+    ib.mids = {(589.0, "P"): float("nan")}
     with pytest.raises(ValueError, match="No bid and ask"):
         b.quote(req())
 
@@ -238,3 +257,18 @@ def test_a_remembered_structure_missing_at_the_broker_stops_trading():
     b, _ = broker()
     b.remember([BrokerOrder("IB-55", req(), "filled", 4.6)])
     assert b.positions() == []    # its legs aren't in the account
+
+
+# --- recording quotes ---
+
+def test_a_snapshot_covers_the_next_4_expiries_within_2_percent():
+    b, ib = broker()
+    rows = b.chain_snapshot("SPY")
+    expiries = sorted({r["expiry"] for r in rows})
+    assert expiries == ["2026-11-18", "2026-11-19", "2026-11-20", "2026-11-23"]   # from today (New York), the next 4
+    strikes = sorted({r["strike"] for r in rows})
+    assert strikes[0] == 588 and strikes[-1] == 612                               # 600 ± 2%
+    assert len(rows) == 4 * 25 * 2
+    r = rows[0]
+    assert r["bid"] == 0.95 and r["ask"] == 1.05 and r["last"] is None and r["iv"] == 0.16 and r["underlying"] == 600.0
+    assert max(ib.ticker_batches) <= 50, "stays inside IBKR's market-data line limit"

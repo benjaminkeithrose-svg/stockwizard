@@ -55,6 +55,7 @@ class OptionStrategy:
     signal_params: dict = field(default_factory=dict)
     vix_max: float | None = None             # only when the VIX closed at or below this (the day before entry)
     vix_min: float | None = None
+    max_loss_cap: float | None = None        # skip a trade that could lose more than this, as the bot's per-trade rail would
 
     @classmethod
     def from_config(cls, cfg: dict) -> "OptionStrategy":
@@ -136,7 +137,7 @@ def run(s: OptionStrategy, spy: pd.DataFrame, vix: pd.DataFrame, start: date) ->
         hit = pd.Series(True, index=d.index)
     days = list(d.index)
     trades: list[OptionTrade] = []
-    skipped = {"already_in_trade": 0, "no_vix": 0, "filtered_out": 0, "not_enough_days": 0}
+    skipped = {"already_in_trade": 0, "no_vix": 0, "filtered_out": 0, "not_enough_days": 0, "over_risk_limit": 0}
     busy_until = -1
     n_legs = 4
     for i in range(1, len(days)):
@@ -166,6 +167,9 @@ def run(s: OptionStrategy, spy: pd.DataFrame, vix: pd.DataFrame, start: date) ->
         credit = -value - s.slippage * n_legs
         widest = max(abs(legs[1].strike - legs[0].strike), abs(legs[3].strike - legs[2].strike))
         max_loss = (widest - credit) * 100 + s.commission * n_legs
+        if s.max_loss_cap is not None and max_loss > s.max_loss_cap:
+            skipped["over_risk_limit"] += 1
+            continue
         exit_day, exit_cost, reason, spot_out = last, None, "expiry", float(d["close"].iloc[last])
         if s.manage == "take_50" and s.dte > 1:
             for j in range(i, last):                   # each daily close before the expiry day

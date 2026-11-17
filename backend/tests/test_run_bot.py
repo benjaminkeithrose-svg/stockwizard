@@ -47,7 +47,7 @@ class FakeStore:
                 r.setdefault("id", self.next_id)
                 r["updated_at"] = NOW.isoformat()
                 self.next_id += 1
-            self.tables[table].append(r)
+            self.tables.setdefault(table, []).append(r)
             out.append(dict(r))
         return out if returning else []
 
@@ -270,3 +270,49 @@ def test_closing_something_that_isnt_open_fails():
     r, _ = runner(s)
     r.cycle()
     assert q["status"] == "failed"
+
+
+class QuotingBroker:
+    """The pretend broker plus the IBKR broker's snapshot, to test when the runner records quotes."""
+
+    def __new__(cls, clock):
+        from stockwizard.broker import PretendBroker
+        b = PretendBroker(clock=clock)
+        b.snapshots = 0
+
+        def chain_snapshot(symbol="SPY"):
+            b.snapshots += 1
+            return [{"taken_at": clock().isoformat(), "symbol": symbol, "expiry": "2026-11-20", "strike": 600.0, "right": "C",
+                     "bid": 1.0, "ask": 1.1, "last": None, "iv": 0.15, "underlying": 600.0, "source": "ibkr"}]
+        b.chain_snapshot = chain_snapshot
+        return b
+
+
+def test_quotes_are_recorded_every_30_minutes_in_us_hours_only():
+    from datetime import timedelta
+    s = FakeStore()
+    s.set_limits(**LIMITS)
+    clock = {"t": datetime(2026, 11, 18, 15, 0, tzinfo=timezone.utc)}     # 10:00 New York, Wednesday
+    b = QuotingBroker(lambda: clock["t"])
+    r = BotRunner(s, OWNER, clock=lambda: clock["t"], broker=b)
+    assert "Recorded 1 SPY option quotes" in r.cycle()
+    clock["t"] += timedelta(minutes=10)
+    r.cycle()
+    assert b.snapshots == 1, "not again within 30 minutes"
+    clock["t"] += timedelta(minutes=25)
+    r.cycle()
+    assert b.snapshots == 2
+    clock["t"] = datetime(2026, 11, 18, 22, 0, tzinfo=timezone.utc)      # 17:00 New York: closed
+    r.cycle()
+    clock["t"] = datetime(2026, 11, 21, 15, 0, tzinfo=timezone.utc)      # Saturday
+    r.cycle()
+    assert b.snapshots == 2
+    assert len(s.tables["option_quotes"]) == 2
+
+
+def test_the_pretend_broker_records_nothing():
+    s = FakeStore()
+    s.set_limits(**LIMITS)
+    r, _ = runner(s)
+    r.cycle()
+    assert not s.tables.get("option_quotes")

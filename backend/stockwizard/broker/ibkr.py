@@ -23,6 +23,7 @@ from __future__ import annotations
 import math
 from dataclasses import replace
 from datetime import datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
 
 from stockwizard.rails import OrderRequest
 
@@ -34,6 +35,7 @@ CLIENT_ID = 17                    # a fixed id, so order numbers carry over betw
 WORKING = {"PendingSubmit", "ApiPending", "PreSubmitted", "Submitted", "PendingCancel"}
 CANCELLED = {"Cancelled", "ApiCancelled", "Inactive"}
 DELAY = timedelta(minutes=15)
+NY = ZoneInfo("America/New_York")
 
 
 def _ib_module():
@@ -188,6 +190,39 @@ class IBKRBroker(Broker):
             price, kind = max(0.05, math.ceil(net / 0.05) * 0.05), "debit"
         when = self.clock() - (DELAY if self.delayed else timedelta(0))
         return replace(order, limit_price=round(price, 2), price_kind=kind, prices_as_of=when)
+
+    def chain_snapshot(self, symbol: str = "SPY", expiries: int = 4, width: float = 0.02, batch: int = 50) -> list[dict]:
+        """Bid, ask, last and implied volatility for the next `expiries` expiries, strikes within `width` of the price.
+
+        For recording our own price history. Requested in batches, to stay inside IBKR's market-data line limit.
+        """
+        stock = self.ib.qualifyContracts(self.lib.Stock(symbol, "SMART", "USD"))[0]
+        under = self.ib.reqTickers(stock)[0]
+        spot = under.marketPrice()
+        if spot is None or (isinstance(spot, float) and math.isnan(spot)):
+            raise ValueError(f"No price for {symbol}: is the market open and the data subscribed?")
+        chains = self.ib.reqSecDefOptParams(symbol, "", "STK", stock.conId)
+        chain = next((c for c in chains if c.exchange == "SMART"), chains[0] if chains else None)
+        if chain is None:
+            raise ValueError(f"IBKR lists no options for {symbol}")
+        today = self.clock().astimezone(NY).strftime("%Y%m%d")
+        dates = sorted(e for e in chain.expirations if e >= today)[:expiries]
+        strikes = sorted(k for k in chain.strikes if abs(k - spot) <= spot * width)
+        contracts = [self.lib.Option(symbol, e, k, r, "SMART", multiplier="100", currency="USD") for e in dates for k in strikes for r in ("C", "P")]
+        taken = self.clock().replace(second=0, microsecond=0).isoformat()
+        num = lambda v: None if v is None or (isinstance(v, float) and (math.isnan(v) or v <= 0)) else round(float(v), 4)  # noqa: E731
+        rows: list[dict] = []
+        for i in range(0, len(contracts), batch):
+            part = [c for c in self.ib.qualifyContracts(*contracts[i : i + batch]) if getattr(c, "conId", 0)]
+            for c, t in zip(part, self.ib.reqTickers(*part)):
+                greeks = getattr(t, "modelGreeks", None)
+                rows.append({
+                    "taken_at": taken, "symbol": symbol,
+                    "expiry": f"{c.lastTradeDateOrContractMonth[:4]}-{c.lastTradeDateOrContractMonth[4:6]}-{c.lastTradeDateOrContractMonth[6:8]}",
+                    "strike": float(c.strike), "right": c.right, "bid": num(t.bid), "ask": num(t.ask), "last": num(t.last),
+                    "iv": num(getattr(greeks, "impliedVol", None)) if greeks else None, "underlying": round(float(spot), 4), "source": "ibkr",
+                })
+        return rows
 
     def disconnect(self) -> None:
         self.ib.disconnect()
