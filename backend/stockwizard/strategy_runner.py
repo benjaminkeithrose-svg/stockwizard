@@ -248,6 +248,7 @@ class StrategyRunner:
                 why = "time"
             if why:
                 close_px = abs(cost)
+                self.r.close_why[pid] = why
                 self.r.bot.close(pid, close_px)
                 said.append(f"Order {self.r.db_ids[pid]}: closed ({why}) at ${close_px:.2f}, {p.pnl:+.2f}")
         return said
@@ -272,6 +273,7 @@ class StrategyRunner:
             fees = INSTRUMENTS[p.request.symbol].per_leg_cost * len(legs) if p.request.symbol in INSTRUMENTS else 0.0
             pnl = round(per_share * 100 * p.request.quantity - fees, 2)
             self.r.broker.settle(p.broker_id)
+            self.r.close_why[pid] = "settled at the close"
             self.r.bot.record_close(pid, pnl)
             said.append(f"Order {self.r.db_ids[pid]}: settled at the close ({p.request.symbol} {last:.2f}), {pnl:+.2f}")
         return said

@@ -42,6 +42,7 @@ const SCREENS: [string, string[]][] = [
     "Limits: the most a trade or a day may lose, positions at once, capital at risk, and how old prices may be. While the daily limit is empty, every order is refused.",
     "Paper trading only. Live trading can't be turned on from the app.",
   ]],
+  ["Phone notifications", ["The bot tells your phone, through the free ntfy app, when an order is waiting for you, filled, closed or stopped, and when the daily loss limit is reached. Each is told once. Tap one, then open Stock Wizard's Safety and orders to act on it."]],
   ["Claude", ["Ask in plain words: run a test, explain a result, put an indicator on the chart. Claude can't place orders or change limits, and everything it does is recorded. Up to 100 questions a day."]],
   ["Getting the latest version", ["⋯, then Get latest version, reloads the newest build. The build number is at the bottom of the ⋯ menu."]],
 ];
