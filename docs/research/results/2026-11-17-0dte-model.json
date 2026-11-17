@@ -136,6 +136,16 @@
      "total": 2053.43,
      "largest_loss": -4.37
     }
+   },
+   "kitty": {
+    "start": 5000.0,
+    "end": 5000.0,
+    "profit": 0.0,
+    "profit_pct": 0.0,
+    "lowest": 5000.0,
+    "deepest_drop_pct": 0.0,
+    "taken": 0,
+    "skipped": 14
    }
   },
   {
@@ -301,6 +311,16 @@
      "total": 1798.43,
      "largest_loss": -774.4
     }
+   },
+   "kitty": {
+    "start": 5000.0,
+    "end": 5000.0,
+    "profit": 0.0,
+    "profit_pct": 0.0,
+    "lowest": 5000.0,
+    "deepest_drop_pct": 0.0,
+    "taken": 0,
+    "skipped": 142
    }
   },
   {
@@ -466,6 +486,16 @@
      "total": 2053.43,
      "largest_loss": -4.37
     }
+   },
+   "kitty": {
+    "start": 5000.0,
+    "end": 5000.0,
+    "profit": 0.0,
+    "profit_pct": 0.0,
+    "lowest": 5000.0,
+    "deepest_drop_pct": 0.0,
+    "taken": 0,
+    "skipped": 142
    }
   },
   {
@@ -633,6 +663,16 @@
      "total": 1718.83,
      "largest_loss": -4.37
     }
+   },
+   "kitty": {
+    "start": 5000.0,
+    "end": 5000.0,
+    "profit": 0.0,
+    "profit_pct": 0.0,
+    "lowest": 5000.0,
+    "deepest_drop_pct": 0.0,
+    "taken": 0,
+    "skipped": 142
    }
   },
   {
@@ -756,6 +796,16 @@
      "total": 768.43,
      "largest_loss": -99.37
     }
+   },
+   "kitty": {
+    "start": 5000.0,
+    "end": 5000.0,
+    "profit": 0.0,
+    "profit_pct": 0.0,
+    "lowest": 5000.0,
+    "deepest_drop_pct": 0.0,
+    "taken": 0,
+    "skipped": 14
    }
   },
   {
@@ -921,6 +971,16 @@
      "total": 901.8,
      "largest_loss": 58.2
     }
+   },
+   "kitty": {
+    "start": 5000.0,
+    "end": 5000.0,
+    "profit": 0.0,
+    "profit_pct": 0.0,
+    "lowest": 5000.0,
+    "deepest_drop_pct": 0.0,
+    "taken": 0,
+    "skipped": 142
    }
   },
   {
@@ -1086,6 +1146,16 @@
      "total": 1193.4,
      "largest_loss": 65.6
     }
+   },
+   "kitty": {
+    "start": 5000.0,
+    "end": 5000.0,
+    "profit": 0.0,
+    "profit_pct": 0.0,
+    "lowest": 5000.0,
+    "deepest_drop_pct": 0.0,
+    "taken": 0,
+    "skipped": 142
    }
   },
   {
@@ -1251,6 +1321,16 @@
      "total": 693.8,
      "largest_loss": -48.8
     }
+   },
+   "kitty": {
+    "start": 5000.0,
+    "end": 5000.0,
+    "profit": 0.0,
+    "profit_pct": 0.0,
+    "lowest": 5000.0,
+    "deepest_drop_pct": 0.0,
+    "taken": 0,
+    "skipped": 142
    }
   },
   {
@@ -1416,6 +1496,16 @@
      "total": 688.8,
      "largest_loss": 45.2
     }
+   },
+   "kitty": {
+    "start": 5000.0,
+    "end": 5000.0,
+    "profit": 0.0,
+    "profit_pct": 0.0,
+    "lowest": 5000.0,
+    "deepest_drop_pct": 0.0,
+    "taken": 0,
+    "skipped": 142
    }
   },
   {
@@ -1581,6 +1671,16 @@
      "total": 676.8,
      "largest_loss": -48.8
     }
+   },
+   "kitty": {
+    "start": 5000.0,
+    "end": 5000.0,
+    "profit": 0.0,
+    "profit_pct": 0.0,
+    "lowest": 5000.0,
+    "deepest_drop_pct": 0.0,
+    "taken": 0,
+    "skipped": 142
    }
   },
   {
@@ -1746,6 +1846,16 @@
      "total": 586.68,
      "largest_loss": -54.88
     }
+   },
+   "kitty": {
+    "start": 5000.0,
+    "end": 5000.0,
+    "profit": 0.0,
+    "profit_pct": 0.0,
+    "lowest": 5000.0,
+    "deepest_drop_pct": 0.0,
+    "taken": 0,
+    "skipped": 142
    }
   },
   {
@@ -1869,6 +1979,16 @@
      "total": 476.8,
      "largest_loss": 20.2
     }
+   },
+   "kitty": {
+    "start": 5000.0,
+    "end": 5000.0,
+    "profit": 0.0,
+    "profit_pct": 0.0,
+    "lowest": 5000.0,
+    "deepest_drop_pct": 0.0,
+    "taken": 0,
+    "skipped": 14
    }
   },
   {
@@ -1999,6 +2119,16 @@
      "total": 475.8,
      "largest_loss": 31.2
     }
+   },
+   "kitty": {
+    "start": 5000.0,
+    "end": 5000.0,
+    "profit": 0.0,
+    "profit_pct": 0.0,
+    "lowest": 5000.0,
+    "deepest_drop_pct": 0.0,
+    "taken": 0,
+    "skipped": 14
    }
   },
   {
@@ -2166,6 +2296,16 @@
      "total": 605.6,
      "largest_loss": 31.4
     }
+   },
+   "kitty": {
+    "start": 5000.0,
+    "end": 5000.0,
+    "profit": 0.0,
+    "profit_pct": 0.0,
+    "lowest": 5000.0,
+    "deepest_drop_pct": 0.0,
+    "taken": 0,
+    "skipped": 142
    }
   },
   {
@@ -2331,6 +2471,16 @@
      "total": 566.68,
      "largest_loss": -54.88
     }
+   },
+   "kitty": {
+    "start": 5000.0,
+    "end": 5000.0,
+    "profit": 0.0,
+    "profit_pct": 0.0,
+    "lowest": 5000.0,
+    "deepest_drop_pct": 0.0,
+    "taken": 0,
+    "skipped": 142
    }
   },
   {
@@ -2482,6 +2632,16 @@
      "total": 37.2,
      "largest_loss": 37.2
     }
+   },
+   "kitty": {
+    "start": 5000.0,
+    "end": 5000.0,
+    "profit": 0.0,
+    "profit_pct": 0.0,
+    "lowest": 5000.0,
+    "deepest_drop_pct": 0.0,
+    "taken": 0,
+    "skipped": 88
    }
   },
   {
@@ -2647,6 +2807,16 @@
      "total": 475.8,
      "largest_loss": 31.2
     }
+   },
+   "kitty": {
+    "start": 5000.0,
+    "end": 5000.0,
+    "profit": 0.0,
+    "profit_pct": 0.0,
+    "lowest": 5000.0,
+    "deepest_drop_pct": 0.0,
+    "taken": 0,
+    "skipped": 142
    }
   },
   {
@@ -2791,6 +2961,16 @@
      "total": 1083.38,
      "largest_loss": -849.4
     }
+   },
+   "kitty": {
+    "start": 5000.0,
+    "end": 5000.0,
+    "profit": 0.0,
+    "profit_pct": 0.0,
+    "lowest": 5000.0,
+    "deepest_drop_pct": 0.0,
+    "taken": 0,
+    "skipped": 39
    }
   },
   {
@@ -2942,6 +3122,16 @@
      "total": 69.2,
      "largest_loss": 69.2
     }
+   },
+   "kitty": {
+    "start": 5000.0,
+    "end": 5000.0,
+    "profit": 0.0,
+    "profit_pct": 0.0,
+    "lowest": 5000.0,
+    "deepest_drop_pct": 0.0,
+    "taken": 0,
+    "skipped": 88
    }
   },
   {
@@ -3109,6 +3299,16 @@
      "total": 475.8,
      "largest_loss": 31.2
     }
+   },
+   "kitty": {
+    "start": 5000.0,
+    "end": 5000.0,
+    "profit": 0.0,
+    "profit_pct": 0.0,
+    "lowest": 5000.0,
+    "deepest_drop_pct": 0.0,
+    "taken": 0,
+    "skipped": 142
    }
   },
   {
@@ -3274,6 +3474,16 @@
      "total": 476.8,
      "largest_loss": 20.2
     }
+   },
+   "kitty": {
+    "start": 5000.0,
+    "end": 5000.0,
+    "profit": 0.0,
+    "profit_pct": 0.0,
+    "lowest": 5000.0,
+    "deepest_drop_pct": 0.0,
+    "taken": 0,
+    "skipped": 142
    }
   },
   {
@@ -3397,6 +3607,16 @@
      "total": 363.68,
      "largest_loss": 12.12
     }
+   },
+   "kitty": {
+    "start": 5000.0,
+    "end": 5000.0,
+    "profit": 0.0,
+    "profit_pct": 0.0,
+    "lowest": 5000.0,
+    "deepest_drop_pct": 0.0,
+    "taken": 0,
+    "skipped": 14
    }
   },
   {
@@ -3564,6 +3784,16 @@
      "total": 475.8,
      "largest_loss": 31.2
     }
+   },
+   "kitty": {
+    "start": 5000.0,
+    "end": 5000.0,
+    "profit": 0.0,
+    "profit_pct": 0.0,
+    "lowest": 5000.0,
+    "deepest_drop_pct": 0.0,
+    "taken": 0,
+    "skipped": 142
    }
   },
   {
@@ -3708,6 +3938,16 @@
      "total": 950.3,
      "largest_loss": -161.8
     }
+   },
+   "kitty": {
+    "start": 5000.0,
+    "end": 5000.0,
+    "profit": 0.0,
+    "profit_pct": 0.0,
+    "lowest": 5000.0,
+    "deepest_drop_pct": 0.0,
+    "taken": 0,
+    "skipped": 39
    }
   },
   {
@@ -3875,6 +4115,16 @@
      "total": 475.8,
      "largest_loss": 31.2
     }
+   },
+   "kitty": {
+    "start": 5000.0,
+    "end": 5000.0,
+    "profit": 0.0,
+    "profit_pct": 0.0,
+    "lowest": 5000.0,
+    "deepest_drop_pct": 0.0,
+    "taken": 0,
+    "skipped": 142
    }
   },
   {
@@ -4042,6 +4292,16 @@
      "total": 475.8,
      "largest_loss": 31.2
     }
+   },
+   "kitty": {
+    "start": 5000.0,
+    "end": 5000.0,
+    "profit": 0.0,
+    "profit_pct": 0.0,
+    "lowest": 5000.0,
+    "deepest_drop_pct": 0.0,
+    "taken": 0,
+    "skipped": 142
    }
   },
   {
@@ -4165,6 +4425,16 @@
      "total": 326.8,
      "largest_loss": 8.2
     }
+   },
+   "kitty": {
+    "start": 5000.0,
+    "end": 5000.0,
+    "profit": 0.0,
+    "profit_pct": 0.0,
+    "lowest": 5000.0,
+    "deepest_drop_pct": 0.0,
+    "taken": 0,
+    "skipped": 14
    }
   },
   {
@@ -4332,6 +4602,16 @@
      "total": 362.6,
      "largest_loss": 18.4
     }
+   },
+   "kitty": {
+    "start": 5000.0,
+    "end": 5000.0,
+    "profit": 0.0,
+    "profit_pct": 0.0,
+    "lowest": 5000.0,
+    "deepest_drop_pct": 0.0,
+    "taken": 0,
+    "skipped": 142
    }
   },
   {
@@ -4476,6 +4756,16 @@
      "total": 872.3,
      "largest_loss": -437.8
     }
+   },
+   "kitty": {
+    "start": 5000.0,
+    "end": 5000.0,
+    "profit": 0.0,
+    "profit_pct": 0.0,
+    "lowest": 5000.0,
+    "deepest_drop_pct": 0.0,
+    "taken": 0,
+    "skipped": 39
    }
   },
   {
@@ -4643,6 +4933,16 @@
      "total": 353.6,
      "largest_loss": 20.4
     }
+   },
+   "kitty": {
+    "start": 5000.0,
+    "end": 5000.0,
+    "profit": 0.0,
+    "profit_pct": 0.0,
+    "lowest": 5000.0,
+    "deepest_drop_pct": 0.0,
+    "taken": 0,
+    "skipped": 142
    }
   },
   {
@@ -4808,6 +5108,16 @@
      "total": 399.8,
      "largest_loss": -71.8
     }
+   },
+   "kitty": {
+    "start": 5000.0,
+    "end": 5000.0,
+    "profit": 0.0,
+    "profit_pct": 0.0,
+    "lowest": 5000.0,
+    "deepest_drop_pct": 0.0,
+    "taken": 0,
+    "skipped": 142
    }
   },
   {
@@ -4975,6 +5285,16 @@
      "total": 475.8,
      "largest_loss": 31.2
     }
+   },
+   "kitty": {
+    "start": 5000.0,
+    "end": 5000.0,
+    "profit": 0.0,
+    "profit_pct": 0.0,
+    "lowest": 5000.0,
+    "deepest_drop_pct": 0.0,
+    "taken": 0,
+    "skipped": 142
    }
   },
   {
@@ -5142,6 +5462,16 @@
      "total": 392.8,
      "largest_loss": 19.4
     }
+   },
+   "kitty": {
+    "start": 5000.0,
+    "end": 5000.0,
+    "profit": 0.0,
+    "profit_pct": 0.0,
+    "lowest": 5000.0,
+    "deepest_drop_pct": 0.0,
+    "taken": 0,
+    "skipped": 142
    }
   },
   {
@@ -5307,6 +5637,16 @@
      "total": 432.8,
      "largest_loss": -71.8
     }
+   },
+   "kitty": {
+    "start": 5000.0,
+    "end": 5000.0,
+    "profit": 0.0,
+    "profit_pct": 0.0,
+    "lowest": 5000.0,
+    "deepest_drop_pct": 0.0,
+    "taken": 0,
+    "skipped": 142
    }
   },
   {
@@ -5472,6 +5812,16 @@
      "total": 363.68,
      "largest_loss": 12.12
     }
+   },
+   "kitty": {
+    "start": 5000.0,
+    "end": 5000.0,
+    "profit": 0.0,
+    "profit_pct": 0.0,
+    "lowest": 5000.0,
+    "deepest_drop_pct": 0.0,
+    "taken": 0,
+    "skipped": 142
    }
   },
   {
@@ -5637,6 +5987,16 @@
      "total": 297.6,
      "largest_loss": -10.8
     }
+   },
+   "kitty": {
+    "start": 5000.0,
+    "end": 5000.0,
+    "profit": 0.0,
+    "profit_pct": 0.0,
+    "lowest": 5000.0,
+    "deepest_drop_pct": 0.0,
+    "taken": 0,
+    "skipped": 142
    }
   },
   {
@@ -5802,6 +6162,16 @@
      "total": 142.6,
      "largest_loss": -36.8
     }
+   },
+   "kitty": {
+    "start": 5000.0,
+    "end": 5000.0,
+    "profit": 0.0,
+    "profit_pct": 0.0,
+    "lowest": 5000.0,
+    "deepest_drop_pct": 0.0,
+    "taken": 0,
+    "skipped": 142
    }
   },
   {
@@ -5967,6 +6337,16 @@
      "total": 266.8,
      "largest_loss": 17.2
     }
+   },
+   "kitty": {
+    "start": 5000.0,
+    "end": 5000.0,
+    "profit": 0.0,
+    "profit_pct": 0.0,
+    "lowest": 5000.0,
+    "deepest_drop_pct": 0.0,
+    "taken": 0,
+    "skipped": 142
    }
   },
   {
@@ -6134,6 +6514,16 @@
      "total": 386.6,
      "largest_loss": 22.4
     }
+   },
+   "kitty": {
+    "start": 5000.0,
+    "end": 5000.0,
+    "profit": 0.0,
+    "profit_pct": 0.0,
+    "lowest": 5000.0,
+    "deepest_drop_pct": 0.0,
+    "taken": 0,
+    "skipped": 142
    }
   },
   {
@@ -6299,6 +6689,16 @@
      "total": 391.8,
      "largest_loss": 25.2
     }
+   },
+   "kitty": {
+    "start": 5000.0,
+    "end": 7283.4,
+    "profit": 2283.4,
+    "profit_pct": 45.67,
+    "lowest": 5000.0,
+    "deepest_drop_pct": -1.88,
+    "taken": 142,
+    "skipped": 0
    }
   },
   {
@@ -6450,6 +6850,16 @@
      "total": 34.2,
      "largest_loss": 34.2
     }
+   },
+   "kitty": {
+    "start": 5000.0,
+    "end": 5000.0,
+    "profit": 0.0,
+    "profit_pct": 0.0,
+    "lowest": 5000.0,
+    "deepest_drop_pct": 0.0,
+    "taken": 0,
+    "skipped": 88
    }
   },
   {
@@ -6617,6 +7027,16 @@
      "total": 476.8,
      "largest_loss": 20.2
     }
+   },
+   "kitty": {
+    "start": 5000.0,
+    "end": 5000.0,
+    "profit": 0.0,
+    "profit_pct": 0.0,
+    "lowest": 5000.0,
+    "deepest_drop_pct": 0.0,
+    "taken": 0,
+    "skipped": 142
    }
   },
   {
@@ -6740,6 +7160,16 @@
      "total": 213.68,
      "largest_loss": 0.12
     }
+   },
+   "kitty": {
+    "start": 5000.0,
+    "end": 5000.0,
+    "profit": 0.0,
+    "profit_pct": 0.0,
+    "lowest": 5000.0,
+    "deepest_drop_pct": 0.0,
+    "taken": 0,
+    "skipped": 14
    }
   },
   {
@@ -6884,6 +7314,16 @@
      "total": 587.18,
      "largest_loss": -443.88
     }
+   },
+   "kitty": {
+    "start": 5000.0,
+    "end": 5000.0,
+    "profit": 0.0,
+    "profit_pct": 0.0,
+    "lowest": 5000.0,
+    "deepest_drop_pct": 0.0,
+    "taken": 0,
+    "skipped": 39
    }
   },
   {
@@ -7014,6 +7454,16 @@
      "total": 204.8,
      "largest_loss": 13.2
     }
+   },
+   "kitty": {
+    "start": 5000.0,
+    "end": 5204.8,
+    "profit": 204.8,
+    "profit_pct": 4.1,
+    "lowest": 5000.0,
+    "deepest_drop_pct": 0.0,
+    "taken": 14,
+    "skipped": 0
    }
   },
   {
@@ -7179,6 +7629,16 @@
      "total": 304.8,
      "largest_loss": 20.2
     }
+   },
+   "kitty": {
+    "start": 5000.0,
+    "end": 6996.5,
+    "profit": 1996.5,
+    "profit_pct": 39.93,
+    "lowest": 5000.0,
+    "deepest_drop_pct": -1.69,
+    "taken": 142,
+    "skipped": 0
    }
   },
   {
@@ -7344,6 +7804,16 @@
      "total": 326.8,
      "largest_loss": 8.2
     }
+   },
+   "kitty": {
+    "start": 5000.0,
+    "end": 5000.0,
+    "profit": 0.0,
+    "profit_pct": 0.0,
+    "lowest": 5000.0,
+    "deepest_drop_pct": 0.0,
+    "taken": 0,
+    "skipped": 142
    }
   },
   {
@@ -7511,6 +7981,16 @@
      "total": 331.04,
      "largest_loss": 12.12
     }
+   },
+   "kitty": {
+    "start": 5000.0,
+    "end": 5000.0,
+    "profit": 0.0,
+    "profit_pct": 0.0,
+    "lowest": 5000.0,
+    "deepest_drop_pct": 0.0,
+    "taken": 0,
+    "skipped": 142
    }
   },
   {
@@ -7676,6 +8156,16 @@
      "total": 207.6,
      "largest_loss": -0.8
     }
+   },
+   "kitty": {
+    "start": 5000.0,
+    "end": 5000.0,
+    "profit": 0.0,
+    "profit_pct": 0.0,
+    "lowest": 5000.0,
+    "deepest_drop_pct": 0.0,
+    "taken": 0,
+    "skipped": 142
    }
   },
   {
@@ -7843,6 +8333,16 @@
      "total": 288.6,
      "largest_loss": 15.4
     }
+   },
+   "kitty": {
+    "start": 5000.0,
+    "end": 5000.0,
+    "profit": 0.0,
+    "profit_pct": 0.0,
+    "lowest": 5000.0,
+    "deepest_drop_pct": 0.0,
+    "taken": 0,
+    "skipped": 142
    }
   },
   {
@@ -8008,6 +8508,16 @@
      "total": 239.8,
      "largest_loss": 11.2
     }
+   },
+   "kitty": {
+    "start": 5000.0,
+    "end": 5000.0,
+    "profit": 0.0,
+    "profit_pct": 0.0,
+    "lowest": 5000.0,
+    "deepest_drop_pct": 0.0,
+    "taken": 0,
+    "skipped": 142
    }
   },
   {
@@ -8173,6 +8683,16 @@
      "total": 322.68,
      "largest_loss": -77.88
     }
+   },
+   "kitty": {
+    "start": 5000.0,
+    "end": 5000.0,
+    "profit": 0.0,
+    "profit_pct": 0.0,
+    "lowest": 5000.0,
+    "deepest_drop_pct": 0.0,
+    "taken": 0,
+    "skipped": 142
    }
   },
   {
@@ -8296,6 +8816,16 @@
      "total": 158.8,
      "largest_loss": -3.8
     }
+   },
+   "kitty": {
+    "start": 5000.0,
+    "end": 5158.8,
+    "profit": 158.8,
+    "profit_pct": 3.18,
+    "lowest": 5000.0,
+    "deepest_drop_pct": -0.07,
+    "taken": 14,
+    "skipped": 0
    }
   },
   {
@@ -8447,6 +8977,16 @@
      "total": 14.2,
      "largest_loss": 14.2
     }
+   },
+   "kitty": {
+    "start": 5000.0,
+    "end": 5947.6,
+    "profit": 947.6,
+    "profit_pct": 18.95,
+    "lowest": 5000.0,
+    "deepest_drop_pct": -1.58,
+    "taken": 88,
+    "skipped": 0
    }
   },
   {
@@ -8612,6 +9152,16 @@
      "total": 204.8,
      "largest_loss": 13.2
     }
+   },
+   "kitty": {
+    "start": 5000.0,
+    "end": 6384.4,
+    "profit": 1384.4,
+    "profit_pct": 27.69,
+    "lowest": 5000.0,
+    "deepest_drop_pct": -1.7,
+    "taken": 142,
+    "skipped": 0
    }
   },
   {
@@ -8779,6 +9329,16 @@
      "total": 260.6,
      "largest_loss": 8.2
     }
+   },
+   "kitty": {
+    "start": 5000.0,
+    "end": 5000.0,
+    "profit": 0.0,
+    "profit_pct": 0.0,
+    "lowest": 5000.0,
+    "deepest_drop_pct": 0.0,
+    "taken": 0,
+    "skipped": 142
    }
   },
   {
@@ -8923,6 +9483,16 @@
      "total": 364.3,
      "largest_loss": -167.8
     }
+   },
+   "kitty": {
+    "start": 5000.0,
+    "end": 5000.0,
+    "profit": 0.0,
+    "profit_pct": 0.0,
+    "lowest": 5000.0,
+    "deepest_drop_pct": 0.0,
+    "taken": 0,
+    "skipped": 39
    }
   },
   {
@@ -9090,6 +9660,16 @@
      "total": 204.8,
      "largest_loss": 13.2
     }
+   },
+   "kitty": {
+    "start": 5000.0,
+    "end": 6240.2,
+    "profit": 1240.2,
+    "profit_pct": 24.8,
+    "lowest": 5000.0,
+    "deepest_drop_pct": -2.62,
+    "taken": 142,
+    "skipped": 0
    }
   },
   {
@@ -9255,6 +9835,16 @@
      "total": 273.6,
      "largest_loss": 11.4
     }
+   },
+   "kitty": {
+    "start": 5000.0,
+    "end": 5000.0,
+    "profit": 0.0,
+    "profit_pct": 0.0,
+    "lowest": 5000.0,
+    "deepest_drop_pct": 0.0,
+    "taken": 0,
+    "skipped": 142
    }
   },
   {
@@ -9420,6 +10010,16 @@
      "total": 158.8,
      "largest_loss": 7.2
     }
+   },
+   "kitty": {
+    "start": 5000.0,
+    "end": 5000.0,
+    "profit": 0.0,
+    "profit_pct": 0.0,
+    "lowest": 5000.0,
+    "deepest_drop_pct": 0.0,
+    "taken": 0,
+    "skipped": 142
    }
   },
   {
@@ -9587,6 +10187,16 @@
      "total": 326.8,
      "largest_loss": 8.2
     }
+   },
+   "kitty": {
+    "start": 5000.0,
+    "end": 5000.0,
+    "profit": 0.0,
+    "profit_pct": 0.0,
+    "lowest": 5000.0,
+    "deepest_drop_pct": 0.0,
+    "taken": 0,
+    "skipped": 142
    }
   },
   {
@@ -9754,6 +10364,16 @@
      "total": 175.6,
      "largest_loss": 8.4
     }
+   },
+   "kitty": {
+    "start": 5000.0,
+    "end": 5000.0,
+    "profit": 0.0,
+    "profit_pct": 0.0,
+    "lowest": 5000.0,
+    "deepest_drop_pct": 0.0,
+    "taken": 0,
+    "skipped": 142
    }
   },
   {
@@ -9921,6 +10541,16 @@
      "total": 130.0,
      "largest_loss": 6.4
     }
+   },
+   "kitty": {
+    "start": 5000.0,
+    "end": 5962.8,
+    "profit": 962.8,
+    "profit_pct": 19.26,
+    "lowest": 5000.0,
+    "deepest_drop_pct": -1.82,
+    "taken": 142,
+    "skipped": 0
    }
   },
   {
@@ -10086,6 +10716,16 @@
      "total": 213.68,
      "largest_loss": 0.12
     }
+   },
+   "kitty": {
+    "start": 5000.0,
+    "end": 5000.0,
+    "profit": 0.0,
+    "profit_pct": 0.0,
+    "lowest": 5000.0,
+    "deepest_drop_pct": 0.0,
+    "taken": 0,
+    "skipped": 142
    }
   },
   {
@@ -10252,6 +10892,16 @@
      "total": 213.68,
      "largest_loss": 0.12
     }
+   },
+   "kitty": {
+    "start": 5000.0,
+    "end": 5000.0,
+    "profit": 0.0,
+    "profit_pct": 0.0,
+    "lowest": 5000.0,
+    "deepest_drop_pct": 0.0,
+    "taken": 0,
+    "skipped": 142
    }
   },
   {
@@ -10419,6 +11069,16 @@
      "total": 129.6,
      "largest_loss": 4.4
     }
+   },
+   "kitty": {
+    "start": 5000.0,
+    "end": 5000.0,
+    "profit": 0.0,
+    "profit_pct": 0.0,
+    "lowest": 5000.0,
+    "deepest_drop_pct": 0.0,
+    "taken": 0,
+    "skipped": 142
    }
   },
   {
@@ -10563,6 +11223,16 @@
      "total": 225.8,
      "largest_loss": -88.8
     }
+   },
+   "kitty": {
+    "start": 5000.0,
+    "end": 5225.8,
+    "profit": 225.8,
+    "profit_pct": 4.52,
+    "lowest": 5000.0,
+    "deepest_drop_pct": -2.07,
+    "taken": 39,
+    "skipped": 0
    }
   },
   {
@@ -10728,6 +11398,16 @@
      "total": 98.8,
      "largest_loss": 6.2
     }
+   },
+   "kitty": {
+    "start": 5000.0,
+    "end": 5723.4,
+    "profit": 723.4,
+    "profit_pct": 14.47,
+    "lowest": 5000.0,
+    "deepest_drop_pct": -1.78,
+    "taken": 142,
+    "skipped": 0
    }
   },
   {
@@ -10893,6 +11573,16 @@
      "total": 158.8,
      "largest_loss": -3.8
     }
+   },
+   "kitty": {
+    "start": 5000.0,
+    "end": 5593.4,
+    "profit": 593.4,
+    "profit_pct": 11.87,
+    "lowest": 4938.6,
+    "deepest_drop_pct": -3.68,
+    "taken": 142,
+    "skipped": 0
    }
   },
   {
@@ -11060,6 +11750,16 @@
      "total": 138.4,
      "largest_loss": -3.8
     }
+   },
+   "kitty": {
+    "start": 5000.0,
+    "end": 5449.6,
+    "profit": 449.6,
+    "profit_pct": 8.99,
+    "lowest": 4931.8,
+    "deepest_drop_pct": -3.71,
+    "taken": 142,
+    "skipped": 0
    }
   },
   {
@@ -11204,6 +11904,16 @@
      "total": 84.18,
      "largest_loss": -173.88
     }
+   },
+   "kitty": {
+    "start": 5000.0,
+    "end": 5000.0,
+    "profit": 0.0,
+    "profit_pct": 0.0,
+    "lowest": 5000.0,
+    "deepest_drop_pct": 0.0,
+    "taken": 0,
+    "skipped": 39
    }
   },
   {
@@ -11371,6 +12081,16 @@
      "total": 270.6,
      "largest_loss": -2.6
     }
+   },
+   "kitty": {
+    "start": 5000.0,
+    "end": 5000.0,
+    "profit": 0.0,
+    "profit_pct": 0.0,
+    "lowest": 5000.0,
+    "deepest_drop_pct": 0.0,
+    "taken": 0,
+    "skipped": 142
    }
   },
   {
@@ -11515,6 +12235,16 @@
      "total": 27.8,
      "largest_loss": -87.8
     }
+   },
+   "kitty": {
+    "start": 5000.0,
+    "end": 5027.8,
+    "profit": 27.8,
+    "profit_pct": 0.56,
+    "lowest": 4928.0,
+    "deepest_drop_pct": -3.1,
+    "taken": 39,
+    "skipped": 0
    }
   },
   {
@@ -11682,6 +12412,16 @@
      "total": 163.4,
      "largest_loss": 4.4
     }
+   },
+   "kitty": {
+    "start": 5000.0,
+    "end": 5000.0,
+    "profit": 0.0,
+    "profit_pct": 0.0,
+    "lowest": 5000.0,
+    "deepest_drop_pct": 0.0,
+    "taken": 0,
+    "skipped": 142
    }
   }
  ],
@@ -11828,6 +12568,16 @@
      "total": 1083.38,
      "largest_loss": -849.4
     }
+   },
+   "kitty": {
+    "start": 5000.0,
+    "end": 5000.0,
+    "profit": 0.0,
+    "profit_pct": 0.0,
+    "lowest": 5000.0,
+    "deepest_drop_pct": 0.0,
+    "taken": 0,
+    "skipped": 39
    }
   },
   {
@@ -11951,6 +12701,16 @@
      "total": 2053.43,
      "largest_loss": -4.37
     }
+   },
+   "kitty": {
+    "start": 5000.0,
+    "end": 5000.0,
+    "profit": 0.0,
+    "profit_pct": 0.0,
+    "lowest": 5000.0,
+    "deepest_drop_pct": 0.0,
+    "taken": 0,
+    "skipped": 14
    }
   },
   {
@@ -12116,6 +12876,16 @@
      "total": 2053.43,
      "largest_loss": -4.37
     }
+   },
+   "kitty": {
+    "start": 5000.0,
+    "end": 5000.0,
+    "profit": 0.0,
+    "profit_pct": 0.0,
+    "lowest": 5000.0,
+    "deepest_drop_pct": 0.0,
+    "taken": 0,
+    "skipped": 142
    }
   },
   {
@@ -12283,6 +13053,16 @@
      "total": 1718.83,
      "largest_loss": -4.37
     }
+   },
+   "kitty": {
+    "start": 5000.0,
+    "end": 5000.0,
+    "profit": 0.0,
+    "profit_pct": 0.0,
+    "lowest": 5000.0,
+    "deepest_drop_pct": 0.0,
+    "taken": 0,
+    "skipped": 142
    }
   },
   {
@@ -12427,6 +13207,16 @@
      "total": 872.3,
      "largest_loss": -437.8
     }
+   },
+   "kitty": {
+    "start": 5000.0,
+    "end": 5000.0,
+    "profit": 0.0,
+    "profit_pct": 0.0,
+    "lowest": 5000.0,
+    "deepest_drop_pct": 0.0,
+    "taken": 0,
+    "skipped": 39
    }
   },
   {
@@ -12592,6 +13382,16 @@
      "total": 1798.43,
      "largest_loss": -774.4
     }
+   },
+   "kitty": {
+    "start": 5000.0,
+    "end": 5000.0,
+    "profit": 0.0,
+    "profit_pct": 0.0,
+    "lowest": 5000.0,
+    "deepest_drop_pct": 0.0,
+    "taken": 0,
+    "skipped": 142
    }
   },
   {
@@ -12736,6 +13536,16 @@
      "total": 587.18,
      "largest_loss": -443.88
     }
+   },
+   "kitty": {
+    "start": 5000.0,
+    "end": 5000.0,
+    "profit": 0.0,
+    "profit_pct": 0.0,
+    "lowest": 5000.0,
+    "deepest_drop_pct": 0.0,
+    "taken": 0,
+    "skipped": 39
    }
   },
   {
@@ -12949,6 +13759,16 @@
      "total": 1193.4,
      "largest_loss": 65.6
     }
+   },
+   "kitty": {
+    "start": 5000.0,
+    "end": 5000.0,
+    "profit": 0.0,
+    "profit_pct": 0.0,
+    "lowest": 5000.0,
+    "deepest_drop_pct": 0.0,
+    "taken": 0,
+    "skipped": 142
    }
   },
   {
@@ -13072,6 +13892,16 @@
      "total": 768.43,
      "largest_loss": -99.37
     }
+   },
+   "kitty": {
+    "start": 5000.0,
+    "end": 5000.0,
+    "profit": 0.0,
+    "profit_pct": 0.0,
+    "lowest": 5000.0,
+    "deepest_drop_pct": 0.0,
+    "taken": 0,
+    "skipped": 14
    }
   }
  ],
