@@ -314,6 +314,35 @@ do $$ begin
 end $$;
 reset role;
 
+-- The bot's strategies: own only; every change audited; switching on and off recorded as such.
+grant all on public.bot_strategies to authenticated;
+set role authenticated;
+set request.jwt.claim.sub = '00000000-0000-0000-0000-00000000000a';
+insert into public.bot_strategies (label, config) values ('Neutral condor', '{"instrument":"XSP","structure":"iron_condor"}');
+update public.bot_strategies set enabled = true;
+do $$ begin
+  if not exists (select 1 from public.audit_log where action = 'strategy_added') then raise exception 'FAIL: adding a strategy is not audited'; end if;
+  if not exists (select 1 from public.audit_log where action = 'strategy_on') then raise exception 'FAIL: switching on is not audited'; end if;
+  begin
+    insert into public.bot_strategies (label, config) values ('bad', '[]');
+    raise exception 'FAIL: a config that is not an object was accepted';
+  exception when check_violation then null; end;
+end $$;
+set request.jwt.claim.sub = '00000000-0000-0000-0000-00000000000b';
+do $$ begin
+  if (select count(*) from public.bot_strategies) <> 0 then raise exception 'FAIL: B sees A''s strategies'; end if;
+  update public.bot_strategies set enabled = false;
+end $$;
+set request.jwt.claim.sub = '00000000-0000-0000-0000-00000000000a';
+do $$ begin
+  if not (select enabled from public.bot_strategies) then raise exception 'FAIL: B switched off A''s strategy'; end if;
+end $$;
+delete from public.bot_strategies;
+do $$ begin
+  if not exists (select 1 from public.audit_log where action = 'strategy_removed') then raise exception 'FAIL: removing is not audited'; end if;
+end $$;
+reset role;
+
 -- Backtests: signed-in users read; only the server writes.
 grant all on public.strategies, public.backtest_runs, public.backtest_trades, public.backtest_metrics to anon, authenticated;
 set role authenticated;

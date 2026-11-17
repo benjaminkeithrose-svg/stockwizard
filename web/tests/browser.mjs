@@ -373,6 +373,23 @@ try {
   check(await page.getByText(/Approved, bot checking again/).isVisible(), "history shows it approved");
   check(await page.getByText(/Iron condor · DEMO.*Refused by the rails/).first().isVisible()
     || await page.getByText(/Refused by the rails/).first().isVisible(), "the chart's condor was checked by the rails (too much risk for $50)");
+  // Strategies the bot runs: add from a preset, switch on (asks first), off again
+  await page.getByRole("button", { name: "+ Add a strategy" }).click();
+  await page.getByRole("button", { name: /^Directional 10:30/ }).click();
+  await page.getByRole("button", { name: "20", exact: true }).click();
+  await page.getByRole("dialog", { name: "New strategy" }).getByRole("button", { name: "Done" }).click();
+  await wait(300);
+  check(await page.getByText(/XSP · directional · 10:30 · 20 delta · \$1 wide/).isVisible(), "a strategy is added from a preset, with its settings");
+  const sw = page.getByRole("switch", { name: /Directional/ });
+  check(await sw.getAttribute("aria-checked") === "false", "a new strategy starts switched off");
+  await sw.click();
+  check(await page.getByRole("dialog", { name: "Switch on?" }).isVisible(), "switching on asks first");
+  await page.getByRole("button", { name: "Switch on", exact: true }).click();
+  await wait(300);
+  check(await page.getByRole("switch", { name: /Directional on/ }).isVisible(), "and it shows as on");
+  await page.getByRole("switch", { name: /Directional on/ }).click();
+  await wait(300);
+  check(await page.getByRole("switch", { name: /Directional off/ }).isVisible(), "switching off needs no confirmation");
   await page.getByRole("button", { name: "Kill switch: stop all trading" }).click();
   check(await page.getByText(/Blocks every new order/).isVisible(), "the kill switch says what it does");
   await page.getByRole("button", { name: "Stop all trading", exact: true }).click();

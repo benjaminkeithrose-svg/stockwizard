@@ -7,7 +7,7 @@ import { Candles, emptyCandles, madeUpCandles, Timeframe } from "./candles";
 import type { ClaudeMessage, ClaudeReply } from "./claude";
 import type { OptionPosition } from "./options";
 import { analyse, historicalVol, positionAt } from "./pricing";
-import { BacktestRun, BacktestTrade, BotRequest, OptionRun, OptionStrategyDef, OptionTradeRow, ChartView, DEFAULT_FAVOURITES, DEFAULT_LIMITS, PaperOrder, PatternRun, SafetyLimits, UserSettings, ScanDef, ScanResult, ScanRun, StrategyDef, SymbolInfo, Watchlist, Workspace } from "./model";
+import { BacktestRun, BacktestTrade, BotRequest, BotStrategy, OptionRun, OptionStrategyDef, OptionTradeRow, ChartView, DEFAULT_FAVOURITES, DEFAULT_LIMITS, PaperOrder, PatternRun, SafetyLimits, UserSettings, ScanDef, ScanResult, ScanRun, StrategyDef, SymbolInfo, Watchlist, Workspace } from "./model";
 import { SUPABASE_KEY, SUPABASE_URL } from "../config";
 
 export interface User {
@@ -57,6 +57,10 @@ export interface Store {
   requestOrder(positionId: string, quantity: number): Promise<void>;
   requestClose(orderId: number): Promise<void>;
   botRequests(): Promise<BotRequest[]>;
+  /** The bot's own strategies: added, switched on and off, and removed by Ben; every change audited. */
+  botStrategies(): Promise<BotStrategy[]>;
+  saveBotStrategy(s: BotStrategy): Promise<void>;
+  deleteBotStrategy(id: string): Promise<void>;
 
   strategies(): Promise<StrategyDef[]>;
   /** The latest manual or scheduled run of each strategy, with its metrics. Re-runs are checks, not shown. */
@@ -283,6 +287,20 @@ export class SupabaseStore implements Store {
     this.check(await this.sb.from("bot_requests").insert({ kind: "close", order_id: orderId, quantity: 1 }));
   }
 
+  async botStrategies() {
+    return this.check(await this.sb.from("bot_strategies").select("id,label,config,enabled").order("created_at")) as BotStrategy[];
+  }
+
+  async saveBotStrategy(s: BotStrategy) {
+    const row = { label: s.label, config: s.config, enabled: s.enabled };
+    if (s.id) this.check(await this.sb.from("bot_strategies").update(row).eq("id", s.id));
+    else this.check(await this.sb.from("bot_strategies").insert(row));
+  }
+
+  async deleteBotStrategy(id: string) {
+    this.check(await this.sb.from("bot_strategies").delete().eq("id", id));
+  }
+
   async botRequests() {
     return this.check(await this.sb.from("bot_requests").select("*").order("created_at", { ascending: false }).limit(50)) as BotRequest[];
   }
@@ -403,6 +421,7 @@ interface DemoData {
   limits: SafetyLimits;
   orders: PaperOrder[];
   requests: BotRequest[];
+  strategies: BotStrategy[];
 }
 
 /** A made-up proposal, so the demo's Safety screen has something to approve. */
@@ -423,11 +442,11 @@ export class DemoStore implements Store {
   private load(): DemoData {
     try {
       const raw = localStorage.getItem(this.key);
-      if (raw) return { views: [], positions: [], settings: { favourites: DEFAULT_FAVOURITES }, limits: DEFAULT_LIMITS, orders: [structuredClone(DEMO_ORDER)], requests: [], ...JSON.parse(raw) };
+      if (raw) return { views: [], positions: [], settings: { favourites: DEFAULT_FAVOURITES }, limits: DEFAULT_LIMITS, orders: [structuredClone(DEMO_ORDER)], requests: [], strategies: [], ...JSON.parse(raw) };
     } catch {
       /* storage blocked: start empty */
     }
-    return { workspaces: [], views: [], positions: [], settings: { favourites: DEFAULT_FAVOURITES }, limits: DEFAULT_LIMITS, orders: [structuredClone(DEMO_ORDER)], requests: [],
+    return { workspaces: [], views: [], positions: [], settings: { favourites: DEFAULT_FAVOURITES }, limits: DEFAULT_LIMITS, orders: [structuredClone(DEMO_ORDER)], requests: [], strategies: [],
       watchlists: [{ id: "demo-1", name: "Made-up list", is_universe: false, symbols: ["DEMO", "TEST"] }] };
   }
 
@@ -575,6 +594,21 @@ export class DemoStore implements Store {
   }
 
   async botRequests() { return this.load().requests.filter((q) => q.status === "waiting"); }
+
+  async botStrategies() { return this.load().strategies; }
+
+  async saveBotStrategy(s: BotStrategy) {
+    const d = this.load();
+    const saved = { ...s, id: s.id || `demo-st-${Date.now()}` };
+    d.strategies = [...d.strategies.filter((x) => x.id !== saved.id), saved];
+    this.save(d);
+  }
+
+  async deleteBotStrategy(id: string) {
+    const d = this.load();
+    d.strategies = d.strategies.filter((x) => x.id !== id);
+    this.save(d);
+  }
 
   async decideOrder(id: number, approve: boolean) {
     const d = this.load();

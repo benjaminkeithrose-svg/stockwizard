@@ -323,3 +323,9 @@ b.up { color: #237F35; } b.down { color: #B2232F; }
   font-size: 12px; display: flex; flex-direction: column; gap: 2px; white-space: nowrap; color: var(--ink-2); }
 .legtip b { color: var(--ink); font-size: 13px; }
 .legtip.bought { border-left-color: #237F35; }
+
+/* the bot's strategies: an on/off switch on the card */
+.card.strat { border-left-color: var(--ink-3); }
+button.toggle { min-width: 56px; min-height: 40px; margin-right: 8px; border-radius: var(--r-pill); border: 1px solid var(--edge);
+  background: var(--sunk); color: var(--ink-2); font-weight: 700; cursor: pointer; }
+button.toggle.on { background: #E9F4EB; border-color: #237F35; color: #237F35; }

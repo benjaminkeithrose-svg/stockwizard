@@ -39,5 +39,5 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - run: pip install .
+      - run: pip install ".[yahoo]"   # today's 5-minute candles for the bot's own strategies
       - run: python -m stockwizard.run_bot ${{ inputs.practice && '--practice' || '' }}

@@ -56,6 +56,9 @@ class Broker(ABC):
     def remember(self, orders: list[BrokerOrder]) -> None:
         """Orders sent or filled before a restart, from the database."""
 
+    def settle(self, broker_id: str) -> None:
+        """A position settled at expiry (cash-settled options need no order)."""
+
     @abstractmethod
     def positions(self) -> list[BrokerOrder]:
         """Filled orders still open (not yet expired or closed)."""

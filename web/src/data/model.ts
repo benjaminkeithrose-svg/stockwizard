@@ -304,3 +304,22 @@ export interface OptionRun {
   held_back_burned: boolean;
   report: { build: OptionMetrics; held_back: OptionMetrics; warnings: string[]; skipped: Record<string, number> };
 }
+
+// --- the bot's own strategies (bot_strategies) ---
+
+/** A 0DTE research configuration (backend/stockwizard/zerodte/strategy.Config). */
+export interface StrategyConfig {
+  instrument: string;
+  structure: string;
+  entry: string;
+  short_delta: number;
+  width: number;
+  neutral_trade?: string;
+  require_inside_range?: boolean;
+  profit_target?: number | null;
+  stop_mult?: number | null;
+  exit_time?: string | null;
+  [k: string]: unknown;
+}
+
+export interface BotStrategy { id: string; label: string; config: StrategyConfig; enabled: boolean }
