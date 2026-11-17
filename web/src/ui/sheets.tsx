@@ -139,7 +139,23 @@ export function IndicatorSheet(props: {
           </div>
         );
       })}
-      <p className="hint">The star keeps an indicator, with its settings, in the favourites row above the chart for one-tap adding.</p>
+      {(() => {
+        const favs = props.favourites.filter((f): f is Extract<Favourite, { kind: "indicator" }> => f.kind === "indicator"
+          && !list.some((i) => sameIndicator(i, f)) && !!REGISTRY[f.name] && !(REGISTRY[f.name].intradayOnly && props.timeframe === "1d"));
+        const label = (f: Extract<Favourite, { kind: "indicator" }>) => REGISTRY[f.name].short({ ...REGISTRY[f.name].defaults, ...f.params });
+        return favs.length > 0 && (
+          <>
+            <h2>Favourites</h2>
+            <div className="chips">
+              {favs.map((f) => (
+                <button key={label(f)} className="chip fav" aria-label={`Add ${label(f)}`}
+                  onClick={() => setList([...list, indicator(f.name, f.params)])}>+ {label(f)}</button>
+              ))}
+            </div>
+          </>
+        );
+      })()}
+      <p className="hint">The star keeps an indicator, with its settings, in Favourites here for one-tap adding.</p>
       <h2>Add</h2>
       {GROUPS.map(([g, label]) => (
         <div key={g} style={{ marginBottom: 10 }}>

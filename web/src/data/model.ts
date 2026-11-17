@@ -197,7 +197,7 @@ export interface PatternRun {
 /** A chip in the favourites row: an indicator with its settings, or an option structure. */
 export type Favourite =
   | { kind: "indicator"; name: string; params: Params }
-  | { kind: "structure"; structure: import("./options").Structure };
+  | { kind: "structure"; structure: import("./options").Structure; /** Only on this symbol's charts; none = every chart. */ symbol?: string };
 
 export interface UserSettings { favourites: Favourite[] }
 

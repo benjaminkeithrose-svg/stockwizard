@@ -5,9 +5,9 @@
 const SCREENS: [string, string[]][] = [
   ["The chart", [
     "Tabs along the top: each is a symbol and timeframe you've set up. The + adds one; ⋯ on a tab renames, duplicates or deletes it.",
-    "Under the toolbar, a chip for each indicator on the chart: tap it for its settings, × to take it off. The starred chips after it are your favourites: one tap adds them.",
-    "Indicators adds more, and its star keeps one as a favourite. Draw adds levels and trendlines.",
-    "Options places a call, put, spread, condor or fly. It goes one daily range out by default, with $5 wings.",
+    "Indicators (with how many are on the chart) opens the list: tap one for its settings, the bin takes it off, the star keeps it as a favourite. Favourites sit under that list for one-tap adding, and the full list is below.",
+    "Under the toolbar: the option structures on this chart, then your favourite structures (starred ones on every chart, and this symbol's own) to place in one tap. Draw adds levels and trendlines.",
+    "Options places a call, put, spread, condor or fly. It goes one daily range out by default, with $5 wings. Its star makes a structure a favourite on every chart; the symbol button beside it, on this symbol only.",
   ]],
   ["Options on the chart", [
     "Each leg is a line: ▲ for a call, ▼ for a put. Solid lines are legs you sell; dotted lines are legs you buy. Purple means planned; green means marked bought.",
