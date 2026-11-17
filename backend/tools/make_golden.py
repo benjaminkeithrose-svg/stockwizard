@@ -13,6 +13,8 @@ from __future__ import annotations
 
 import json
 import math
+
+import pandas as pd
 import sys
 from pathlib import Path
 
@@ -23,6 +25,8 @@ sys.path.insert(0, str(ROOT))
 from conftest import daily_index, intraday_index, make_candles  # noqa: E402
 
 from stockwizard.indicators import REGISTRY, compute  # noqa: E402
+from stockwizard.scans import RULES, evaluate  # noqa: E402
+from stockwizard.backtest import Strategy, report, run  # noqa: E402
 
 OUT = ROOT.parent / "web" / "src" / "indicators" / "golden.json"
 
@@ -76,6 +80,47 @@ def build() -> dict:
                 "columns": {c: [_num(v) for v in res[c].tolist()] for c in res.columns},
             }
         out["frames"][tf] = frame
+    # Scan rules on the daily frame, default settings (plus a looser drawdown so it fires on made-up data).
+    daily = frames["1d"].map(lambda x: float(f"{x:.12g}"))
+    out["scans"] = {}
+    for name in RULES:
+        params = {"pct": 2.0} if name == "drawdown" else {}
+        res = evaluate(name, daily, **params)
+        out["scans"][name] = {
+            "params": params,
+            "hit": [None if v is pd.NA else bool(v) for v in res["hit"].tolist()],
+            "direction": [None if v is pd.NA else v for v in res["direction"].tolist()],
+            "values": {c: [_num(v) for v in res[c].tolist()] for c in res.columns if c not in ("hit", "direction")},
+        }
+
+    # Two whole backtests on made-up SPY and VIX: trades, skips and the full report.
+    idx = daily_index(1500, first="2010-01-04")
+    spy = make_candles(idx, seed=31).map(lambda x: float(f"{x:.12g}"))
+    vix = make_candles(idx, seed=32, start=15.0).map(lambda x: float(f"{x:.12g}"))
+    start, split = idx[50], idx[1000]
+    out["backtest"] = {
+        "candles": {sym: {"time": [int(t.timestamp()) for t in df.index], **{c: df[c].tolist() for c in ["open", "high", "low", "close", "volume"]}}
+                    for sym, df in (("SPY", spy), ("VIX", vix))},
+        "start": int(start.timestamp()),
+        "split": int(split.timestamp()),
+        "cases": [],
+    }
+    cases = [
+        {"signal_symbol": "SPY", "signal_rule": "trend_break", "signal_params": {"length": 20}, "trade_symbol": "VIX",
+         "target_pct": 10, "stop_pct": 5, "max_bars": 10, "cost_pct": 0.5},
+        {"signal_symbol": "SPY", "signal_rule": "drawdown", "signal_params": {"lookback": 20, "pct": 2}, "trade_symbol": "VIX",
+         "target_level": 16.5, "max_bars": 15},
+    ]
+    for cfg in cases:
+        res = run(Strategy("golden", **cfg), spy, vix, start)
+        rep = report(res, start, split)
+        trades = []
+        for t in res.trades:
+            row = t.row()
+            for k in ("signal_ts", "entry_ts", "exit_ts"):
+                row[k] = int(pd.Timestamp(row[k]).timestamp()) if row[k] else None
+            trades.append(row)
+        out["backtest"]["cases"].append({"config": cfg, "trades": trades, "skipped": res.skipped, "report": rep})
     return out
 
 

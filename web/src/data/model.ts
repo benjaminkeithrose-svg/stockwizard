@@ -84,7 +84,7 @@ export interface ScanDef {
   timeframe: Timeframe;
   params: Record<string, number>;
   symbols: string[] | null;
-  tab: "squeeze_on" | "squeeze_fired" | "breakout" | "spy";
+  tab: "squeeze_on" | "squeeze_fired" | "breakout" | "spy" | "custom";
   position: number;
 }
 

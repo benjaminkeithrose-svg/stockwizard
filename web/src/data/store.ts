@@ -4,6 +4,7 @@
 
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
 import { Candles, emptyCandles, madeUpCandles, Timeframe } from "./candles";
+import type { ClaudeMessage, ClaudeReply } from "./claude";
 import { BacktestRun, BacktestTrade, ChartView, PatternRun, ScanDef, ScanResult, ScanRun, StrategyDef, SymbolInfo, Watchlist, Workspace } from "./model";
 import { SUPABASE_KEY, SUPABASE_URL } from "../config";
 
@@ -41,6 +42,9 @@ export interface Store {
   backtestTrades(runId: number): Promise<BacktestTrade[]>;
   /** The latest pattern lab run (not a re-run check), with the patterns it kept. */
   latestPatternRun(): Promise<PatternRun | null>;
+
+  /** Send the conversation to Claude (the Supabase function); get back its new turns and actions for the app. */
+  askClaude(messages: ClaudeMessage[]): Promise<ClaudeReply>;
 
   scans(): Promise<ScanDef[]>;
   /** The latest scheduled or manual run of each scan, with its matches. Re-runs are checks, not shown. */
@@ -244,6 +248,17 @@ export class SupabaseStore implements Store {
     }
   }
 
+  async askClaude(messages: ClaudeMessage[]): Promise<ClaudeReply> {
+    const { data, error } = await this.sb.functions.invoke("claude", { body: { messages } });
+    if (error) {
+      // The function's own message (cap reached, key missing...) is in the response body.
+      let msg = error.message;
+      try { const body = await (error as { context?: Response }).context?.json(); if (body?.error) msg = body.error; } catch { /* keep the generic message */ }
+      throw new Error(msg);
+    }
+    return data as ClaudeReply;
+  }
+
   async scans() {
     return this.check(await this.sb.from("scans").select("id,label,rule,timeframe,params,symbols,tab,position").eq("enabled", true).order("position")) as ScanDef[];
   }
@@ -413,6 +428,22 @@ export class DemoStore implements Store {
       { n: 0, period: "build", signal_ts: "2008-09-15T04:00:00Z", entry_ts: "2008-09-16T04:00:00Z", entry_price: 25.1, exit_ts: "2008-09-29T04:00:00Z", exit_price: 35.14, exit_reason: "target", bars: 10, return_pct: 40 },
       { n: 1, period: "held_back", signal_ts: "2022-01-20T05:00:00Z", entry_ts: "2022-01-21T05:00:00Z", entry_price: 25.6, exit_ts: "2022-01-27T05:00:00Z", exit_price: 21.76, exit_reason: "stop", bars: 5, return_pct: -15 },
     ];
+  }
+
+  async askClaude(messages: ClaudeMessage[]): Promise<ClaudeReply> {
+    const last = messages[messages.length - 1];
+    const asked = typeof last.content === "string" ? last.content : "";
+    return {
+      added: [{
+        role: "assistant",
+        content: [
+          { type: "tool_use", id: "demo", name: "run_backtest", input: { strategy_id: "demo_a" } },
+          { type: "text", text: `Made-up reply to “${asked}”. In the real app I'd run that as a backtest and show the build and held-back years side by side.` },
+        ],
+      }],
+      actions: [{ type: "open_backtest", strategy_id: "demo_a" }],
+      note: null,
+    };
   }
 
   async scans(): Promise<ScanDef[]> {

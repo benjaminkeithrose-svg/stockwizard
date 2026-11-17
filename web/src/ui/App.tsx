@@ -6,7 +6,9 @@ import { DemoStore, Store, SupabaseStore, User } from "../data/store";
 import type { SymbolInfo, Watchlist } from "../data/model";
 import { useWorkspaces } from "../data/useWorkspaces";
 import ChartScreen from "./ChartScreen";
-import { Back, Flask, Grid, Home, List, Radar } from "./icons";
+import { Back, Flask, Grid, Home, List, Radar, Spark } from "./icons";
+import ClaudePanel from "./ClaudePanel";
+import { indicator } from "../data/model";
 import { BacktestScreen, BacktestsScreen } from "./Backtests";
 import PagesScreen from "./Pages";
 import { useViews } from "../data/useViews";
@@ -36,7 +38,7 @@ export default function App({ store }: { store: Store }) {
   return <SignedIn store={store} user={user} key={user.id} />;
 }
 
-function Header(props: { title: string; sub?: string; onBack?: () => void; onHome?: () => void; onScanner?: () => void; onPages?: () => void; onBacktests?: () => void; menu?: React.ReactNode }) {
+function Header(props: { title: string; sub?: string; onBack?: () => void; onHome?: () => void; onScanner?: () => void; onPages?: () => void; onBacktests?: () => void; onClaude?: () => void; menu?: React.ReactNode }) {
   return (
     <header>
       {props.onBack
@@ -46,6 +48,7 @@ function Header(props: { title: string; sub?: string; onBack?: () => void; onHom
         <h1>{props.title}</h1>
         {props.sub && <div className="sub">{props.sub}</div>}
       </div>
+      {props.onClaude && <button className="menubtn" aria-label="Claude" onClick={props.onClaude}><Spark /></button>}
       {props.onPages && <button className="menubtn" aria-label="Chart pages" onClick={props.onPages}><Grid /></button>}
       {props.onScanner && <button className="menubtn" aria-label="Scanner" onClick={props.onScanner}><Radar /></button>}
       {props.onBacktests && <button className="menubtn" aria-label="Backtests" onClick={props.onBacktests}><Flask /></button>}
@@ -69,6 +72,7 @@ function SignedIn({ store, user }: { store: Store; user: User }) {
   useEffect(() => { store.strategies().then((s) => setStrategyLabels(Object.fromEntries(s.map((x) => [x.id, x.label])))).catch(() => {}); }, [store]);
   const [screen, setScreen] = useState<Screen>({ name: "chart" });
   const [toast, setToast] = useState<string | null>(null);
+  const [claudeOpen, setClaudeOpen] = useState(false);
   useEffect(() => {
     if (cameBackFresh()) setToast(`Up to date: build ${APP_BUILD}`);
     checkForUpdate();
@@ -117,7 +121,19 @@ function SignedIn({ store, user }: { store: Store; user: User }) {
       <Header title={title} sub={sub} onBack={back} onHome={screen.name === "chart" ? undefined : () => setScreen({ name: "chart" })}
         onScanner={screen.name === "chart" ? () => setScreen({ name: "scanner" }) : undefined}
         onPages={screen.name === "chart" ? () => setScreen({ name: "pages" }) : undefined}
-        onBacktests={screen.name === "chart" ? () => setScreen({ name: "backtests" }) : undefined} menu={menu} />
+        onBacktests={screen.name === "chart" ? () => setScreen({ name: "backtests" }) : undefined}
+        onClaude={() => setClaudeOpen(!claudeOpen)} menu={menu} />
+      {claudeOpen && (
+        <ClaudePanel store={store} userId={user.id} onClose={() => setClaudeOpen(false)}
+          onOpenBacktest={(id) => { setScreen({ name: "backtest", id }); if (window.innerWidth < 720) setClaudeOpen(false); }}
+          onAction={(a) => {
+            const w = ws.active;
+            if (a.type === "add_indicator" && w) {
+              ws.update({ ...w, indicators: [...w.indicators, indicator(a.name, a.params)] });
+              setToast("Claude put an indicator on your chart");
+            }
+          }} />
+      )}
       {screen.name === "backtests" && <BacktestsScreen store={store} onOpen={(id) => setScreen({ name: "backtest", id })} />}
       {screen.name === "backtest" && <BacktestScreen store={store} id={screen.id} />}
       {screen.name === "pages" && (

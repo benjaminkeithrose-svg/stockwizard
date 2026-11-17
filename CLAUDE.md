@@ -4,7 +4,7 @@ A technical-analysis workspace: charts, a scanner, a bar-by-bar backtester, a
 pattern lab and, last of all, a paper-trading bot on Interactive Brokers, all
 backed by Supabase. Phases 0 (indicators, loader, database), 1 (the chart
 workspace web app), 2 (the scanner), 3 (the backtester) and 3b (the pattern
-lab) are built, plus chart
+lab) and 4 (Claude in the app) are built, plus chart
 pages (cards on a grid, saved as views).
 
 ## Who you are working with
@@ -46,6 +46,9 @@ inputs listed under "Still needed from Ben" (Supabase project first).
 | `backend/stockwizard/run_backtests.py` | Runs the saved strategies and saves runs, trades and metrics; `--rerun N` repeats a run and checks it matches; marks the held-back period burned when settings change |
 | `backend/stockwizard/features.py` | The pattern lab's measures of market conditions, one row per SPY day, all known at the close; other symbols matched by trading date (the VIX's daily candles are stamped an hour after SPY's) |
 | `backend/stockwizard/lab.py`, `backend/stockwizard/run_lab.py` | The pattern lab: one- and two-condition patterns on the discovery years, every one counted, Benjamini-Hochberg check, stability check, survivors tested once on the sealed years by the backtester; `--rerun N` checks a run repeats |
+| `supabase/functions/claude/` | Claude in the app (phase 4): `index.ts` (Opus 5.5, adaptive thinking, refusal fallback, the 100-a-day cap, the tool loop) and `tools.ts` (the only actions Claude has; none for orders, limits, keys or the audit log). `lib/` holds copies of `web/src`'s candles, indicators and engine: edit those in `web/src`, run `python3 tools/sync_function.py`; a web test fails if a copy differs. Deployed with the Supabase connection's deploy tool (all files), then checked by calling it. The Anthropic key is the Supabase secret `ANTHROPIC_API_KEY`, never in the repository |
+| `web/src/engine/` | TypeScript copies of the scan rules and the backtester, for the Claude function; checked trade by trade against the Python library (golden.json) |
+| `web/src/ui/ClaudePanel.tsx`, `web/src/data/claude.ts` | The Claude panel: ask at the top, newest answer under it; the conversation kept in the browser and sent unchanged (thinking blocks included) |
 | `web/src/ui/Lab.tsx` | The Pattern lab tab of the Backtests screen |
 | `web/src/ui/Backtests.tsx` | The Backtests screens: each strategy's build and held-back results side by side, the windows and every trade |
 | `web/src/ui/Scanner.tsx` | The Scanner screen: the latest run of each scan, in tabs |

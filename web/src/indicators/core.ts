@@ -6,7 +6,7 @@
 // As in Python, each value uses only its own candle and earlier ones, and
 // warm-up values are NaN.
 
-import { Candles, nyParts, TIMEFRAME_MINUTES, Timeframe } from "../data/candles";
+import { Candles, nyParts, TIMEFRAME_MINUTES, Timeframe } from "../data/candles.ts";
 
 export type Series = number[]; // NaN = no value
 export type Output = Record<string, Series>;

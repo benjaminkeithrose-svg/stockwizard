@@ -214,6 +214,27 @@ try {
   await page.getByRole("button", { name: "Strategies" }).click();
   await page.getByRole("button", { name: "Back", exact: true }).click();
 
+  // Claude: ask at the top, the answer under it, actions as buttons; the conversation survives a reload
+  await page.getByRole("button", { name: "Claude", exact: true }).click();
+  check(await page.getByRole("complementary", { name: "Claude" }).isVisible(), "the Claude panel opens");
+  await page.getByRole("textbox", { name: "Ask Claude" }).fill("Test trend breaks against the VIX");
+  await page.getByRole("button", { name: "Ask Claude" }).click();
+  await page.getByText(/Made-up reply to/).waitFor();
+  check(await page.getByText("Ran a backtest").isVisible(), "Claude's actions are listed in plain words");
+  await page.getByRole("button", { name: "Open the backtest" }).click();
+  check(await page.getByRole("heading", { name: "Made-up signal → +40%" }).isVisible(), "Open the backtest goes to its page");
+  await page.reload();
+  await page.waitForSelector("header");
+  await page.getByRole("button", { name: "Claude", exact: true }).click();
+  check(await page.getByText("Test trend breaks against the VIX", { exact: true }).isVisible(), "the conversation is kept after a reload");
+  await page.getByRole("button", { name: "More for Claude" }).click();
+  await page.getByRole("menuitem", { name: "New conversation" }).click();
+  check(await page.getByText(/Its 1 exchange with Claude/).isVisible(), "clearing names what will be lost");
+  await page.getByRole("button", { name: "Delete", exact: true }).click();
+  check(!(await page.getByText("Test trend breaks against the VIX", { exact: true }).count()), "a new conversation starts empty");
+  await page.getByRole("button", { name: "Close Claude" }).click();
+  await page.getByRole("button", { name: "Home" }).click().catch(() => {});
+
   // Watchlists: back goes up a level, picking a symbol opens it in the tab
   await page.getByRole("button", { name: "More", exact: true }).click();
   await page.getByRole("menuitem", { name: "Watchlists" }).click();
