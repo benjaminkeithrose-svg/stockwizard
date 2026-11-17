@@ -1,10 +1,13 @@
-// The bot's own strategies, on the Safety screen: what it proposes by itself
-// each trading day at the entry time. Each is a 0DTE research configuration,
-// so the bot follows the same rules the research tests. Switching one on
-// asks first; the rails and approval mode still decide every order.
+// Bots, on the Safety screen: what the bot proposes by itself each trading
+// day at the entry time. A bot is made from a backtest ("Make a bot" on its
+// page) and keeps the settings it tested; only a tested bot can be switched
+// on. Each card shows its paper results against what the backtest expected.
+// Switching one on asks first; the rails and approval mode still decide every
+// order.
 
 import { useEffect, useState } from "react";
-import type { BotStrategy, StrategyConfig } from "../data/model";
+import type { BotStrategy, PaperOrder, StrategyConfig } from "../data/model";
+import { isTested, paperResults, sameSettings } from "../data/bots";
 import type { Store } from "../data/store";
 import { Bin } from "./icons";
 import { Sheet } from "./parts";
@@ -16,22 +19,25 @@ const PRESETS: { name: string; what: string; config: StrategyConfig }[] = [
     config: { instrument: "XSP", structure: "iron_condor", entry: "10:30", short_delta: 0.15, width: 1, require_inside_range: true, profit_target: 0.5, exit_time: "15:00" } },
   { name: "Afternoon", what: "13:30: directional, or a condor on a neutral day; out by 15:30",
     config: { instrument: "XSP", structure: "directional", neutral_trade: "iron_condor", entry: "13:30", short_delta: 0.15, width: 1, exit_time: "15:30" } },
-  { name: "3-day condor", what: "As backtested: SPY, shorts a quarter of a daily range out, $1 wings, held to expiry two trading days later; one at a time",
-    config: { instrument: "SPY", structure: "iron_condor", entry: "10:00", short_delta: 0.15, short_atr: 0.25, width: 1, dte: 3 } },
-  { name: "9-day condor, take 50%", what: "As backtested: SPY, shorts one daily range out, $5 wings, closed at half the credit; risks about $400, so your per-trade limit must allow it",
-    config: { instrument: "SPY", structure: "iron_condor", entry: "10:00", short_delta: 0.15, short_atr: 1, width: 5, dte: 9, profit_target: 0.5 } },
 ];
 
-const STRUCTURES: [string, string][] = [["iron_condor", "Iron condor"], ["iron_fly", "Iron fly"], ["directional", "Credit spread by direction"], ["directional_debit", "Debit spread by direction"]];
+const STRUCTURES: [string, string][] = [["iron_condor", "Iron condor"], ["iron_fly", "Iron fly"], ["bull_put", "Bull put"], ["bear_call", "Bear call"],
+  ["bull_call_debit", "Bull call debit"], ["bear_put_debit", "Bear put debit"], ["directional", "Credit spread by direction"], ["directional_debit", "Debit spread by direction"]];
+const money = (v: number | null | undefined) => (typeof v === "number" ? `${v >= 0 ? "+" : "−"}$${Math.abs(v).toFixed(0)}` : "—");
+const pct = (v: number | null | undefined) => (typeof v === "number" ? `${v.toFixed(0)}%` : "—");
 const expires = (d?: number) => (!d || d <= 1 ? "same day" : d >= 21 ? "about a month" : `${d} days`);
 
 export function describeStrategy(c: StrategyConfig): string {
   const kind = STRUCTURES.find(([k]) => k === c.structure)?.[1] ?? c.structure.replace("_", " ");
-  const shorts = c.short_atr && c.structure === "iron_condor" ? `shorts ${c.short_atr}× daily range` : `${Math.round(c.short_delta * 100)} delta`;
+  const shorts = c.short_atr && ["iron_condor", "bull_put", "bear_call"].includes(c.structure) ? `shorts ${c.short_atr}× daily range`
+    : ["iron_fly", "bull_call_debit", "bear_put_debit"].includes(c.structure) ? "at the money" : `${Math.round(c.short_delta * 100)} delta`;
   const parts = [c.instrument, kind, c.entry, `expires ${expires(c.dte)}`, shorts, `$${c.width} wide`];
   if (c.require_inside_range) parts.push("inside opening range");
   if (c.profit_target) parts.push(`take ${Math.round(c.profit_target * 100)}%`);
   if (c.stop_mult) parts.push(`stop ${c.stop_mult}×`);
+  if (c.close_days_left) parts.push(`close at ${c.close_days_left} days left`);
+  if (c.vix_max != null) parts.push(`VIX ≤ ${c.vix_max}`);
+  if (c.signal_rule) parts.push(`on ${String(c.signal_rule).replace(/_/g, " ")} days`);
   if (c.exit_time) parts.push(`out by ${c.exit_time}${c.dte && c.dte > 1 ? " on expiry day" : ""}`);
   return parts.join(" · ");
 }
@@ -49,14 +55,25 @@ function Chips<T extends string | number | null>(props: { label: string; value: 
   );
 }
 
-function StrategySheet(props: { strategy: BotStrategy | null; onDone: (s: BotStrategy) => void; onDelete: () => void; onClose: () => void }) {
+export function BotSheet(props: { strategy: BotStrategy | null; onDone: (s: BotStrategy) => void; onDelete?: () => void; onClose: () => void }) {
   const [label, setLabel] = useState(props.strategy?.label ?? PRESETS[1].name);
   const [c, setC] = useState<StrategyConfig>(props.strategy?.config ?? PRESETS[1].config);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const set = (k: keyof StrategyConfig, v: unknown) => setC({ ...c, [k]: v });
-  const done = () => { props.onDone({ id: props.strategy?.id ?? "", label: label.trim() || "Strategy", config: c, enabled: props.strategy?.enabled ?? false }); props.onClose(); };
+  const source = props.strategy?.source ?? null;
+  const changed = !!source && !sameSettings(c, source.config);
+  // A tested bot changed away from its settings is switched off: it can't run untested.
+  const done = () => { props.onDone({ id: props.strategy?.id ?? "", label: label.trim() || "Bot", config: c, source, enabled: (props.strategy?.enabled ?? false) && !changed }); props.onClose(); };
   return (
-    <Sheet title={props.strategy ? "Strategy" : "New strategy"} onClose={props.onClose} onDone={done}>
+    <Sheet title={props.strategy?.id ? "Bot" : "New bot"} onClose={props.onClose} onDone={done}>
+      {source && (
+        <div className={`msg ${changed ? "warn" : "ok"}`}>
+          {changed
+            ? <>Changed from the tested settings, so it can't be switched on until these are backtested. <button className="link" onClick={() => setC(source.config)}>Put them back</button></>
+            : <>Tested: {source.label}{source.held_back ? `. Held back: ${source.held_back.trades} trades, ${pct(source.held_back.win_rate)} won, ${money(source.held_back.expectancy)} a trade.` : "."}</>}
+        </div>
+      )}
+      {!source && <div className="msg warn">Set up by hand: untested, so it can't be switched on. Use Make a bot on a backtest page to start from tested settings.</div>}
       {!props.strategy && (
         <>
           <h2>Start from</h2>
@@ -82,13 +99,13 @@ function StrategySheet(props: { strategy: BotStrategy | null; onDone: (s: BotStr
       <Chips label="Stop at" value={c.stop_mult ?? null} options={[[null, "None"], [1.5, "1.5×"], [2, "2×"], [3, "3×"]]} onChange={(v) => set("stop_mult", v)} />
       <Chips label="Out by" value={c.exit_time ?? null} options={[[null, "Expiry"], ["14:30", "14:30"], ["15:00", "15:00"], ["15:30", "15:30"]]} onChange={(v) => set("exit_time", v)} />
       <p className="hint">{describeStrategy(c)}. The safety rails check every order; your per-trade limit applies.</p>
-      {props.strategy && <button className="link" style={{ color: "var(--warn)", marginTop: 12 }} onClick={() => setConfirmDelete(true)}><Bin /> Delete this strategy</button>}
+      {props.strategy?.id && props.onDelete && <button className="link" style={{ color: "var(--warn)", marginTop: 12 }} onClick={() => setConfirmDelete(true)}><Bin /> Delete this bot</button>}
       {confirmDelete && (
         <Sheet title="Delete?" onClose={() => setConfirmDelete(false)}>
-          <p>Delete the strategy <b>{props.strategy?.label}</b>? Its past orders stay in the history.</p>
+          <p>Delete the bot <b>{props.strategy?.label}</b>? Its past orders stay in the history.</p>
           <div style={{ display: "flex", gap: 10 }}>
             <button className="ghost" autoFocus onClick={() => setConfirmDelete(false)}>Cancel</button>
-            <button className="ghost" style={{ color: "var(--warn)", borderColor: "var(--warn)" }} onClick={() => { props.onDelete(); props.onClose(); }}>Delete</button>
+            <button className="ghost" style={{ color: "var(--warn)", borderColor: "var(--warn)" }} onClick={() => { props.onDelete?.(); props.onClose(); }}>Delete</button>
           </div>
         </Sheet>
       )}
@@ -100,37 +117,53 @@ export default function StrategiesSection({ store, onError }: { store: Store; on
   const [list, setList] = useState<BotStrategy[]>([]);
   const [open, setOpen] = useState<BotStrategy | "new" | null>(null);
   const [turningOn, setTurningOn] = useState<BotStrategy | null>(null);
-  const reload = () => store.botStrategies().then(setList).catch((e) => onError(String(e.message ?? e)));
+  const [orders, setOrders] = useState<PaperOrder[]>([]);
+  const reload = () => Promise.all([store.botStrategies(), store.paperOrders()]).then(([b, o]) => { setList(b); setOrders(o); }).catch((e) => onError(String(e.message ?? e)));
   useEffect(() => { reload(); }, [store]); // eslint-disable-line react-hooks/exhaustive-deps
   const save = (s: BotStrategy) => store.saveBotStrategy(s).then(reload).catch((e) => onError(String(e.message ?? e)));
 
   return (
     <>
-      <h2>Strategies the bot runs</h2>
+      <h2>Bots</h2>
       {!list.length && <p className="empty">None yet.</p>}
       {list.map((s) => (
         <div key={s.id} className="card strat" style={{ borderLeftColor: s.enabled ? "#237F35" : undefined }}>
           <button className="cmain" onClick={() => setOpen(s)}>
-            <div className="t">{s.label}</div>
+            <div className="t">{s.label} <span className={`badge ${isTested(s) ? "ok" : "est"}`}>{isTested(s) ? "Tested" : "Untested"}</span></div>
             <div className="meta">{describeStrategy(s.config)}</div>
+            {(() => {
+              const r = paperResults(orders, s.id);
+              const h = s.source?.held_back;
+              return (
+                <div className="meta">
+                  Paper: {r.trades ? `${r.trades} closed, ${pct(r.win_rate)} won, ${money(r.expectancy)} a trade` : "no closed trades yet"}{r.open ? ` · ${r.open} open` : ""}
+                  {h ? ` · Backtest expected ${pct(h.win_rate)} won, ${money(h.expectancy)} a trade` : ""}
+                </div>
+              );
+            })()}
           </button>
           <button className={`toggle${s.enabled ? " on" : ""}`} role="switch" aria-checked={s.enabled} aria-label={`${s.label} ${s.enabled ? "on" : "off"}`}
             onClick={() => (s.enabled ? save({ ...s, enabled: false }) : setTurningOn(s))}>{s.enabled ? "On" : "Off"}</button>
         </div>
       ))}
-      <button className="ghost" onClick={() => setOpen("new")}>+ Add a strategy</button>
-      <p className="hint">Multi-day strategies hold one position at a time, overnight, and settle at their expiry's close. At each strategy's entry time, the bot checks the setup and proposes the trade; you approve it here. With the pretend broker the prices are made up.</p>
+      <p className="hint">Make a bot from a backtest: Backtests, open one, then Make a bot. Only a tested bot can be switched on. Each card compares its paper results with what its backtest expected. With the pretend broker the prices are made up.</p>
+      <button className="ghost" onClick={() => setOpen("new")}>+ Set one up by hand (untested)</button>
       {open && (
-        <StrategySheet strategy={open === "new" ? null : open} onClose={() => setOpen(null)} onDone={save}
+        <BotSheet strategy={open === "new" ? null : open} onClose={() => setOpen(null)} onDone={save}
           onDelete={() => open !== "new" && store.deleteBotStrategy(open.id).then(reload).catch((e) => onError(String(e.message ?? e)))} />
       )}
       {turningOn && (
-        <Sheet title="Switch on?" onClose={() => setTurningOn(null)}>
+        isTested(turningOn) ? <Sheet title="Switch on?" onClose={() => setTurningOn(null)}>
           <p>Every trading day at {turningOn.config.entry} New York time, the bot checks <b>{turningOn.label}</b> and proposes the trade if the setup is there. The safety rails and approval mode decide every order.</p>
           <div style={{ display: "flex", gap: 10 }}>
             <button className="ghost" autoFocus onClick={() => setTurningOn(null)}>Cancel</button>
             <button className="ghost" onClick={() => { save({ ...turningOn, enabled: true }); setTurningOn(null); }}>Switch on</button>
           </div>
+        </Sheet>
+        : <Sheet title="Can't switch on" onClose={() => setTurningOn(null)}>
+          <p><b>{turningOn.label}</b> {turningOn.source ? "has been changed from the settings its backtest tested" : "was set up by hand, so nothing has tested it"}. Only tested settings can run.</p>
+          <p className="hint">{turningOn.source ? "Open it and tap Put them back, or make a new bot from a backtest." : "Open a backtest in Backtests and tap Make a bot."}</p>
+          <button className="ghost" autoFocus onClick={() => setTurningOn(null)}>OK</button>
         </Sheet>
       )}
     </>

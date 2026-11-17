@@ -4,7 +4,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Chart, { TapMode } from "../chart/Chart";
 import { Candles, emptyCandles, TIMEFRAMES, Timeframe } from "../data/candles";
-import { Favourite, newId, SymbolInfo, Workspace } from "../data/model";
+import { Favourite, newId, PaperOrder, SymbolInfo, Workspace } from "../data/model";
+import { botsOnChart } from "../data/botsOnChart";
 import { expiryChoices, expiryLabel, MoveMode, moveLeg, newPosition, OptionPosition, placementBasis, Structure, structureLabel, todayNY } from "../data/options";
 import type { useFavourites, usePositions } from "../data/usePositions";
 import { cachedCandles, Store } from "../data/store";
@@ -46,6 +47,17 @@ export default function ChartScreen(props: {
   const [deletingPos, setDeletingPos] = useState<OptionPosition | null>(null);
   const [tapMode, setTapMode] = useState<TapMode>("none");
   const [anchorFor, setAnchorFor] = useState<string | null>(null);
+  // The bots' paper orders, for drawing their positions and trades on the chart; refreshed each minute.
+  const [botOrders, setBotOrders] = useState<PaperOrder[]>([]);
+  const [botLabels, setBotLabels] = useState<Record<string, string>>({});
+  useEffect(() => {
+    const load = () => Promise.all([store.paperOrders(), store.botStrategies()])
+      .then(([o, b]) => { setBotOrders(o.filter((x) => x.strategy_id)); setBotLabels(Object.fromEntries(b.map((x) => [x.id, x.label]))); })
+      .catch(() => { /* not signed in, or offline: no bot marks */ });
+    load();
+    const t = window.setInterval(load, 60_000);
+    return () => window.clearInterval(t);
+  }, [store]);
   const [trendStart, setTrendStart] = useState<{ time: number; price: number } | null>(null);
   const [renaming, setRenaming] = useState<Workspace | null>(null);
   const [deleting, setDeleting] = useState<Workspace | null>(null);
@@ -107,6 +119,7 @@ export default function ChartScreen(props: {
   const autoName = (sym: string, tf: Timeframe) => (w.name === `${w.symbol} ${w.timeframe}` ? `${sym} ${tf}` : w.name);
   const setTf = (tf: Timeframe) => ws.update({ ...w, timeframe: tf, name: autoName(w.symbol, tf) });
   const positions = pos.forSymbol(w.symbol);
+  const bots = botsOnChart(botOrders, botLabels, w.symbol);
   const basis = placementBasis(candles);
   const setExpiry = (e: string) => {
     setExpiryState(e);
@@ -184,7 +197,7 @@ export default function ChartScreen(props: {
       <div className="chartcard">
         <Chart candles={candles} timeframe={w.timeframe} indicators={w.indicators} drawings={w.drawings}
           viewKey={`${w.id}|${w.symbol}|${w.timeframe}`} onTap={onTap}
-          positions={positions} editId={adjusting} onDragLeg={dragLeg} />
+          positions={[...positions, ...bots.positions]} editId={adjusting} onDragLeg={dragLeg} markers={bots.markers} />
         {adjustingPos && !tapPrompt && !details && (
           <div className="adjbanner" role="status">
             <span>Drag a line to move</span>

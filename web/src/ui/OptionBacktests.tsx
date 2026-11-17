@@ -10,6 +10,8 @@ import type { Store } from "../data/store";
 import Graph from "./Graph";
 import KittyCard from "./Kitty";
 import { optionKitty } from "../data/kitty";
+import { botFromOptionBacktest } from "../data/bots";
+import MakeBot from "./MakeBot";
 
 const dollars = (v: number | null | undefined, sign = true) =>
   typeof v === "number" ? `${sign && v > 0 ? "+" : v < 0 ? "−" : ""}$${Math.abs(v).toLocaleString(undefined, { maximumFractionDigits: Math.abs(v) < 10 ? 2 : 0 })}` : "—";
@@ -120,7 +122,8 @@ export function OptionBacktestScreen(props: { store: Store; id: string }) {
 
   return (
     <div className="list">
-      <p className="hint" style={{ marginTop: 0 }}>{s.notes}</p>
+      <MakeBot store={props.store} draft={botFromOptionBacktest(s, run)} />
+      <p className="hint">{s.notes}</p>
       <Notes run={run} />
       <div className="cmptable" role="table" aria-label="Build and held back" style={{ marginTop: 10 }}>
         <div role="row" className="head"><span role="columnheader" /><span role="columnheader">Build 2006–2021</span><span role="columnheader">Held back 2021–now</span></div>

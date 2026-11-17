@@ -2,6 +2,7 @@
 // held-back period side by side. Only held-back and walk-forward results stand
 // for expected performance; the build period is where the rules were made.
 
+import MakeBot from "./MakeBot";
 import { useEffect, useState } from "react";
 import type { BacktestRun, BacktestTrade, Metrics, StrategyDef } from "../data/model";
 import type { Store } from "../data/store";
@@ -126,6 +127,8 @@ const ROWS: [string, string, (m: Metrics) => string][] = [
   ["Exits", "target / stop / time", (m) => (m.exits ? `${m.exits.target ?? 0} / ${m.exits.stop ?? 0} / ${m.exits.time ?? 0}` : "—")],
 ];
 
+const NO_STOCK_BOT = "These are stock signals. The bot trades option structures only, so a stock signal can't be a bot yet; an option backtest that trades on the signal (e.g. the squeeze condors) can.";
+
 export function BacktestScreen(props: { store: Store; id: string }) {
   const [s, setS] = useState<StrategyDef | null>(null);
   const [run, setRun] = useState<BacktestRun | null>(null);
@@ -152,6 +155,7 @@ export function BacktestScreen(props: { store: Store; id: string }) {
 
   return (
     <div className="list">
+      <MakeBot store={props.store} draft={{ ok: false, why: NO_STOCK_BOT }} />
       {s.notes && <p className="hint" style={{ marginTop: 0 }}>{s.notes}. Signal on {s.config.signal_symbol}, entered at the next day's open.</p>}
       <StudyNote s={s} run={run} />
 

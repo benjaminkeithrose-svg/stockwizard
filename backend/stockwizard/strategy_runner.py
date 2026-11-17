@@ -60,6 +60,9 @@ class MarketView(Protocol):
     def atr(self, instrument: str, day: date) -> float | None:
         """ATR(14) of the daily candles before `day`, scaled to the instrument."""
 
+    def daily(self, instrument: str, day: date) -> pd.DataFrame | None:
+        """The underlying's daily candles before `day` (UTC index, as the scans read them)."""
+
     def vix_prev(self, day: date) -> float | None:
         """The VIX's close before `day`."""
 
@@ -113,15 +116,22 @@ class PretendMarket:
         vol *= 1.2 if instrument == "QQQ" else 1.0
         return self.quotes.chain(INSTRUMENTS[instrument], now, spot, left, vol, only=only)
 
-    def atr(self, instrument, day):
-        rows = self.store.select("candles", {"select": "ts,high,low,close", "symbol": f"eq.{UNDERLYING[instrument]}", "timeframe": "eq.1d",
-                                             "order": "ts.desc", "limit": "120"})
+    def daily(self, instrument, day):
+        rows = self.store.select("candles", {"select": "ts,open,high,low,close,volume", "symbol": f"eq.{UNDERLYING[instrument]}",
+                                             "timeframe": "eq.1d", "order": "ts.desc", "limit": "400"})
         rows = [r for r in rows if pd.Timestamp(r["ts"]).tz_convert(NY).date() < day]
-        if len(rows) < 14:
+        if not rows:
+            return None
+        df = pd.DataFrame([{k: float(r[k] or 0) for k in ("open", "high", "low", "close", "volume")} for r in reversed(rows)],
+                          index=pd.DatetimeIndex([pd.Timestamp(r["ts"]).tz_convert("UTC") for r in reversed(rows)], name="ts"))
+        return df[~df.index.duplicated(keep="last")]
+
+    def atr(self, instrument, day):
+        df = self.daily(instrument, day)
+        if df is None or len(df) < 14:
             return None
         from stockwizard.option_backtest import atr14  # noqa: PLC0415
-        df = pd.DataFrame([{k: float(r[k]) for k in ("high", "low", "close")} for r in reversed(rows)])
-        return float(atr14(df).iloc[-1]) * INSTRUMENTS[instrument].scale
+        return float(atr14(df.reset_index(drop=True)).iloc[-1]) * INSTRUMENTS[instrument].scale
 
     def vix_prev(self, day):
         rows = self.store.select("candles", {"select": "ts,close", "symbol": "eq.^VIX", "timeframe": "eq.1d", "order": "ts.desc", "limit": "10"})
@@ -146,14 +156,25 @@ def _tick(x: float, tick: float, down: bool) -> float:
     return round((math.floor(x / tick + 1e-9) if down else math.ceil(x / tick - 1e-9)) * tick, 2)
 
 
-def _atr_condor(cfg: Config, chain: dict, spot: float, atr: float, step: float) -> tuple[Leg, ...] | None:
-    """An iron condor with shorts `short_atr` daily ranges either side of the price, on the strike grid."""
+ATR_PLACED = ("iron_condor", "bull_put", "bear_call")
+
+
+def _atr_legs(cfg: Config, structure: str, chain: dict, spot: float, atr: float, step: float) -> tuple[Leg, ...] | None:
+    """Shorts `short_atr` daily ranges from the price, on the strike grid, wings beyond: as the option backtests place them."""
     r = max(step, round(atr * cfg.short_atr / step) * step)
     at = round(spot / step) * step
     cw = cfg.call_width if cfg.call_width is not None else cfg.width
-    legs = (Leg("P", "buy", round(at - r - cfg.width, 2)), Leg("P", "sell", round(at - r, 2)),
-            Leg("C", "sell", round(at + r, 2)), Leg("C", "buy", round(at + r + cw, 2)))
+    put = (Leg("P", "buy", round(at - r - cfg.width, 2)), Leg("P", "sell", round(at - r, 2)))
+    call = (Leg("C", "sell", round(at + r, 2)), Leg("C", "buy", round(at + r + cw, 2)))
+    legs = {"iron_condor": put + call, "bull_put": put, "bear_call": call}[structure]
     return legs if all((l.right, l.strike) in chain for l in legs) else None
+
+
+def _best(legs: tuple[Leg, ...], opened: float, credit: bool) -> float:
+    """The most the position can make per share at expiry, given what it opened at."""
+    from stockwizard.option_backtest import payoff_range  # noqa: PLC0415
+    best, _ = payoff_range(_rail_legs(legs), opened if credit else -opened)
+    return best
 
 
 class StrategyRunner:
@@ -229,6 +250,13 @@ class StrategyRunner:
             return self._no_trade(st, "no VIX")
         if (cfg.vix_min is not None and vix < cfg.vix_min) or (cfg.vix_max is not None and vix > cfg.vix_max):
             return self._no_trade(st, f"the VIX ({vix:.1f}) is outside the strategy's range")
+        if cfg.signal_rule:
+            from stockwizard.scans import evaluate  # noqa: PLC0415
+            daily = self.market.daily(cfg.instrument, day)
+            if daily is None or len(daily) < 60:
+                return self._no_trade(st, "not enough daily candles for its signal")
+            if not bool(evaluate(cfg.signal_rule, daily, **cfg.signal_params)["hit"].iloc[-1]):
+                return self._no_trade(st, f"its signal ({cfg.signal_rule.replace('_', ' ')}) wasn't on at the last close")
         bars = self.market.bars_today(cfg.instrument, ny)
         if bars is None or bars.empty:
             return self._no_trade(st, "no price bars for today yet")
@@ -242,11 +270,11 @@ class StrategyRunner:
             return self._no_trade(st, f"no setup ({sig.direction} day)")
         inst = INSTRUMENTS[cfg.instrument]
         chain = self.market.chain(cfg.instrument, ny, sig.price, expiry=expiry)
-        if cfg.short_atr is not None and structure == "iron_condor":
+        if cfg.short_atr is not None and structure in ATR_PLACED:
             atr = self.market.atr(cfg.instrument, day)
             if atr is None:
                 return self._no_trade(st, "no daily range (ATR) to place the shorts")
-            legs = _atr_condor(cfg, chain, sig.price, atr, inst.step) if chain else None
+            legs = _atr_legs(cfg, structure, chain, sig.price, atr, inst.step) if chain else None
         else:
             legs = legs_for(cfg, structure, chain, sig.price, inst.step) if chain else None
         if legs is None:
@@ -295,8 +323,11 @@ class StrategyRunner:
             loss = entry_mid - mid
             shorts = [l for l in legs if l.side == "sell"]
             why = None
-            if is_credit and cfg.profit_target is not None and credit - cost >= cfg.profit_target * credit:
+            made = (credit - cost) if is_credit else (-cost - credit)   # per share, if closed now
+            if cfg.profit_target is not None and made >= cfg.profit_target * _best(legs, credit, is_credit) > 0:
                 why = "profit target"
+            elif cfg.close_days_left is not None and (p.request.expiry - ny.date()).days <= cfg.close_days_left:
+                why = f"{cfg.close_days_left} days left"
             elif is_credit and cfg.stop_mult is not None and loss >= cfg.stop_mult * credit:
                 why = "stop"
             elif cfg.stop_breach and any((spot >= l.strike) if l.right == "C" else (spot <= l.strike) for l in shorts):
@@ -394,6 +425,9 @@ class IBKRMarket:
 
     def atr(self, instrument, day):
         return PretendMarket.atr(self, instrument, day)
+
+    def daily(self, instrument, day):
+        return PretendMarket.daily(self, instrument, day)
 
     def vol_now(self, now):
         """VIX1D from IBKR when the data is subscribed; otherwise the VIX's last close."""

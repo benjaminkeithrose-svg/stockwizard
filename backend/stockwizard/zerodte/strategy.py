@@ -32,8 +32,11 @@ class Config:
     slippage: float = 0.0              # per leg, each way, beyond paying the bid-ask spread
     dte: int = 0                       # the bot's multi-day trades (Ben, 18 Nov 2026), as in the option backtests: expires at the
                                        # close `dte` trading days into the trade, counting the entry day (0 and 1 are both today)
-    short_atr: float | None = None     # condor shorts this many daily ranges (ATR 14) either side, as the option backtests place them,
-                                       # instead of by delta
+    short_atr: float | None = None     # shorts this many daily ranges (ATR 14) from the price, as the option backtests place them,
+                                       # instead of by delta (condors and credit spreads)
+    close_days_left: int | None = None # close at the first check with this many calendar days or fewer to expiry (the backtests' close_21)
+    signal_rule: str | None = None     # only on days a scan rule fired on the underlying's daily candles at the previous close
+    signal_params: dict = field(default_factory=dict)
 
     def entry_time(self) -> time:
         return time.fromisoformat(self.entry)
@@ -42,11 +45,13 @@ class Config:
         return time.fromisoformat(self.exit_time) if self.exit_time else None
 
     def key(self) -> str:
-        return "|".join(f"{k}={v}" for k, v in sorted(asdict(self).items()) if v not in (None, False, (), 0.0) or k in ("instrument", "structure"))
+        return "|".join(f"{k}={v}" for k, v in sorted(asdict(self).items()) if (v not in (None, False, (), 0.0) and v != {}) or k in ("instrument", "structure"))
 
     @classmethod
     def from_dict(cls, d: dict) -> "Config":
         d = {k: (tuple(v) if k == "skip_tags" else v) for k, v in d.items() if k in cls.__dataclass_fields__}
+        if d.get("signal_params") is None:
+            d.pop("signal_params", None)
         return cls(**d)
 
 

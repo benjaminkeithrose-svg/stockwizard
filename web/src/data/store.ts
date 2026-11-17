@@ -311,11 +311,11 @@ export class SupabaseStore implements Store {
   }
 
   async botStrategies() {
-    return this.check(await this.sb.from("bot_strategies").select("id,label,config,enabled").order("created_at")) as BotStrategy[];
+    return this.check(await this.sb.from("bot_strategies").select("id,label,config,enabled,source").order("created_at")) as BotStrategy[];
   }
 
   async saveBotStrategy(s: BotStrategy) {
-    const row = { label: s.label, config: s.config, enabled: s.enabled };
+    const row = { label: s.label, config: s.config, enabled: s.enabled, source: s.source ?? null };
     if (s.id) this.check(await this.sb.from("bot_strategies").update(row).eq("id", s.id));
     else this.check(await this.sb.from("bot_strategies").insert(row));
   }
@@ -631,7 +631,9 @@ export class DemoStore implements Store {
   async latestResearch(): Promise<ResearchRun | null> {
     const m = (expectancy: number, win_rate: number) => ({ trades: 140, win_rate, expectancy, profit_factor: 1.4, largest_loss: -420, max_drawdown: -900,
       months_positive_pct: 71, avg_return_on_risk_pct: 5, sharpe: 1.1 });
-    const s = (name: string, dev: number, val: number) => ({ strategy: name, development: m(dev, 88), validation: m(val, 85), walk_forward: [120, -40, 210, 60],
+    const s = (name: string, dev: number, val: number) => ({ strategy: name,
+      config: { instrument: "XSP", structure: "iron_condor", entry: "10:30", short_delta: 0.15, width: 1, call_width: null, profit_target: 0.5, stop_mult: null, skip_tags: [] },
+      development: m(dev, 88), validation: m(val, 85), walk_forward: [120, -40, 210, 60],
       kitty: { start: 5000, end: 5000 + val * 12, profit: val * 12, profit_pct: val * 12 / 50, lowest: 4700, deepest_drop_pct: -6.5, taken: 120, skipped: 20 },
       by_regime: { vix_under_15: { trades: 40, win_rate: 92, expectancy: 30 }, vix_15_20: { trades: 70, win_rate: 86, expectancy: 12 }, fed_day: { trades: 6, win_rate: 50, expectancy: -80 } } });
     return { id: 1, ran_at: "2026-11-17T09:00:00Z", title: "made-up", modelled: true, result: {

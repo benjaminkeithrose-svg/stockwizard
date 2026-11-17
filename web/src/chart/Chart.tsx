@@ -7,6 +7,7 @@ import {
   CandlestickSeries,
   ColorType,
   createChart,
+  createSeriesMarkers,
   HistogramSeries,
   IChartApi,
   IPriceLine,
@@ -39,9 +40,13 @@ interface Props {
   /** The structure being adjusted: its lines are bold and can be dragged. */
   editId?: string | null;
   onDragLeg?: (positionId: string, leg: number, price: number) => void;
+  /** Marks on the candles (a bot's entries and closes), each placed on the candle its time falls in. */
+  markers?: ChartMarker[];
 }
 
-export const PLANNED = "#7A3E9D", BOUGHT = "#237F35";
+export interface ChartMarker { time: number; text: string; color: string; position: "aboveBar" | "belowBar"; shape: "arrowUp" | "arrowDown" | "circle" }
+
+export const PLANNED = "#7A3E9D", BOUGHT = "#237F35", BOT = "#0E7C86";
 
 const nyTime = new Intl.DateTimeFormat("en-AU", {
   timeZone: "America/New_York", day: "numeric", month: "short", year: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false,
@@ -59,7 +64,7 @@ function histogramColour(values: number[], i: number) {
   return rising ? "#E8A0A6" : "#B2232F";
 }
 
-export default function Chart({ candles, timeframe, indicators, drawings, viewKey, onTap, still, positions, editId, onDragLeg }: Props) {
+export default function Chart({ candles, timeframe, indicators, drawings, viewKey, onTap, still, positions, editId, onDragLeg, markers }: Props) {
   const box = useRef<HTMLDivElement>(null);
   const chart = useRef<IChartApi | null>(null);
   const priceSeries = useRef<ISeriesApi<"Candlestick"> | null>(null);
@@ -292,7 +297,7 @@ export default function Chart({ candles, timeframe, indicators, drawings, viewKe
     optionLines.current.forEach((l) => price.removePriceLine(l));
     optionLines.current = [];
     for (const p of positions ?? []) {
-      const colour = p.status === "bought" ? BOUGHT : PLANNED;
+      const colour = p.status === "bot" ? BOT : p.status === "bought" ? BOUGHT : PLANNED;
       const bold = p.id === editId;
       for (const l of p.legs) {
         optionLines.current.push(price.createPriceLine({
@@ -311,6 +316,22 @@ export default function Chart({ candles, timeframe, indicators, drawings, viewKe
     return () => cancelAnimationFrame(frame);
   }, [positions, editId, candles, timeframe, indicators, viewKey, still]);
 
+  // Marks: each on the candle its time falls in; ones before the first candle are left off.
+  useEffect(() => {
+    const price = priceSeries.current;
+    if (!price || !markers?.length || !candles.time.length) return;
+    const t = candles.time;
+    const placed = markers.map((m) => {
+      let lo = 0, hi = t.length - 1;
+      if (m.time < t[0]) return null;
+      while (lo < hi) { const mid = (lo + hi + 1) >> 1; if (t[mid] <= m.time) lo = mid; else hi = mid - 1; }
+      return { time: t[lo] as UTCTimestamp, position: m.position, color: m.color, shape: m.shape, text: still ? "" : m.text };
+    }).filter((m): m is NonNullable<typeof m> => m !== null).sort((a, b) => (a.time as number) - (b.time as number));
+    const plugin = createSeriesMarkers(price, placed);
+    if (box.current) box.current.dataset.markers = String(placed.length);
+    return () => plugin.detach();
+  }, [markers, candles, timeframe, indicators, viewKey, still]);
+
   const tipLeg = tip ? tip.p.legs[tip.leg] : null;
   const left = tip ? tip.x : 0;
   return (
@@ -321,7 +342,7 @@ export default function Chart({ candles, timeframe, indicators, drawings, viewKe
           style={{ top: Math.max(4, tip.y - 70), left, transform: `translateX(${left > 200 ? "-100%" : "8px"})` }}>
           <b>{tipLeg.right === "C" ? "▲" : "▼"} {legName(tipLeg)}</b>
           <span>{structureLabel(tip.p.structure)} · expires {expiryLabel(tip.p.expiry)}, {(() => { const d = daysToExpiry(tip.p.expiry, todayNY()); return d <= 0 ? "today" : `${d} day${d === 1 ? "" : "s"}`; })()}</span>
-          <span>{tip.p.status === "bought" ? "Bought" : "Planned"} · {tipLeg.qty} contract{tipLeg.qty === 1 ? "" : "s"}</span>
+          <span>{tip.p.status === "bot" ? `Bot: ${tip.p.note ?? ""}` : tip.p.status === "bought" ? "Bought" : "Planned"} · {tipLeg.qty} contract{tipLeg.qty === 1 ? "" : "s"}</span>
         </div>
       )}
     </>

@@ -9,6 +9,8 @@ import { useEffect, useMemo, useState } from "react";
 import type { ResearchRun, ResearchStrategy } from "../data/model";
 import type { Store } from "../data/store";
 import { Sheet } from "./parts";
+import MakeBot from "./MakeBot";
+import { botFromResearch } from "../data/bots";
 
 const money = (v: number | null | undefined) =>
   typeof v === "number" ? `${v > 0 ? "+" : v < 0 ? "−" : ""}$${Math.abs(v).toLocaleString(undefined, { maximumFractionDigits: Math.abs(v) < 10 ? 2 : 0 })}` : "—";
@@ -60,7 +62,7 @@ function Bars({ values }: { values: number[] }) {
   );
 }
 
-function StrategySheet({ s, onClose }: { s: ResearchStrategy; onClose: () => void }) {
+function StrategySheet({ s, onClose, store }: { s: ResearchStrategy; onClose: () => void; store: Store }) {
   const rows: [string, (m: ResearchStrategy["development"]) => string][] = [
     ["Trades", (m) => String(m?.trades ?? "—")], ["Won", (m) => pct(m?.win_rate)], ["Average a trade", (m) => money(m?.expectancy)],
     ["Profit factor", (m) => (m?.profit_factor == null ? "—" : String(m.profit_factor))], ["Worst trade", (m) => money(m?.largest_loss)],
@@ -69,7 +71,8 @@ function StrategySheet({ s, onClose }: { s: ResearchStrategy; onClose: () => voi
   ];
   return (
     <Sheet title="Strategy" onClose={onClose}>
-      <p style={{ marginTop: 0 }}><b>{s.strategy}</b></p>
+      <MakeBot store={store} draft={botFromResearch(s)} />
+      <p><b>{s.strategy}</b></p>
       <div className="cmptable" role="table" aria-label="Development and validation">
         <div role="row" className="head"><span role="columnheader" /><span role="columnheader">Development</span><span role="columnheader">Validation</span></div>
         {rows.map(([n, f]) => <div role="row" key={n}><span role="rowheader">{n}</span><span role="cell">{f(s.development)}</span><span role="cell">{f(s.validation)}</span></div>)}
@@ -152,7 +155,7 @@ export default function ResearchView({ store }: { store: Store }) {
         </div>
       ))}
       {r.survivors.length > shown && <button className="ghost" onClick={() => setShown(shown + 25)}>Show more ({r.survivors.length - shown} left)</button>}
-      {open && <StrategySheet s={open} onClose={() => setOpen(null)} />}
+      {open && <StrategySheet s={open} store={store} onClose={() => setOpen(null)} />}
     </>
   );
 }
