@@ -7,7 +7,7 @@ import { Candles, emptyCandles, madeUpCandles, Timeframe } from "./candles";
 import type { ClaudeMessage, ClaudeReply } from "./claude";
 import type { OptionPosition } from "./options";
 import { analyse, historicalVol, positionAt } from "./pricing";
-import { BacktestRun, BacktestTrade, BotRequest, BotStrategy, OptionRun, OptionStrategyDef, OptionTradeRow, ChartView, DEFAULT_FAVOURITES, DEFAULT_LIMITS, PaperOrder, PatternRun, SafetyLimits, UserSettings, ScanDef, ScanResult, ScanRun, StrategyDef, SymbolInfo, Watchlist, Workspace } from "./model";
+import { BacktestRun, BacktestTrade, BotRequest, BotStrategy, ResearchRun, OptionRun, OptionStrategyDef, OptionTradeRow, ChartView, DEFAULT_FAVOURITES, DEFAULT_LIMITS, PaperOrder, PatternRun, SafetyLimits, UserSettings, ScanDef, ScanResult, ScanRun, StrategyDef, SymbolInfo, Watchlist, Workspace } from "./model";
 import { SUPABASE_KEY, SUPABASE_URL } from "../config";
 
 export interface User {
@@ -59,6 +59,8 @@ export interface Store {
   botRequests(): Promise<BotRequest[]>;
   /** The bot's own strategies: added, switched on and off, and removed by Ben; every change audited. */
   botStrategies(): Promise<BotStrategy[]>;
+  /** The latest 0DTE research matrix run. */
+  latestResearch(): Promise<ResearchRun | null>;
   saveBotStrategy(s: BotStrategy): Promise<void>;
   deleteBotStrategy(id: string): Promise<void>;
 
@@ -285,6 +287,11 @@ export class SupabaseStore implements Store {
 
   async requestClose(orderId: number) {
     this.check(await this.sb.from("bot_requests").insert({ kind: "close", order_id: orderId, quantity: 1 }));
+  }
+
+  async latestResearch() {
+    const rows = this.check(await this.sb.from("research_runs").select("*").eq("kind", "0dte_matrix").order("ran_at", { ascending: false }).limit(1)) as ResearchRun[];
+    return rows[0] ?? null;
   }
 
   async botStrategies() {
@@ -596,6 +603,17 @@ export class DemoStore implements Store {
   async botRequests() { return this.load().requests.filter((q) => q.status === "waiting"); }
 
   async botStrategies() { return this.load().strategies; }
+
+  async latestResearch(): Promise<ResearchRun | null> {
+    const m = (expectancy: number, win_rate: number) => ({ trades: 140, win_rate, expectancy, profit_factor: 1.4, largest_loss: -420, max_drawdown: -900,
+      months_positive_pct: 71, avg_return_on_risk_pct: 5, sharpe: 1.1 });
+    const s = (name: string, dev: number, val: number) => ({ strategy: name, development: m(dev, 88), validation: m(val, 85), walk_forward: [120, -40, 210, 60],
+      by_regime: { vix_under_15: { trades: 40, win_rate: 92, expectancy: 30 }, vix_15_20: { trades: 70, win_rate: 86, expectancy: 12 }, fed_day: { trades: 6, win_rate: 50, expectancy: -80 } } });
+    return { id: 1, ran_at: "2026-11-17T09:00:00Z", title: "made-up", modelled: true, result: {
+      notes: ["Made-up results for the demo."], periods: { start: "2024-11-19", dev_end: "2025-08-29", val_end: "2026-03-31", end: "2026-11-16" },
+      tried: 270, q: 0.1, final_used: false,
+      survivors: [s("Made-up condor A", 40, 25), s("Made-up condor B", 30, -12), s("Made-up fly", 20, 8)], best_in_development: [] } };
+  }
 
   async saveBotStrategy(s: BotStrategy) {
     const d = this.load();

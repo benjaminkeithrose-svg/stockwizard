@@ -316,6 +316,13 @@ try {
   check(await page.getByText(/Sealed years \(blind backtest\)/).isVisible(), "survivors show their sealed-years result");
   check(await page.getByText(/Discovery \(saw the future\)/).first().isVisible(), "discovery numbers are labelled as having seen the future");
   check(await page.getByText(/needs 0.05 or less/).isVisible(), "near-misses say why they failed");
+  await page.getByRole("button", { name: "0DTE", exact: true }).click();
+  check(await page.getByText(/Modelled option prices: not evidence/).isVisible(), "the 0DTE tab says first that its prices are modelled");
+  check(await page.getByRole("img", { name: /Development against validation/ }).isVisible(), "the did-they-hold-up chart draws");
+  await page.getByRole("button", { name: /^Made-up condor B/ }).click();
+  check(await page.getByRole("img", { name: /Walk-forward blocks/ }).isVisible() && await page.getByRole("table", { name: "By regime" }).isVisible(),
+    "a survivor shows its walk-forward blocks and results by market conditions");
+  await page.getByRole("dialog", { name: "Strategy" }).getByRole("button", { name: "Close" }).click();
   await page.getByRole("button", { name: "Options", exact: true }).click();
   check(await page.getByText(/Build 64% won, \+\$39 a trade · Held back 51% won, \+\$31 a trade/).isVisible(), "the Options tab shows build and held back side by side");
   await page.getByRole("button", { name: /^Made-up 9-day iron condor/ }).click();

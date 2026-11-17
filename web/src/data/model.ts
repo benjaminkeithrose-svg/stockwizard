@@ -323,3 +323,34 @@ export interface StrategyConfig {
 }
 
 export interface BotStrategy { id: string; label: string; config: StrategyConfig; enabled: boolean }
+
+// --- 0DTE research runs (research_runs; the server writes) ---
+
+export interface ResearchMetrics {
+  trades: number; win_rate?: number | null; expectancy?: number | null; profit_factor?: number | null; largest_loss?: number | null;
+  max_drawdown?: number | null; months_positive_pct?: number | null; avg_return_on_risk_pct?: number | null; sharpe?: number | null; p_value?: number | null;
+}
+
+export interface ResearchStrategy {
+  strategy: string;
+  development?: ResearchMetrics;
+  validation?: ResearchMetrics;
+  walk_forward?: number[];
+  by_regime?: Record<string, ResearchMetrics>;
+}
+
+export interface ResearchRun {
+  id: number;
+  ran_at: string;
+  title: string;
+  modelled: boolean;
+  result: {
+    notes: string[];
+    periods: { start: string; dev_end: string; val_end: string; end: string };
+    tried: number;
+    q: number;
+    final_used: boolean;
+    survivors: ResearchStrategy[];
+    best_in_development: ResearchStrategy[];
+  };
+}
