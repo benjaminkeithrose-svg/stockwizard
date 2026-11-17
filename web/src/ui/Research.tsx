@@ -74,6 +74,20 @@ function StrategySheet({ s, onClose }: { s: ResearchStrategy; onClose: () => voi
         <div role="row" className="head"><span role="columnheader" /><span role="columnheader">Development</span><span role="columnheader">Validation</span></div>
         {rows.map(([n, f]) => <div role="row" key={n}><span role="rowheader">{n}</span><span role="cell">{f(s.development)}</span><span role="cell">{f(s.validation)}</span></div>)}
       </div>
+      {s.kitty && (
+        <>
+          <h2>If you'd started with $5,000 (validation)</h2>
+          <div className="kv">
+            <div><span>Ending balance</span><b>${s.kitty.end.toLocaleString(undefined, { maximumFractionDigits: 0 })}</b></div>
+            <div><span>Profit or loss</span><b className={s.kitty.profit >= 0 ? "up" : "down"}>{money(s.kitty.profit)} ({s.kitty.profit_pct.toFixed(1)}%)</b></div>
+            <div><span>Lowest balance</span><b>${s.kitty.lowest.toLocaleString(undefined, { maximumFractionDigits: 0 })}</b></div>
+            <div><span>Deepest drop</span><b>{s.kitty.deepest_drop_pct.toFixed(1)}%</b></div>
+            <div><span>Trades taken</span><b>{s.kitty.taken}</b></div>
+            <div><span>Skipped: over 2%</span><b>{s.kitty.skipped}</b></div>
+          </div>
+          <p className="hint">Each trade risks 2% of the balance: as many structures as keep the worst case under 2%; a trade where even one is over 2% is skipped.</p>
+        </>
+      )}
       {s.walk_forward && (
         <>
           <h2>Validation in four blocks</h2>
@@ -133,7 +147,7 @@ export default function ResearchView({ store }: { store: Store }) {
         <div key={s.strategy} className="card" style={{ borderLeftColor: (s.validation?.expectancy ?? 0) > 0 ? "#237F35" : "var(--warn)" }}>
           <button className="cmain" onClick={() => setOpen(s)}>
             <div className="t">{s.strategy}</div>
-            <div className="meta">Validation {money(s.validation?.expectancy)} a trade · {pct(s.validation?.win_rate)} won · worst {money(s.validation?.largest_loss)}</div>
+            <div className="meta">Validation {money(s.validation?.expectancy)} a trade · {pct(s.validation?.win_rate)} won · worst {money(s.validation?.largest_loss)}{s.kitty ? ` · $5,000 → $${s.kitty.end.toLocaleString(undefined, { maximumFractionDigits: 0 })}${s.kitty.taken === 0 ? " (never affordable at 2%)" : ""}` : ""}</div>
           </button>
         </div>
       ))}

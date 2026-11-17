@@ -8,6 +8,8 @@ import { useEffect, useMemo, useState } from "react";
 import type { OptionMetrics, OptionRun, OptionStrategyDef, OptionTradeRow } from "../data/model";
 import type { Store } from "../data/store";
 import Graph from "./Graph";
+import KittyCard from "./Kitty";
+import { optionKitty } from "../data/kitty";
 
 const dollars = (v: number | null | undefined, sign = true) =>
   typeof v === "number" ? `${sign && v > 0 ? "+" : v < 0 ? "−" : ""}$${Math.abs(v).toLocaleString(undefined, { maximumFractionDigits: Math.abs(v) < 10 ? 2 : 0 })}` : "—";
@@ -113,9 +115,14 @@ export function OptionBacktestScreen(props: { store: Store; id: string }) {
         ))}
       </div>
       <p className="hint">One structure (one contract per leg) per trade; one trade at a time. Only the held-back column stands for what to expect.</p>
+      {trades && trades.length > 0 && (
+        <KittyCard all={optionKitty(trades)} held={optionKitty(trades.filter((t) => t.entry_day >= run.split_date))}
+          splitAt={(() => { const k = optionKitty(trades); const before = optionKitty(trades.filter((t) => t.entry_day < run.split_date)); return before.taken && before.taken < k.taken ? before.taken : null; })()}
+          sizing="Each trade risks 2% of the balance at the time: as many structures as keep the worst case under 2%." />
+      )}
       {equity && (
         <>
-          <h2>Running profit or loss</h2>
+          <h2>Running profit or loss (one structure a trade)</h2>
           <Graph label="Running total, trade by trade" xs={equity.xs} height={200}
             series={[{ label: "Running total", colour: "#7A3E9D", ys: equity.ys, width: 1.5 }]}
             markers={equity.split > 0 ? [{ x: equity.split, label: "Held back from here", colour: "#E36C00", dashed: true, top: true }] : []}

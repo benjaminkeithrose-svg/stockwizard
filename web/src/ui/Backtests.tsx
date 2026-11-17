@@ -6,6 +6,8 @@ import { useEffect, useState } from "react";
 import type { BacktestRun, BacktestTrade, Metrics, StrategyDef } from "../data/model";
 import type { Store } from "../data/store";
 import LabView from "./Lab";
+import KittyCard from "./Kitty";
+import { stockKitty } from "../data/kitty";
 import { OptionBacktestList } from "./OptionBacktests";
 import ResearchView from "./Research";
 
@@ -169,6 +171,17 @@ export function BacktestScreen(props: { store: Store; id: string }) {
         </tbody>
       </table>
       <p className="hint">Only the held-back column stands for what to expect: the build years are where the rules were made.</p>
+
+      {trades && trades.length > 0 && (() => {
+        const stop = typeof s.config.stop_pct === "number" ? (s.config.stop_pct as number) : null;
+        const all = stockKitty(trades, stop);
+        const before = stockKitty(trades.filter((t) => t.period === "build"), stop);
+        return (
+          <KittyCard all={all} held={stockKitty(trades.filter((t) => t.period === "held_back"), stop)} splitAt={before.taken && before.taken < all.taken ? before.taken : null}
+            sizing={stop ? `Each trade risks 2% of the balance: a position sized so the ${stop}% stop loses 2%.`
+              : `No stop to size from, so each trade puts 10% of the balance in.${s.config.study ? " The VIX index itself can't be traded: this shows the signal's strength, not a real account." : ""}`} />
+        );
+      })()}
 
       <h2>3-year windows</h2>
       <table className="bt">

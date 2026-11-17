@@ -66,6 +66,7 @@ def run(configs: list[Config], data: dict, periods: Periods, q: float = 0.10, fi
             val = _between(r["trades"], periods.dev_end, periods.val_end)
             r["validation"] = stats.summary(val)
             r["walk_forward"] = _blocks(val, periods.dev_end, periods.val_end)
+            r["kitty"] = stats.kitty(val)   # $5,000 at 2% a trade, through the validation trades
             r["by_regime"] = stats.by_regime(val)
             if final:
                 r["final"] = stats.summary(_between(r["trades"], periods.val_end, periods.end))

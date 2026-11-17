@@ -320,6 +320,7 @@ try {
   check(await page.getByText(/Modelled option prices: not evidence/).isVisible(), "the 0DTE tab says first that its prices are modelled");
   check(await page.getByRole("img", { name: /Development against validation/ }).isVisible(), "the did-they-hold-up chart draws");
   await page.getByRole("button", { name: /^Made-up condor B/ }).click();
+  check(await page.getByText("If you'd started with $5,000 (validation)").isVisible(), "a 0DTE survivor shows the $5,000 kitty");
   check(await page.getByRole("img", { name: /Walk-forward blocks/ }).isVisible() && await page.getByRole("table", { name: "By regime" }).isVisible(),
     "a survivor shows its walk-forward blocks and results by market conditions");
   await page.getByRole("dialog", { name: "Strategy" }).getByRole("button", { name: "Close" }).click();
@@ -330,6 +331,8 @@ try {
   check(await page.getByText(/Modelled option prices/).isVisible(), "it says the prices are modelled");
   check(await page.getByRole("row", { name: /Likely wins in the next 100.*56–72.*43–59/ }).isVisible(), "with the likely range for the next 100 trades");
   check(await page.getByRole("img", { name: "Running total, trade by trade" }).isVisible(), "the running profit or loss draws");
+  check(await page.getByRole("table", { name: "The $5,000 kitty" }).isVisible(), "the option backtest shows the $5,000 kitty");
+  check(await page.getByRole("img", { name: /kitty's balance/ }).isVisible(), "with its balance trade by trade");
   check(await page.locator(".card", { hasText: "settled" }).count() === 30, "the newest 30 trades are listed");
   await page.getByRole("button", { name: "Back", exact: true }).click();
   check(await page.getByRole("heading", { name: "Backtests" }).isVisible(), "Back returns to the Backtests screen");

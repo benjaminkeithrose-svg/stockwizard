@@ -134,7 +134,7 @@ def main(argv: list[str] | None = None) -> int:
     OUT.mkdir(parents=True, exist_ok=True)
     stamp = date.today().isoformat()
     (OUT / f"{stamp}-0dte-model.md").write_text(matrix.report_markdown(out, f"0DTE experiment matrix, modelled prices ({stamp})", NOTES))
-    keep = lambda r: {"strategy": matrix.describe(r["config"]), "config": r["config"].__dict__, "development": r["dev"], **({k: r[k] for k in ("validation", "walk_forward", "by_regime", "final") if k in r})}  # noqa: E731
+    keep = lambda r: {"strategy": matrix.describe(r["config"]), "config": r["config"].__dict__, "development": r["dev"], **({k: r[k] for k in ("validation", "walk_forward", "by_regime", "kitty", "final") if k in r})}  # noqa: E731
     result = {
         "notes": NOTES, "periods": out["periods"], "tried": out["tried"], "q": out["q"], "final_used": out["final_used"],
         "survivors": [keep(r) for r in out["survivors"]], "best_in_development": [keep(r) for r in out["best_in_development"]],

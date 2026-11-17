@@ -28,6 +28,7 @@ const SCREENS: [string, string[]][] = [
     "Options: iron condors and flies tested with modelled prices.",
     "0DTE: the same-day research. It shows how many strategies were tried, how many survived the false-discovery check, and whether they held up on data they weren't chosen on. Prices are modelled until real quotes are bought or recorded.",
     "Pattern lab: conditions that came before VIX spikes, every pattern counted and checked against luck.",
+    "Each backtest also shows what $5,000 would have become, with every trade risking 2% of the balance. Trades too big for 2% at one contract are skipped and counted.",
   ]],
   ["Safety and orders", [
     "The kill switch stops all trading: it drops waiting orders, and the bot cancels anything working.",
