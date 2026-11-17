@@ -22,7 +22,8 @@ class PretendBroker(Broker):
     def __init__(self, remembered: list[BrokerOrder] | None = None, clock=lambda: datetime.now(timezone.utc)):
         """`remembered`: orders it already holds. A pretend broker has no memory of its own between runs,
         so the runner hands it the paper orders the database says were sent or filled."""
-        self.orders: dict[str, BrokerOrder] = {o.broker_id: o for o in remembered or []}
+        self.orders: dict[str, BrokerOrder] = {}
+        self.remember(remembered or [])
         self.clock = clock
         self.calls: list[tuple[str, str]] = []   # (what, broker_id)
         self._up = True
@@ -54,6 +55,13 @@ class PretendBroker(Broker):
             raise ValueError(f"{broker_id} is {o.status}, not an open position")
         o.status = "closed"
         self.calls.append(("close", broker_id))
+
+    def remember(self, orders: list[BrokerOrder]) -> None:
+        for o in orders:
+            self.orders[o.broker_id] = o
+
+    def status(self, broker_id: str) -> BrokerOrder | None:
+        return self.orders.get(broker_id)
 
     def open_orders(self) -> list[BrokerOrder]:
         return [o for o in self.orders.values() if o.status == "working"]
