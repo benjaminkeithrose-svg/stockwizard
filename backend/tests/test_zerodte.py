@@ -196,3 +196,11 @@ def test_recorded_quotes_use_the_latest_snapshot_and_go_stale():
     assert ch[("C", 505.0)].bid == 0.4 and 0 < ch[("C", 505.0)].delta < 0.5
     assert rq.chain(INSTRUMENTS["SPY"], datetime(2025, 1, 6, 16, 0), 500.0, 3600, 0.15) == {}
     assert isinstance(ch[("P", 495.0)], OptionQuote)
+
+
+def test_the_kitty_sizes_to_two_percent_and_skips_what_it_cannot_afford():
+    mk = lambda pnl, ml: engine.Trade(date(2025, 1, 2), "iron_condor", "10:30", "16:00", "expiry", 500, 500, [], 0.5, 0, 2.8, pnl, ml, "neutral", 18.0)  # noqa: E731
+    k = stats.kitty([mk(30, 40), mk(50, 450)])
+    assert k["taken"] == 1 and k["skipped"] == 1 and k["end"] == 5060      # 2 structures of $40 risk, then $450 is over $100
+    k2 = stats.kitty([mk(-100, 100), mk(80, 100)])
+    assert k2["end"] == 4900 and k2["skipped"] == 1                         # after the loss, 2% no longer covers $100

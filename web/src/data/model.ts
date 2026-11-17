@@ -337,6 +337,7 @@ export interface ResearchStrategy {
   validation?: ResearchMetrics;
   walk_forward?: number[];
   by_regime?: Record<string, ResearchMetrics>;
+  kitty?: { start: number; end: number; profit: number; profit_pct: number; lowest: number; deepest_drop_pct: number; taken: number; skipped: number };
 }
 
 export interface ResearchRun {

@@ -101,3 +101,28 @@ def benjamini_hochberg(p_values: list[float], q: float = 0.10) -> list[bool]:
         if rank <= last:
             passed[i] = True
     return passed
+
+
+def kitty(trades: list, start: float = 5000.0, risk: float = 0.02) -> dict:
+    """A $5,000 kitty through the trades in order, each sized to risk 2% of the balance at the time (Ben, 18 Nov 2026).
+
+    As many structures as keep the worst case (max_loss) at or under 2% of the
+    balance; a trade where even one is over 2% is skipped and counted. The same
+    rules as web/src/data/kitty.ts (optionKitty).
+    """
+    bal, taken, skipped, peak, deepest, lowest = start, 0, 0, start, 0.0, start
+    for t in trades:
+        if t.max_loss <= 0:
+            skipped += 1
+            continue
+        n = math.floor(risk * bal / t.max_loss + 1e-9)
+        if n < 1:
+            skipped += 1
+            continue
+        bal += n * t.pnl
+        taken += 1
+        peak = max(peak, bal)
+        lowest = min(lowest, bal)
+        deepest = min(deepest, (bal / peak - 1) * 100)
+    return {"start": start, "end": round(bal, 2), "profit": round(bal - start, 2), "profit_pct": round((bal / start - 1) * 100, 2),
+            "lowest": round(lowest, 2), "deepest_drop_pct": round(deepest, 2), "taken": taken, "skipped": skipped}
