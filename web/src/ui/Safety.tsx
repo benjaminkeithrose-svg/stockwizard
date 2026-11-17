@@ -4,7 +4,7 @@
 // no live-trading switch here, or anywhere in the app.
 
 import { useEffect, useState } from "react";
-import { PaperOrder, SafetyLimits } from "../data/model";
+import { BotRequest, PaperOrder, SafetyLimits } from "../data/model";
 import type { Store } from "../data/store";
 import { expiryLabel, legName, structureLabel, Structure } from "../data/options";
 import { Sheet } from "./parts";
@@ -28,8 +28,9 @@ function Confirm(props: { title: string; body: string; yes: string; danger?: boo
   );
 }
 
-function OrderSheet(props: { order: PaperOrder; killed: boolean; onDecide: (approve: boolean) => void; onClose: () => void }) {
+function OrderSheet(props: { order: PaperOrder; killed: boolean; onDecide: (approve: boolean) => void; onClose: () => void; onClose2: () => void }) {
   const o = props.order;
+  const [closing, setClosing] = useState(false);
   return (
     <Sheet title={`${label(o.structure)} on ${o.symbol}`} onClose={props.onClose}>
       {o.status === "proposed" && (
@@ -50,6 +51,12 @@ function OrderSheet(props: { order: PaperOrder; killed: boolean; onDecide: (appr
       {o.refusals.length > 0 && <><h2>Why it was refused</h2>{o.refusals.map((r, i) => <p key={i} className="msg warn">{r.why}</p>)}</>}
       {o.status === "proposed" && (
         <button className="link" style={{ marginTop: 14 }} onClick={() => props.onDecide(false)}>Reject</button>
+      )}
+      {o.status === "filled" && <button className="ghost" style={{ marginTop: 14 }} onClick={() => setClosing(true)}>Close (paper)</button>}
+      {closing && (
+        <Confirm title="Close this position?" yes="Close it"
+          body={`The bot closes the ${label(o.structure)} on ${o.symbol} at its current theoretical price, the next time it runs. The profit or loss counts towards today's limit.`}
+          onYes={() => { setClosing(false); props.onClose2(); }} onNo={() => setClosing(false)} />
       )}
       <p className="hint">Approving doesn't send it straight away: the bot checks every limit again first, and refuses it if anything has changed.</p>
     </Sheet>
@@ -105,14 +112,15 @@ function LimitsSheet(props: { limits: SafetyLimits; onDone: (l: SafetyLimits) =>
 export default function SafetyScreen({ store }: { store: Store }) {
   const [limits, setLimits] = useState<SafetyLimits | null>(null);
   const [orders, setOrders] = useState<PaperOrder[]>([]);
+  const [requests, setRequests] = useState<BotRequest[]>([]);
   const [tab, setTab] = useState<"waiting" | "history">("waiting");
   const [open, setOpen] = useState<PaperOrder | null>(null);
   const [editing, setEditing] = useState(false);
   const [confirm, setConfirm] = useState<"kill" | "resume" | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const reload = () => Promise.all([store.safetyLimits(), store.paperOrders()])
-    .then(([l, o]) => { setLimits(l); setOrders(o); setError(null); })
+  const reload = () => Promise.all([store.safetyLimits(), store.paperOrders(), store.botRequests()])
+    .then(([l, o, q]) => { setLimits(l); setOrders(o); setRequests(q.filter((x) => x.status === "waiting")); setError(null); })
     .catch((e) => setError(String(e.message ?? e)));
   useEffect(() => { reload(); }, [store]); // eslint-disable-line react-hooks/exhaustive-deps
   const act = (p: Promise<unknown>) => p.then(reload).catch((e) => setError(String(e.message ?? e)));
@@ -138,7 +146,15 @@ export default function SafetyScreen({ store }: { store: Store }) {
         <button role="tab" aria-selected={tab === "history"} className={tab === "history" ? "on" : ""} onClick={() => setTab("history")}>History</button>
       </div>
       <div style={{ marginTop: 10 }}>
-        {!shown.length && <p className="empty">{tab === "waiting" ? "Nothing waiting." : "No orders yet."}</p>}
+        {tab === "waiting" && requests.map((q) => (
+          <div key={`q${q.id}`} className="card order requested">
+            <div className="cmain" style={{ cursor: "default" }}>
+              <div className="t">{q.kind === "open" ? `Order request · ${q.quantity} contract${q.quantity === 1 ? "" : "s"}` : `Close request · order ${q.order_id}`}</div>
+              <div className="meta">Waiting for the bot to pick it up</div>
+            </div>
+          </div>
+        ))}
+        {!shown.length && !(tab === "waiting" && requests.length) && <p className="empty">{tab === "waiting" ? "Nothing waiting." : "No orders yet."}</p>}
         {shown.map((o) => (
           <div key={o.id} className={`card order ${o.status}`}>
             <button className="cmain" onClick={() => setOpen(o)}>
@@ -163,6 +179,7 @@ export default function SafetyScreen({ store }: { store: Store }) {
 
       {open && (
         <OrderSheet order={open} killed={limits.kill_switch} onClose={() => setOpen(null)}
+          onClose2={() => { act(store.requestClose(open.id)); setOpen(null); }}
           onDecide={(approve) => { act(store.decideOrder(open.id, approve)); setOpen(null); }} />
       )}
       {editing && <LimitsSheet limits={limits} onClose={() => setEditing(false)} onDone={(l) => act(store.saveSafetyLimits(l))} />}

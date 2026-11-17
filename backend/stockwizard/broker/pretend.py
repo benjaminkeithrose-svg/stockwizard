@@ -46,6 +46,15 @@ class PretendBroker(Broker):
             o.status = "cancelled"
         self.calls.append(("cancel", broker_id))
 
+    def close(self, broker_id: str, price: float) -> None:
+        if not self._up:
+            raise ConnectionError("pretend broker is disconnected")
+        o = self.orders[broker_id]
+        if o.status != "filled":
+            raise ValueError(f"{broker_id} is {o.status}, not an open position")
+        o.status = "closed"
+        self.calls.append(("close", broker_id))
+
     def open_orders(self) -> list[BrokerOrder]:
         return [o for o in self.orders.values() if o.status == "working"]
 

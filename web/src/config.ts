@@ -5,4 +5,4 @@ export const SUPABASE_URL = "https://cxpspihahmztfydvdwpd.supabase.co";
 export const SUPABASE_KEY = "sb_publishable_6C3xmFTbEXfkNtt3Xv3Opg_8d0XoGUG";
 
 // Bump with every change, together with CACHE in public/sw.js (a test checks they agree).
-export const APP_BUILD = "sw-v11";
+export const APP_BUILD = "sw-v12";

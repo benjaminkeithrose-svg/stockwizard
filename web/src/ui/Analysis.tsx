@@ -75,6 +75,42 @@ function CompareSheet(props: {
   );
 }
 
+function OrderSheet(props: { store: Store; position: OptionPosition; perContract: { price: number; credit: boolean; maxLoss: number | null }; onClose: () => void }) {
+  const [qty, setQty] = useState(1);
+  const [state, setState] = useState<"idle" | "sending" | "sent" | string>("idle");
+  const { price, credit, maxLoss } = props.perContract;
+  const send = () => {
+    setState("sending");
+    props.store.requestOrder(props.position.id, qty).then(() => setState("sent")).catch((e) => setState(String(e.message ?? e)));
+  };
+  return (
+    <Sheet title="Order (paper)" onClose={props.onClose}>
+      {state === "sent" ? (
+        <>
+          <p className="msg ok">Sent to the bot. It prices the order and checks every limit; it then waits for you under Safety and orders, Waiting.</p>
+          <button className="big" onClick={props.onClose}>Done</button>
+        </>
+      ) : (
+        <>
+          <button className="big" disabled={state === "sending"} onClick={send}>Send to the bot</button>
+          <h2>Contracts</h2>
+          <div className="seg wide" role="group" aria-label="Contracts">
+            {[1, 2, 3, 4, 5].map((n) => (
+              <button key={n} className={qty === n ? "on" : ""} aria-pressed={qty === n} onClick={() => setQty(n)}>{n}</button>
+            ))}
+          </div>
+          <div className="kv">
+            <div><span>{credit ? "Credit (est.)" : "Debit (est.)"}</span><b>{money(price * qty)}</b></div>
+            <div><span>Most it loses</span><b className="down">{money(maxLoss === null ? null : maxLoss * qty)}</b></div>
+          </div>
+          <p className="hint">Paper only: the pretend broker until Interactive Brokers is connected. The bot prices it again when it picks it up, checks every limit, and nothing is sent until you approve it.</p>
+          {state !== "idle" && state !== "sending" && <p className="msg err">{state}</p>}
+        </>
+      )}
+    </Sheet>
+  );
+}
+
 export default function AnalysisScreen(props: {
   store: Store; position: OptionPosition; others: OptionPosition[]; onAdjust: () => void;
 }) {
@@ -85,6 +121,7 @@ export default function AnalysisScreen(props: {
   const [dayIdx, setDayIdx] = useState(0);                      // days from now on the date slider
   const [variants, setVariants] = useState<OptionPosition[]>([]);
   const [comparing, setComparing] = useState(false);
+  const [ordering, setOrdering] = useState(false);
 
   const all = [p, ...variants];
   const spot = under?.close.length ? under.close[under.close.length - 1] : null;
@@ -150,6 +187,7 @@ export default function AnalysisScreen(props: {
         <span className="badge est" title="Black-Scholes prices from the last close and an estimated volatility, until Interactive Brokers supplies real quotes">Theoretical</span>
       </div>
       <div className="anabtns">
+        <button className="ghost" onClick={() => setOrdering(true)} disabled={expired}>Order (paper)</button>
         <button className="ghost" onClick={props.onAdjust}>Adjust on the chart</button>
         <button className="ghost" disabled={all.length >= MAX_COMPARE} onClick={() => setComparing(true)}>
           {all.length >= MAX_COMPARE ? `Comparing ${MAX_COMPARE}` : "+ Compare"}
@@ -241,6 +279,10 @@ export default function AnalysisScreen(props: {
         </>
       )}
 
+      {ordering && (
+        <OrderSheet store={props.store} position={p} onClose={() => setOrdering(false)}
+          perContract={{ price: Math.abs(main.entry), credit: main.credit, maxLoss: main.maxLoss }} />
+      )}
       {comparing && (
         <CompareSheet main={p} others={props.others.filter((o) => o.id !== p.id)} taken={variants.map((v) => v.id)}
           onClose={() => setComparing(false)} onAdd={(v) => { setVariants([...variants, v]); setComparing(false); }} />

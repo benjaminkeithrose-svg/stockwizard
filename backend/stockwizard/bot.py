@@ -164,6 +164,25 @@ class Bot:
         self._changed(p)
         self.audit("bot", "position_closed", {"order": p.id, "pnl": pnl, "realised_loss_today": self.realised_loss_today})
 
+    def close(self, order_id: int, price: float, by: str = "ben") -> Proposal:
+        """Close a filled position at `price` per share (the same credit/debit sense as when it opened).
+
+        Closing only reduces risk, so it isn't held for approval and isn't stopped by
+        the kill switch; it still needs a connected broker and is recorded.
+        """
+        p = self.orders[order_id]
+        if p.status != "filled":
+            raise ValueError(f"Order {order_id} is {p.status}, not an open position")
+        if not self.broker.connected():
+            raise ConnectionError("The broker is disconnected: can't close until it reconnects.")
+        self.broker.close(p.broker_id, price)
+        opened = p.fill_price if p.fill_price is not None else p.request.limit_price
+        per_share = (opened - price) if p.request.price_kind == "credit" else (price - opened)
+        pnl = round(per_share * 100 * p.request.quantity, 2)
+        self.audit(by, "close_sent", {"order": p.id, "price": price})
+        self.record_close(p.id, pnl)
+        return p
+
     def new_day(self) -> None:
         self.realised_loss_today = 0.0
         self.audit("bot", "new_day", {})

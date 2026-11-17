@@ -6,7 +6,8 @@ import { createClient, SupabaseClient } from "@supabase/supabase-js";
 import { Candles, emptyCandles, madeUpCandles, Timeframe } from "./candles";
 import type { ClaudeMessage, ClaudeReply } from "./claude";
 import type { OptionPosition } from "./options";
-import { BacktestRun, BacktestTrade, ChartView, DEFAULT_FAVOURITES, DEFAULT_LIMITS, PaperOrder, PatternRun, SafetyLimits, UserSettings, ScanDef, ScanResult, ScanRun, StrategyDef, SymbolInfo, Watchlist, Workspace } from "./model";
+import { analyse, historicalVol, positionAt } from "./pricing";
+import { BacktestRun, BacktestTrade, BotRequest, ChartView, DEFAULT_FAVOURITES, DEFAULT_LIMITS, PaperOrder, PatternRun, SafetyLimits, UserSettings, ScanDef, ScanResult, ScanRun, StrategyDef, SymbolInfo, Watchlist, Workspace } from "./model";
 import { SUPABASE_KEY, SUPABASE_URL } from "../config";
 
 export interface User {
@@ -52,6 +53,10 @@ export interface Store {
   paperOrders(): Promise<PaperOrder[]>;
   decideOrder(id: number, approve: boolean): Promise<void>;
   killSwitch(): Promise<number>;
+  /** Ask the bot to order a chart structure (paper; still needs approval after the rails) or close a paper position. */
+  requestOrder(positionId: string, quantity: number): Promise<void>;
+  requestClose(orderId: number): Promise<void>;
+  botRequests(): Promise<BotRequest[]>;
 
   strategies(): Promise<StrategyDef[]>;
   /** The latest manual or scheduled run of each strategy, with its metrics. Re-runs are checks, not shown. */
@@ -266,6 +271,18 @@ export class SupabaseStore implements Store {
     return this.check(await this.sb.rpc("kill_switch")) as unknown as number;
   }
 
+  async requestOrder(positionId: string, quantity: number) {
+    this.check(await this.sb.from("bot_requests").insert({ kind: "open", position_id: positionId, quantity }));
+  }
+
+  async requestClose(orderId: number) {
+    this.check(await this.sb.from("bot_requests").insert({ kind: "close", order_id: orderId, quantity: 1 }));
+  }
+
+  async botRequests() {
+    return this.check(await this.sb.from("bot_requests").select("*").order("created_at", { ascending: false }).limit(50)) as BotRequest[];
+  }
+
   async strategies() {
     return this.check(await this.sb.from("strategies").select("id,label,family,config,version,start_date,split_date,position,notes").eq("enabled", true).order("position")) as StrategyDef[];
   }
@@ -364,6 +381,7 @@ interface DemoData {
   settings: UserSettings;
   limits: SafetyLimits;
   orders: PaperOrder[];
+  requests: BotRequest[];
 }
 
 /** A made-up proposal, so the demo's Safety screen has something to approve. */
@@ -384,11 +402,11 @@ export class DemoStore implements Store {
   private load(): DemoData {
     try {
       const raw = localStorage.getItem(this.key);
-      if (raw) return { views: [], positions: [], settings: { favourites: DEFAULT_FAVOURITES }, limits: DEFAULT_LIMITS, orders: [structuredClone(DEMO_ORDER)], ...JSON.parse(raw) };
+      if (raw) return { views: [], positions: [], settings: { favourites: DEFAULT_FAVOURITES }, limits: DEFAULT_LIMITS, orders: [structuredClone(DEMO_ORDER)], requests: [], ...JSON.parse(raw) };
     } catch {
       /* storage blocked: start empty */
     }
-    return { workspaces: [], views: [], positions: [], settings: { favourites: DEFAULT_FAVOURITES }, limits: DEFAULT_LIMITS, orders: [structuredClone(DEMO_ORDER)],
+    return { workspaces: [], views: [], positions: [], settings: { favourites: DEFAULT_FAVOURITES }, limits: DEFAULT_LIMITS, orders: [structuredClone(DEMO_ORDER)], requests: [],
       watchlists: [{ id: "demo-1", name: "Made-up list", is_universe: false, symbols: ["DEMO", "TEST"] }] };
   }
 
@@ -499,6 +517,43 @@ export class DemoStore implements Store {
   }
 
   async paperOrders() { return this.load().orders; }
+
+  // The demo has no bot: it does the bot's part at once, with theoretical prices, and no rails beyond the per-trade limit.
+  async requestOrder(positionId: string, quantity: number) {
+    const d = this.load();
+    const p = d.positions.find((x) => x.id === positionId);
+    if (!p) throw new Error("That structure has been deleted");
+    const c = await this.candles(p.symbol, "1d");
+    const spot = c.close[c.close.length - 1];
+    const vol = historicalVol(c) ?? 0.2;
+    const v = positionAt(p, spot, Date.now() / 1000, vol).price / 100;
+    const credit = v < 0;
+    const price = Math.max(0.05, (credit ? Math.floor(-v / 0.05) : Math.ceil(v / 0.05)) * 0.05);
+    const a = analyse(p, spot, vol, Date.now() / 1000);
+    const maxLoss = a.maxLoss === null ? null : Math.round(a.maxLoss * quantity * 100) / 100;
+    const refused = maxLoss === null || maxLoss > d.limits.max_loss_per_trade;
+    d.orders.unshift({
+      id: Math.max(0, ...d.orders.map((o) => o.id)) + 1, created_at: new Date().toISOString(), symbol: p.symbol, structure: p.structure,
+      expiry: p.expiry, legs: p.legs, quantity, limit_price: Math.round(price * 100) / 100, price_kind: credit ? "credit" : "debit",
+      max_loss: maxLoss, status: refused ? "refused" : "proposed", pnl: null,
+      refusals: refused ? [{ rail: "per_trade", why: `It could lose $${maxLoss ?? "an unlimited amount"}; the limit per trade is $${d.limits.max_loss_per_trade}.` }] : [],
+      reason: "From your structure on the chart. Theoretical price (made-up candles).",
+    });
+    d.requests = [{ id: d.requests.length + 1, created_at: new Date().toISOString(), kind: "open", position_id: positionId, order_id: null, quantity, status: "done", result: "Proposed" }, ...d.requests];
+    this.save(d);
+  }
+
+  async requestClose(orderId: number) {
+    const d = this.load();
+    const o = d.orders.find((x) => x.id === orderId);
+    if (!o || o.status !== "filled") throw new Error(`Order ${orderId} isn't an open position`);
+    o.status = "closed";
+    o.pnl = 0;
+    d.requests = [{ id: d.requests.length + 1, created_at: new Date().toISOString(), kind: "close", position_id: null, order_id: orderId, quantity: 1, status: "done", result: "Closed" }, ...d.requests];
+    this.save(d);
+  }
+
+  async botRequests() { return this.load().requests.filter((q) => q.status === "waiting"); }
 
   async decideOrder(id: number, approve: boolean) {
     const d = this.load();

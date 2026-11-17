@@ -20,7 +20,7 @@ class LiveTradingDisabled(RuntimeError):
 class BrokerOrder:
     broker_id: str
     request: OrderRequest
-    status: str  # working, filled, cancelled
+    status: str  # working, filled, cancelled, closed
     fill_price: float | None = None
 
 
@@ -40,6 +40,10 @@ class Broker(ABC):
 
     @abstractmethod
     def open_orders(self) -> list[BrokerOrder]: ...
+
+    @abstractmethod
+    def close(self, broker_id: str, price: float) -> None:
+        """Close a filled structure with one combo limit order at `price` per share."""
 
     @abstractmethod
     def positions(self) -> list[BrokerOrder]:
