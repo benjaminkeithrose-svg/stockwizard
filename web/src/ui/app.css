@@ -338,3 +338,10 @@ details.notes summary { cursor: pointer; font-weight: 700; min-height: 32px; }
 .wfbar { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: 11px; }
 .wftrack { position: relative; flex: 1; width: 100%; border-bottom: 1px dashed transparent; background: linear-gradient(to bottom, transparent calc(50% - 0.5px), #DADDE1 50%, transparent calc(50% + 0.5px)); }
 .wftrack i { position: absolute; left: 20%; right: 20%; border-radius: 2px; }
+
+/* ---------- help ---------- */
+.helpitem { background: var(--surface); border: 1px solid var(--edge); border-left: 3px solid var(--cyan); border-radius: var(--r-sm); margin-bottom: 6px; }
+.helpitem summary { cursor: pointer; font-weight: 700; padding: 0 12px; min-height: 44px; display: flex; align-items: center; }
+.helpitem ul, .helpitem p { margin: 0 12px 12px; padding-left: 16px; font-size: 14px; color: var(--ink-2); }
+.helpitem p { padding-left: 0; }
+.helpitem li + li { margin-top: 6px; }

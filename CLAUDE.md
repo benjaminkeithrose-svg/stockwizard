@@ -68,6 +68,7 @@ inputs listed under "Still needed from Ben" (Supabase project first).
 | `web/src/ui/Backtests.tsx` | The Backtests screens: each strategy's build and held-back results side by side, the windows and every trade |
 | `web/src/ui/Scanner.tsx` | The Scanner screen: the latest run of each scan, in tabs |
 | `web/src/ui/Pages.tsx`, `web/src/data/grid.ts`, `web/src/data/useViews.ts` | Chart pages: up to 10 tabs as cards on a 12-column grid, dragged and resized with snapping on the PC, one per row on the phone; tap for full screen |
+| `web/src/ui/Help.tsx` | Help (⋯ menu): each screen and the main terms in plain English, each topic folded. Keep it in step with the app: a change to a screen changes its entry here in the same pull request |
 | `web/src/update.ts` | "Get latest version" in the ⋯ menu: clears only Stock Wizard's own caches and service worker (the address is shared with Ben's other apps), then reloads fresh |
 | `backend/tests/` | Truncation test on every indicator, hand-worked values, loader tests, a test per safety rail proving it blocks (`test_rails.py`). Made-up candles and orders only |
 | `backend/tools/make_golden.py` | Writes `web/src/indicators/golden.json`, the Python library's numbers the browser copy must match |
