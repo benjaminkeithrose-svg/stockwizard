@@ -288,12 +288,14 @@ export interface OptionMetrics {
   trades: number; wins: number; win_rate: number | null; next_100_wins_low: number | null; next_100_wins_high: number | null;
   avg_win: number | null; avg_loss: number | null; expectancy: number | null; total_pnl: number | null; max_drawdown: number | null;
   worst_trade: number | null; profit_factor: number | null; avg_return_on_risk: number | null; longest_losing_streak: number; take_profit_exits: number;
+  days_left_exits?: number;
+  stop_exits?: number;
 }
 
 export interface OptionTradeRow {
   signal_day: string; entry_day: string; expiry_day: string; exit_day: string; spot_in: number; spot_out: number;
   legs: { right: "C" | "P"; side: "buy" | "sell"; strike: number; qty: number }[];
-  vol: number; credit: number; exit_cost: number; pnl: number; max_loss: number; exit_reason: "expiry" | "take_profit" | "stop";
+  vol: number; credit: number; exit_cost: number; pnl: number; max_loss: number; exit_reason: "expiry" | "take_profit" | "days_left" | "stop";
 }
 
 export interface OptionRun {
