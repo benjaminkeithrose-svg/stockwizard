@@ -47,7 +47,7 @@ describe("backtester matches the Python library", () => {
   const vix: Candles = { ...g.backtest.candles.VIX, source: "made-up" };
   for (const [i, c] of (g.backtest.cases as any[]).entries()) {
     it(`case ${i}: ${c.config.signal_rule}`, () => {
-      const res = run(c.config as Strategy, spy, vix, g.backtest.start);
+      const res = run(c.config as Strategy, spy, vix, g.backtest.start, undefined, c.config.filter_symbol ? vix : undefined);
       expect(res.trades.length).toBe(c.trades.length);
       expect(c.trades.length).toBeGreaterThan(5);
       res.trades.forEach((t, k) => {

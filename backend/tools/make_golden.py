@@ -110,9 +110,11 @@ def build() -> dict:
          "target_pct": 10, "stop_pct": 5, "max_bars": 10, "cost_pct": 0.5},
         {"signal_symbol": "SPY", "signal_rule": "drawdown", "signal_params": {"lookback": 20, "pct": 2}, "trade_symbol": "VIX",
          "target_level": 16.5, "max_bars": 15},
+        {"signal_symbol": "SPY", "signal_rule": "drawdown", "signal_params": {"lookback": 20, "pct": 2}, "trade_symbol": "VIX",
+         "target_pct": 8, "stop_pct": 4, "max_bars": 10, "filter_symbol": "VIX", "filter_max": 14.5},
     ]
     for cfg in cases:
-        res = run(Strategy("golden", **cfg), spy, vix, start)
+        res = run(Strategy("golden", **cfg), spy, vix, start, filter_candles=vix if cfg.get("filter_symbol") else None)
         rep = report(res, start, split)
         trades = []
         for t in res.trades:

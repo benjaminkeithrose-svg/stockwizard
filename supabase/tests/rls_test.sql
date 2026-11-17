@@ -156,7 +156,7 @@ grant all on public.strategies, public.backtest_runs, public.backtest_trades, pu
 set role authenticated;
 set request.jwt.claim.sub = '00000000-0000-0000-0000-00000000000a';
 do $$ begin
-  if (select count(*) from public.strategies) <> 6 then raise exception 'FAIL: the 6 starting strategies are not readable'; end if;
+  if (select count(*) from public.strategies) <> 12 then raise exception 'FAIL: the 12 starting strategies are not readable'; end if;
   update public.strategies set enabled = false;
   if exists (select 1 from public.strategies where not enabled) then raise exception 'FAIL: browser changed a strategy'; end if;
   begin

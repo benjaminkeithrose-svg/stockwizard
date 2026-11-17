@@ -58,12 +58,15 @@ class Backtester:
         start, split = pd.Timestamp(start, tz="UTC"), pd.Timestamp(split, tz="UTC")
         sig, src1 = read_range(self.store, s.signal_symbol, start - WARM_UP, as_of, source)
         trd, src2 = read_range(self.store, s.trade_symbol, start - WARM_UP, as_of, source)
-        res = run(s, sig, trd, start)
+        flt = None
+        if s.filter_symbol:
+            flt, _ = read_range(self.store, s.filter_symbol, start - WARM_UP, as_of, source)
+        res = run(s, sig, trd, start, filter_candles=flt)
         rep = report(res, start, split)
         rows = [{**t.row(), "n": i, "period": "build" if t.entry_ts < split else "held_back"} for i, t in enumerate(res.trades)]
         return {
             "source": ",".join(sorted({src1, src2})),
-            "data_hash": candles_fingerprint({s.signal_symbol: sig, s.trade_symbol: trd}),
+            "data_hash": candles_fingerprint({s.signal_symbol: sig, s.trade_symbol: trd, **({s.filter_symbol: flt} if flt is not None else {})}),
             "result_hash": fingerprint({"trades": rows, "report": rep, "skipped": res.skipped}),
             "trades": rows,
             "report": rep,

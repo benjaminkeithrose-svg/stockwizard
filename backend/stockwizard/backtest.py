@@ -31,7 +31,7 @@ from dataclasses import dataclass, field
 
 import pandas as pd
 
-from stockwizard.candles import validate
+from stockwizard.candles import session_dates, validate
 from stockwizard.scans import evaluate
 
 
@@ -48,6 +48,9 @@ class Strategy:
     max_bars: int = 20                  # time limit, in candles held (entry candle counts as 1)
     cost_pct: float = 0.0               # charged on each fill, entry and exit
     study: bool = False                 # the traded series can't actually be traded (e.g. the VIX index)
+    filter_symbol: str | None = None    # take a signal only when this symbol's close that day is...
+    filter_max: float | None = None     # ...at or below this (e.g. the VIX at or below 15)
+    filter_min: float | None = None     # ...and/or at or above this
 
     @classmethod
     def from_config(cls, id: str, cfg: dict) -> "Strategy":
@@ -100,22 +103,48 @@ def _ret(entry: float, exit: float, cost_pct: float) -> float:
     return (exit * (1 - c)) / (entry * (1 + c)) * 100 - 100
 
 
+def filter_passes(s: Strategy, signal_index: pd.DatetimeIndex, filter_candles: pd.DataFrame | None) -> pd.Series:
+    """True on each signal candle where the filter symbol's close the same trading day is inside the limits.
+
+    Matched by US trading date, because each symbol's daily candle is stamped at midnight in its own
+    exchange's time zone. A day with no filter value fails: nothing is assumed.
+    """
+    if not s.filter_symbol:
+        return pd.Series(True, index=signal_index)
+    if filter_candles is None:
+        raise ValueError(f"The strategy filters on {s.filter_symbol} but no candles were given for it")
+    fc = validate(filter_candles)["close"]
+    by_date = pd.Series(fc.to_numpy(), index=session_dates(fc.index))
+    by_date = by_date[~by_date.index.duplicated(keep="last")]
+    v = pd.Series(by_date.reindex(session_dates(signal_index)).to_numpy(), index=signal_index)
+    ok = v.notna()
+    if s.filter_max is not None:
+        ok &= v <= s.filter_max
+    if s.filter_min is not None:
+        ok &= v >= s.filter_min
+    return ok
+
+
 def run(strategy: Strategy, signal_candles: pd.DataFrame, trade_candles: pd.DataFrame, start: pd.Timestamp,
-        signals: pd.DataFrame | None = None) -> Result:
+        signals: pd.DataFrame | None = None, filter_candles: pd.DataFrame | None = None) -> Result:
     """Replay history and trade the strategy. Entries only from `start` on; earlier candles warm up the signal.
 
     `signals` replaces the strategy's scan rule with signals made elsewhere (the pattern lab's patterns,
-    built from measures that are themselves truncation-tested).
+    built from measures that are themselves truncation-tested). `filter_candles` are the filter symbol's
+    daily candles, when the strategy has a filter.
     """
     s = strategy
     sig = signals if signals is not None else evaluate(s.signal_rule, signal_candles, **s.signal_params)
     tc = validate(trade_candles)
     fired = sig[sig["hit"].fillna(False).to_numpy(dtype=bool)]
     fired = fired[fired.index >= start]
+    passes = filter_passes(s, fired.index, filter_candles)
+    filtered_out = int((~passes).sum())
+    fired = fired[passes.to_numpy(dtype=bool)]
     signal_queue = list(fired.iterrows())  # in time order
 
     trades: list[Trade] = []
-    skipped = {"already_in_trade": 0, "already_past_target": 0, "no_next_candle": 0}
+    skipped = {"already_in_trade": 0, "already_past_target": 0, "no_next_candle": 0, "filtered_out": filtered_out}
     pos: Trade | None = None
     in_market = pd.Series(False, index=tc.index)
     pending: tuple[pd.Timestamp, pd.Series] | None = None
