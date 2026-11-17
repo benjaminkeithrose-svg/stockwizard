@@ -38,8 +38,7 @@ from stockwizard.pricing import black_scholes, net_value
 from stockwizard.rails import Leg
 from stockwizard.scans import evaluate
 
-YEAR_DAYS = 365.0
-SESSION_HOURS = 6.5
+TRADING_DAYS = 252.0   # time is counted in trading sessions (see pricing.years_left)
 
 
 @dataclass(frozen=True)
@@ -162,7 +161,7 @@ def run(s: OptionStrategy, spy: pd.DataFrame, vix: pd.DataFrame, start: date) ->
         spot = float(d["open"].iloc[i])
         legs = legs_for(s.structure, spot, float(a), s.wing, s.short_atr)
         cal_days = (days[last] - days[i]).days
-        t0 = (cal_days + SESSION_HOURS / 24) / YEAR_DAYS
+        t0 = (last - i + 1) / TRADING_DAYS            # today's whole session plus each session to expiry
         value = net_value(legs, spot, t0, vol)         # per share, long plus: a credit structure is negative
         credit = -value - s.slippage * n_legs
         widest = max(abs(legs[1].strike - legs[0].strike), abs(legs[3].strike - legs[2].strike))
@@ -175,7 +174,7 @@ def run(s: OptionStrategy, spy: pd.DataFrame, vix: pd.DataFrame, start: date) ->
             for j in range(i, last):                   # each daily close before the expiry day
                 sj = float(d["close"].iloc[j])
                 vj = v.iloc[j]
-                tj = max((days[last] - days[j]).days / YEAR_DAYS, 1 / YEAR_DAYS / 24)   # close to expiry close
+                tj = (last - j) / TRADING_DAYS            # from this close to the expiry close
                 cost = -net_value(legs, sj, tj, float(vj) / 100 if not pd.isna(vj) else vol) + s.slippage * n_legs
                 if credit - cost >= 0.5 * credit > 0:
                     exit_day, exit_cost, reason, spot_out = j, cost, "take_profit", sj

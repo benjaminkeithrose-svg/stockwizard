@@ -2,6 +2,8 @@
 
 from datetime import date, datetime, timezone
 
+import pytest
+
 from stockwizard.pricing import black_scholes, historical_vol, limit_price, net_value, years_left
 from stockwizard.rails import Leg
 
@@ -33,9 +35,12 @@ def test_a_long_call_is_a_debit_rounded_up():
 
 
 def test_expiry_is_the_new_york_close():
-    now = datetime(2026, 11, 20, 20, 0, tzinfo=timezone.utc)   # 15:00 New York, Friday
-    assert abs(years_left(date(2026, 11, 20), now) * 365 * 24 - 1) < 1e-6
+    now = datetime(2026, 11, 20, 20, 0, tzinfo=timezone.utc)   # 15:00 New York, Friday: one hour of a 6.5-hour session left
+    assert years_left(date(2026, 11, 20), now) == pytest.approx(1 / 6.5 / 252)
     assert years_left(date(2026, 11, 19), now) == 0
+    assert years_left(date(2026, 11, 23), now) == pytest.approx((1 / 6.5 + 1) / 252)   # the weekend adds no time
+    before_open = datetime(2026, 11, 20, 13, 0, tzinfo=timezone.utc)                      # 08:00 New York
+    assert years_left(date(2026, 11, 20), before_open) == pytest.approx(1 / 252)
 
 
 def test_historical_vol():

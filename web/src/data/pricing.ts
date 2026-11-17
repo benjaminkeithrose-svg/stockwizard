@@ -13,7 +13,6 @@ import { sessions } from "./options";
 
 export const RATE = 0.04;        // risk-free rate, a fixed estimate
 export const MULT = 100;          // shares per contract
-const YEAR = 365 * 86400;         // seconds; calendar-day time, as option desks quote
 
 /** Standard normal cumulative distribution (Abramowitz and Stegun 7.1.26 via erf; error under 1.5e-7). */
 export function normCdf(x: number): number {
@@ -58,7 +57,32 @@ export function expiryTime(expiry: string): number {
   return Date.parse(`${expiry}T${summer ? "20" : "21"}:00:00Z`) / 1000;
 }
 
-export const yearsLeft = (expiry: string, at: number) => Math.max(0, (expiryTime(expiry) - at) / YEAR);
+const TRADING_DAYS = 252;
+const SESSION = 6.5 * 3600;
+const nyClock = new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit", hourCycle: "h23", weekday: "short" });
+
+/**
+ * Time to the expiry close in trading years (252 sessions): what's left of today's session plus each
+ * weekday session after it. Volatility builds up while the market is open, so calendar time would
+ * understate short-dated options by more than half. Exchange holidays are not known.
+ */
+export function yearsLeft(expiry: string, at: number): number {
+  const p = Object.fromEntries(nyClock.formatToParts(new Date(at * 1000)).map((x) => [x.type, x.value]));
+  const today = `${p.year}-${p.month}-${p.day}`;
+  if (today > expiry) return 0;
+  const weekend = p.weekday === "Sat" || p.weekday === "Sun";
+  const secs = Number(p.hour) * 3600 + Number(p.minute) * 60 + Number(p.second);
+  const left = weekend ? 0 : secs <= 9.5 * 3600 ? 1 : Math.max(0, (16 * 3600 - secs) / SESSION);
+  let later = 0;
+  const d = new Date(`${today}T12:00:00Z`);
+  for (;;) {
+    d.setUTCDate(d.getUTCDate() + 1);
+    const iso = d.toISOString().slice(0, 10);
+    if (iso > expiry) break;
+    if (d.getUTCDay() !== 0 && d.getUTCDay() !== 6) later++;
+  }
+  return (left + later) / TRADING_DAYS;
+}
 
 const sign = (l: Leg) => (l.side === "buy" ? 1 : -1);
 

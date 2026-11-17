@@ -286,7 +286,7 @@ grant all on public.option_strategies, public.option_runs to anon, authenticated
 set role authenticated;
 set request.jwt.claim.sub = '00000000-0000-0000-0000-00000000000a';
 do $$ begin
-  if (select count(*) from public.option_strategies) <> 13 then raise exception 'FAIL: the 13 option strategies are not readable'; end if;
+  if (select count(*) from public.option_strategies) <> 21 then raise exception 'FAIL: the 21 option strategies are not readable'; end if;
   update public.option_strategies set enabled = false;
   if exists (select 1 from public.option_strategies where not enabled) then raise exception 'FAIL: the app changed an option strategy'; end if;
   begin

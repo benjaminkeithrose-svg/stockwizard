@@ -292,7 +292,7 @@ export interface OptionMetrics {
 export interface OptionTradeRow {
   signal_day: string; entry_day: string; expiry_day: string; exit_day: string; spot_in: number; spot_out: number;
   legs: { right: "C" | "P"; side: "buy" | "sell"; strike: number; qty: number }[];
-  vol: number; credit: number; exit_cost: number; pnl: number; max_loss: number; exit_reason: "expiry" | "take_profit";
+  vol: number; credit: number; exit_cost: number; pnl: number; max_loss: number; exit_reason: "expiry" | "take_profit" | "stop";
 }
 
 export interface OptionRun {

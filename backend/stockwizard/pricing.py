@@ -1,8 +1,8 @@
 """Theoretical option prices for the bot, until Interactive Brokers supplies real quotes.
 
 The same Black-Scholes as the app's analysis screen (web/src/data/pricing.ts):
-European exercise, no dividends, a fixed 4% rate, time in calendar days to
-16:00 New York on the expiry date. Volatility: the VIX for SPY, otherwise the
+European exercise, no dividends, a fixed 4% rate, time in trading sessions
+to 16:00 New York on the expiry date. Volatility: the VIX for SPY, otherwise the
 last 20 sessions' moves, otherwise 20%. Every price made here is labelled
 theoretical wherever it is shown.
 """
@@ -10,7 +10,7 @@ theoretical wherever it is shown.
 from __future__ import annotations
 
 import math
-from datetime import date, datetime, time, timezone
+from datetime import date, datetime, time, timedelta, timezone
 from zoneinfo import ZoneInfo
 
 from stockwizard.rails import Leg
@@ -36,9 +36,39 @@ def black_scholes(right: str, s: float, k: float, t: float, vol: float, r: float
     return k * math.exp(-r * t) * norm_cdf(-d2) - s * norm_cdf(-d1)
 
 
+TRADING_DAYS = 252
+SESSION = 6.5 * 3600
+
+
+def session_left(now: datetime) -> float:
+    """The share of today's US session still to come: 1 before the open, 0 after the close or at a weekend."""
+    ny = now.astimezone(NY)
+    if ny.weekday() >= 5:
+        return 0.0
+    opens = datetime.combine(ny.date(), time(9, 30), NY)
+    closes = datetime.combine(ny.date(), time(16, 0), NY)
+    if ny <= opens:
+        return 1.0
+    return max(0.0, (closes - ny).total_seconds() / SESSION)
+
+
 def years_left(expiry: date, now: datetime) -> float:
-    close = datetime.combine(expiry, time(16, 0), NY)
-    return max(0.0, (close - now.astimezone(timezone.utc)).total_seconds() / YEAR)
+    """Time to the 16:00 New York close on the expiry date, in trading years (252 sessions).
+
+    Volatility builds up while the market is open, so time is counted in
+    trading sessions, not calendar hours: what's left of today's session plus
+    each weekday session after it up to expiry. (Calendar time understated
+    same-day options by more than half.) Exchange holidays are not known.
+    """
+    ny = now.astimezone(NY)
+    if ny.date() > expiry:
+        return 0.0
+    today = session_left(now)
+    if ny.date() == expiry:
+        return today / TRADING_DAYS
+    import numpy as np  # noqa: PLC0415
+    later = int(np.busday_count(ny.date() + timedelta(days=1), expiry + timedelta(days=1)))
+    return (today + later) / TRADING_DAYS
 
 
 def net_value(legs: tuple[Leg, ...], s: float, t: float, vol: float) -> float:

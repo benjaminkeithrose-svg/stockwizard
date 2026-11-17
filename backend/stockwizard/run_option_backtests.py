@@ -20,11 +20,24 @@ import pandas as pd
 from stockwizard import __version__
 from stockwizard.backtest import fingerprint
 from stockwizard.data.store import SupabaseStore
+from stockwizard import intraday_options
 from stockwizard.option_backtest import OptionStrategy, report, run
 from stockwizard.run_backtests import WARM_UP, read_range
 from stockwizard.scan import candles_fingerprint
 
-CODE = f"{__version__}+options1"
+CODE = f"{__version__}+options3"   # trading-time pricing, mid-price stops
+
+
+def read_tf(store, symbol: str, timeframe: str, after: pd.Timestamp, before: pd.Timestamp, source: str = "yahoo-unofficial") -> pd.DataFrame:
+    rows = store.select("candles", {
+        "select": "ts,open,high,low,close,volume", "symbol": f"eq.{symbol}", "timeframe": f"eq.{timeframe}", "source": f"eq.{source}",
+        "and": f"(ts.gte.{after.isoformat()},ts.lt.{before.isoformat()})", "order": "ts.asc",
+    })
+    if not rows:
+        raise RuntimeError(f"No {timeframe} candles for {symbol}")
+    df = pd.DataFrame(rows)
+    df.index = pd.to_datetime(df.pop("ts"), utc=True)
+    return df[["open", "high", "low", "close", "volume"]].astype(float)
 
 
 class OptionBacktester:
@@ -32,6 +45,8 @@ class OptionBacktester:
         self.store = store
 
     def compute(self, cfg: dict, start, split, as_of: pd.Timestamp, source: str | None = None) -> dict:
+        if cfg.get("intraday"):
+            return self.compute_intraday(cfg, start, split, as_of, source)
         s = OptionStrategy.from_config(cfg)
         start_ts = pd.Timestamp(start, tz="UTC")
         spy, src = read_range(self.store, "SPY", start_ts - WARM_UP, as_of, source)
@@ -45,6 +60,26 @@ class OptionBacktester:
             "result_hash": fingerprint({"trades": trades, "report": rep}),
             "report": rep,
             "trades": trades,
+        }
+
+    def compute_intraday(self, cfg: dict, start, split, as_of: pd.Timestamp, source: str | None = None) -> dict:
+        """Same-day trades on SPY's hourly candles (stockwizard.intraday_options)."""
+        s = intraday_options.IntradayStrategy.from_config(cfg)
+        src = source or "yahoo-unofficial"
+        start_ts = pd.Timestamp(start, tz="UTC")
+        spy_1h = read_tf(self.store, "SPY", "1h", start_ts - pd.Timedelta(days=5), as_of, src)
+        spy_1d = read_tf(self.store, "SPY", "1d", start_ts - pd.Timedelta(days=60), as_of, src)
+        vix_1d = read_tf(self.store, "^VIX", "1d", start_ts - pd.Timedelta(days=10), as_of, src)
+        vix1d = read_tf(self.store, "^VIX1D", "1h", start_ts - pd.Timedelta(days=5), as_of, src) if s.vol_source == "vix1d" else None
+        res = intraday_options.run(s, spy_1h, spy_1d, vix_1d, vix1d, pd.Timestamp(start).date())
+        rep = report(res, pd.Timestamp(split).date())
+        rep["warnings"].append("Same-day results from hourly candles: stops are checked at each hour's high and low, priced at the hour's end; volatility is held at its entry value.")
+        rep["warnings"].append("Only about 2 years of free hourly candles: the held-back period is the last year, so ranges are wide.")
+        trades = [t.row() for t in res["trades"]]
+        frames = {"SPY_1h": spy_1h, "SPY_1d": spy_1d, "VIX_1d": vix_1d, **({"VIX1D_1h": vix1d} if vix1d is not None else {})}
+        return {
+            "source": src, "data_hash": candles_fingerprint(frames),
+            "result_hash": fingerprint({"trades": trades, "report": rep}), "report": rep, "trades": trades,
         }
 
     def burned(self, strat: dict, config_hash: str) -> bool:

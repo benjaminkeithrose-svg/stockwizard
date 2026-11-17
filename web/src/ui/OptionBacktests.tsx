@@ -131,7 +131,7 @@ export function OptionBacktestScreen(props: { store: Store; id: string }) {
             <div className="meta">
               {t.legs.map((l) => l.strike).join(" / ")} · SPY {t.spot_in.toFixed(2)} → {t.spot_out.toFixed(2)} ·
               {t.credit >= 0 ? ` ${dollars(t.credit * 100, false)} credit` : ` ${dollars(-t.credit * 100, false)} debit`} ·
-              {t.exit_reason === "take_profit" ? ` closed at 50% on ${day(t.exit_day)}` : ` settled ${day(t.exit_day)}`}
+              {t.exit_reason === "take_profit" ? ` closed at 50% on ${day(t.exit_day)}` : t.exit_reason === "stop" ? ` stopped out ${day(t.exit_day)}` : ` settled ${day(t.exit_day)}`}
             </div>
           </div>
         </div>
