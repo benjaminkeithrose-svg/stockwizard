@@ -7,6 +7,7 @@ import type { Store } from "./store";
 import { DEFAULT_FAVOURITES, Favourite, MAX_FAVOURITES } from "./model";
 import type { OptionPosition } from "./options";
 import type { SyncState } from "./useWorkspaces";
+import { keepUnsaved, readUnsaved } from "./unsaved";
 
 const SAVE_DELAY = 600;
 
@@ -21,8 +22,8 @@ export function usePositions(store: Store, userId: string) {
   const [list, setList] = useState<OptionPosition[]>(() => cached(cacheKey, []));
   const [sync, setSync] = useState<SyncState>("saved");
   // Changes not yet saved are kept on the device too, so closing the app straight after a change loses nothing.
-  const pending = useRef(new Map<string, OptionPosition>(cached<OptionPosition[]>(pendingKey, []).map((p) => [p.id, p])));
-  const keepPending = () => keep(pendingKey, [...pending.current.values()]);
+  const pending = useRef(readUnsaved<OptionPosition>(pendingKey));
+  const keepPending = () => keepUnsaved(pendingKey, pending.current);
   const timer = useRef<number | undefined>(undefined);
   const listRef = useRef(list);
   listRef.current = list;
@@ -89,12 +90,24 @@ export function usePositions(store: Store, userId: string) {
 
 export function useFavourites(store: Store, userId: string) {
   const cacheKey = `stockwizard.favourites.${userId}`;
+  const dirtyKey = `stockwizard.favourites.unsaved.${userId}`;
   const [list, setList] = useState<Favourite[]>(() => cached(cacheKey, DEFAULT_FAVOURITES));
-  const dirty = useRef(false);
+  // A change not yet saved is flagged on the device, so it wins over the database's copy on the next start and is sent then.
+  const dirty = useRef(cached(dirtyKey, false));
   const timer = useRef<number | undefined>(undefined);
+  const markDirty = (on: boolean) => {
+    dirty.current = on;
+    try { if (on) localStorage.setItem(dirtyKey, "true"); else localStorage.removeItem(dirtyKey); } catch { /* fine */ }
+  };
+  const send = useCallback((favs: Favourite[]) => {
+    store.saveSettings({ favourites: favs })
+      .then(() => { if (JSON.stringify(cached(cacheKey, favs)) === JSON.stringify(favs)) markDirty(false); })
+      .catch(() => { /* kept on the device; sent on the next change or start */ });
+  }, [store, cacheKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     let live = true;
+    if (dirty.current) { send(cached(cacheKey, DEFAULT_FAVOURITES)); return () => { live = false; }; }
     store.settings().then((s) => {
       if (!live || dirty.current) return;
       setList(s.favourites);
@@ -105,14 +118,12 @@ export function useFavourites(store: Store, userId: string) {
 
   const set = useCallback((next: Favourite[]) => {
     const capped = next.slice(0, MAX_FAVOURITES);
-    dirty.current = true;
+    markDirty(true);
     setList(capped);
     keep(cacheKey, capped);
     window.clearTimeout(timer.current);
-    timer.current = window.setTimeout(() => {
-      store.saveSettings({ favourites: capped }).then(() => { dirty.current = false; }).catch(() => { /* kept on the device; saved with the next change */ });
-    }, SAVE_DELAY);
-  }, [store, cacheKey]);
+    timer.current = window.setTimeout(() => send(capped), SAVE_DELAY);
+  }, [cacheKey, send]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return { list, set };
 }

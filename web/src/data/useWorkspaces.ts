@@ -4,6 +4,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Store } from "./store";
+import { keepUnsaved, readUnsaved } from "./unsaved";
 import { duplicateWorkspace, newWorkspace, Workspace } from "./model";
 import type { Timeframe } from "./candles";
 
@@ -33,7 +34,9 @@ export function useWorkspaces(store: Store, userId: string, firstSymbol: () => s
   const [activeId, setActiveId] = useState<string | null>(() => localStorage.getItem(activeKey));
   const [sync, setSync] = useState<SyncState>("saved");
   const [loaded, setLoaded] = useState(false);
-  const pending = useRef(new Map<string, Workspace>());
+  const unsavedKey = `stockwizard.ws.unsaved.${userId}`;
+  const pending = useRef(readUnsaved<Workspace>(unsavedKey));
+  const keepPending = () => keepUnsaved(unsavedKey, pending.current);
   const timer = useRef<number | undefined>(undefined);
   const listRef = useRef(list);
   listRef.current = list;
@@ -44,7 +47,7 @@ export function useWorkspaces(store: Store, userId: string, firstSymbol: () => s
     for (const [id, w] of [...pending.current]) {
       try {
         await store.saveWorkspace(w);
-        if (pending.current.get(id) === w) pending.current.delete(id);
+        if (pending.current.get(id) === w) { pending.current.delete(id); keepPending(); }
       } catch {
         setSync(navigator.onLine ? "error" : "offline");
         return;
@@ -57,6 +60,7 @@ export function useWorkspaces(store: Store, userId: string, firstSymbol: () => s
     setList(next);
     writeCache(cacheKey, next);
     changed.forEach((w) => pending.current.set(w.id, w));
+    keepPending();
     window.clearTimeout(timer.current);
     timer.current = window.setTimeout(flush, SAVE_DELAY);
   }, [cacheKey, flush]);
@@ -78,6 +82,7 @@ export function useWorkspaces(store: Store, userId: string, firstSymbol: () => s
         writeCache(cacheKey, merged);
       }
       setLoaded(true);
+      flush();
     }).catch(() => {
       setSync("offline");
       setLoaded(true);
@@ -118,6 +123,7 @@ export function useWorkspaces(store: Store, userId: string, firstSymbol: () => s
 
   const remove = useCallback(async (w: Workspace) => {
     pending.current.delete(w.id);
+    keepPending();
     const next = listRef.current.filter((x) => x.id !== w.id);
     setList(next);
     writeCache(cacheKey, next);

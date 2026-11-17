@@ -72,6 +72,15 @@ try {
   await page.waitForSelector("[data-testid=chart] canvas");
   await wait(500);
   check(await page.getByRole("button", { name: "5m", exact: true }).getAttribute("aria-pressed") === "true", "timeframe kept after reload");
+  // A change followed at once by closing the app is not lost (saving waits a moment after each change)
+  await page.getByRole("button", { name: "1h", exact: true }).click();
+  await page.reload();
+  await page.waitForSelector("[data-testid=chart] canvas");
+  check(await page.getByRole("button", { name: "1h", exact: true }).getAttribute("aria-pressed") === "true", "a change made just before closing is kept");
+  await wait(900);
+  check(await page.evaluate(() => JSON.parse(localStorage.getItem("stockwizard.demo")).workspaces.some((w) => w.timeframe === "1h")), "and is sent on the next start");
+  await page.getByRole("button", { name: "5m", exact: true }).click();
+  await wait(900);
   check(await page.getByText(/RSI 14/).isVisible(), "indicators kept after reload");
   await page.getByRole("button", { name: "Draw" }).click();
   const kept = await page.locator(".sheet .card .t").allTextContents();
@@ -107,6 +116,9 @@ try {
   check(await page.getByRole("button", { name: "Remove RSI 14 from favourites" }).getAttribute("aria-pressed") === "true", "favourites are starred");
   await page.getByRole("button", { name: "Add VWAP to favourites" }).click();
   await page.getByRole("button", { name: "Done" }).click();
+  await page.reload();
+  await page.waitForSelector("[data-testid=chart] canvas");
+  await wait(300);
   await page.getByRole("button", { name: "Remove VWAP" }).click();
   check(await page.getByRole("button", { name: "Add VWAP" }).isVisible(), "a starred indicator joins the favourites row");
 
