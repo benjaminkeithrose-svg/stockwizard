@@ -1,11 +1,16 @@
 # One cycle of the paper bot with the pretend broker: acts on approvals,
-# rejections and the kill switch from the app's Safety screen. Tick
-# "practice" to also propose one made-up practice order. Run it by hand:
-# Actions tab, "Paper bot (pretend broker)", Run workflow. Nothing reaches a
-# market. Needs the repository secret SUPABASE_SECRET_KEY.
+# rejections, the kill switch and requests from the app (Ben, 18 Nov 2026).
+# Runs every 10 minutes through the US session on weekdays (GitHub may start
+# it a few minutes late), and by hand: Actions tab, "Paper bot (pretend
+# broker)", Run workflow; tick "practice" to also propose one made-up
+# practice order. Nothing reaches a market. Turn the schedule off once the
+# bot runs on Ben's PC with Interactive Brokers. Needs the repository secret
+# SUPABASE_SECRET_KEY.
 name: Paper bot (pretend broker)
 
 on:
+  schedule:
+    - cron: '*/10 13-21 * * 1-5'   # weekdays 13:00-21:59 UTC: the US session in both summer and winter
   workflow_dispatch:
     inputs:
       practice:
