@@ -186,4 +186,36 @@ do $$ begin
 end $$;
 reset role;
 
+-- Audit log: append-only for everyone, readable only by its owner; Claude's cap.
+insert into public.audit_log (actor, user_id, action) values ('claude', '00000000-0000-0000-0000-00000000000a', 'test');
+do $$ begin
+  begin
+    update public.audit_log set action = 'changed';
+    raise exception 'FAIL: audit log row changed';
+  exception when raise_exception then
+    if sqlerrm like 'FAIL%' then raise; end if;
+  end;
+  begin
+    delete from public.audit_log;
+    raise exception 'FAIL: audit log row deleted';
+  exception when raise_exception then
+    if sqlerrm like 'FAIL%' then raise; end if;
+  end;
+  if not public.claude_take('00000000-0000-0000-0000-00000000000a', 2) then raise exception 'FAIL: first request refused'; end if;
+  if not public.claude_take('00000000-0000-0000-0000-00000000000a', 2) then raise exception 'FAIL: second request refused'; end if;
+  if public.claude_take('00000000-0000-0000-0000-00000000000a', 2) then raise exception 'FAIL: cap not enforced'; end if;
+  if (select requests from public.claude_usage) <> 2 then raise exception 'FAIL: refused request was counted'; end if;
+end $$;
+grant select on public.audit_log, public.claude_usage to authenticated;
+set role authenticated;
+set request.jwt.claim.sub = '00000000-0000-0000-0000-00000000000b';
+do $$ begin
+  if (select count(*) from public.audit_log) <> 0 then raise exception 'FAIL: B reads A''s audit log'; end if;
+  begin
+    perform public.claude_take('00000000-0000-0000-0000-00000000000b', 100);
+    raise exception 'FAIL: browser can take Claude requests';
+  exception when insufficient_privilege then null; end;
+end $$;
+reset role;
+
 select 'all RLS checks passed' as result;

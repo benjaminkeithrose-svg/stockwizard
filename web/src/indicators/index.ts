@@ -1,9 +1,9 @@
 // The browser's indicator registry. Names, versions and default settings
 // match backend/stockwizard/indicators/__init__.py; tests check they agree.
 
-import type { Candles, Timeframe } from "../data/candles";
-import { TIMEFRAME_MINUTES } from "../data/candles";
-import * as core from "./core";
+import type { Candles, Timeframe } from "../data/candles.ts";
+import { TIMEFRAME_MINUTES } from "../data/candles.ts";
+import * as core from "./core.ts";
 
 export type Params = Record<string, number | string>;
 export type Placement = "price" | "pane";
