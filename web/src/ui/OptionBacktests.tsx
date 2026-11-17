@@ -40,15 +40,27 @@ function Notes({ run }: { run: OptionRun }) {
   );
 }
 
+// The families, in the order they were added; a chip row picks one so the list stays short.
+const FAMILIES: [string, string][] = [["spy_condor", "Condors and flies"], ["spy_fly_50", "$1 wings"], ["spy_0dte_methods", "0DTE methods"], ["spy_monthly", "Monthly"]];
+
 export function OptionBacktestList(props: { store: Store; onOpen: (id: string) => void }) {
   const { strategies, runs, state } = useOptionBacktests(props.store);
+  const [family, setFamily] = useState(() => { try { return localStorage.getItem("stockwizard.optionFamily") ?? "spy_condor"; } catch { return "spy_condor"; } });
+  const pick = (f: string) => { setFamily(f); try { localStorage.setItem("stockwizard.optionFamily", f); } catch { /* the choice just isn't remembered */ } };
+  const present = FAMILIES.filter(([f]) => strategies.some((s) => s.family === f));
+  const shown = present.some(([f]) => f === family) ? family : present[0]?.[0];
   if (state === "loading") return <p className="empty">Loading…</p>;
   if (state !== "ok") return <div className="msg err">Couldn't load the option backtests: {state}</div>;
   if (!strategies.length) return <p className="empty">No option strategies.</p>;
   return (
     <>
+      {present.length > 1 && (
+        <div className="chips" role="group" aria-label="Families">
+          {present.map(([f, name]) => <button key={f} className={`chip${shown === f ? " on" : ""}`} aria-pressed={shown === f} onClick={() => pick(f)}>{name}</button>)}
+        </div>
+      )}
       <p className="hint" style={{ marginTop: 0 }}>Modelled prices until real option fills exist. Held back = the last 5 years, the fair test.</p>
-      {strategies.map((s) => {
+      {strategies.filter((s) => !shown || s.family === shown || !FAMILIES.some(([f]) => f === s.family)).map((s) => {
         const r = runs[s.id];
         const warn = r && (r.held_back_burned || r.report.warnings.some((w) => !w.startsWith("Modelled")));
         return (
@@ -102,6 +114,8 @@ export function OptionBacktestScreen(props: { store: Store; id: string }) {
     ["Return on risk, average", (m) => pct(m.avg_return_on_risk)],
     ["Longest losing run", (m) => String(m.longest_losing_streak)],
     ...(s.config.manage === "take_50" ? [["Closed early at 50%", (m: OptionMetrics) => String(m.take_profit_exits)] as [string, (m: OptionMetrics) => string]] : []),
+    ...(s.config.manage === "close_21" ? [["Closed at 21 days left", (m: OptionMetrics) => String(m.days_left_exits ?? 0)] as [string, (m: OptionMetrics) => string]] : []),
+    ...(s.config.manage === "stop_2x" ? [["Stopped at 2× the credit", (m: OptionMetrics) => String(m.stop_exits ?? 0)] as [string, (m: OptionMetrics) => string]] : []),
   ];
 
   return (
@@ -138,7 +152,7 @@ export function OptionBacktestScreen(props: { store: Store; id: string }) {
             <div className="meta">
               {t.legs.map((l) => l.strike).join(" / ")} · SPY {t.spot_in.toFixed(2)} → {t.spot_out.toFixed(2)} ·
               {t.credit >= 0 ? ` ${dollars(t.credit * 100, false)} credit` : ` ${dollars(-t.credit * 100, false)} debit`} ·
-              {t.exit_reason === "take_profit" ? ` closed at 50% on ${day(t.exit_day)}` : t.exit_reason === "stop" ? ` stopped out ${day(t.exit_day)}` : ` settled ${day(t.exit_day)}`}
+              {t.exit_reason === "take_profit" ? ` closed at 50% on ${day(t.exit_day)}` : t.exit_reason === "days_left" ? ` closed at 21 days left on ${day(t.exit_day)}` : t.exit_reason === "stop" ? ` stopped out ${day(t.exit_day)}` : ` settled ${day(t.exit_day)}`}
             </div>
           </div>
         </div>

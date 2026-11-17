@@ -30,7 +30,7 @@ const SCREENS: [string, string[]][] = [
   ["Scanner", ["The latest run of each scan, in tabs. Scans run every US trading day after the close. Tap a result to open it on the chart."]],
   ["Backtests", [
     "Strategies: each rule's build years (2006–2021) and held-back years (the last 5) side by side. Only the held-back column stands for what to expect.",
-    "Options: iron condors and flies tested with modelled prices.",
+    "Options: iron condors and flies, and monthly credit spreads, debit spreads, iron condors and call and put condors, tested with modelled prices. The chips at the top pick a group. Monthly ones run about a month, every day with no direction rule, each managed one way: held to expiry, take 50%, close at 21 days left, or a stop at twice the credit.",
     "0DTE: the same-day research. It shows how many strategies were tried, how many survived the false-discovery check, and whether they held up on data they weren't chosen on. Prices are modelled until real quotes are bought or recorded.",
     "Pattern lab: conditions that came before VIX spikes, every pattern counted and checked against luck.",
     "Each backtest also shows what $5,000 would have become, with every trade risking 2% of the balance. Trades too big for 2% at one contract are skipped and counted.",
@@ -54,6 +54,8 @@ const TERMS: [string, string][] = [
   ["Spread", "Selling one option and buying another further out, so the most you can lose is capped: defined risk."],
   ["Bull put / bear call", "Credit spreads that profit if the price stays above (bull put) or below (bear call) a level."],
   ["Iron condor", "A bull put and a bear call together: profits if the price stays inside a range."],
+  ["Debit spread", "Buying one option and selling another further out: you pay up front, and the most you can lose is what you paid. A bull call spread profits if the price rises; a bear put spread if it falls."],
+  ["Call / put condor", "Four strikes all of one type, bought for a debit: profits if the price ends between the two middle strikes. The same shape as an iron condor, paid for up front instead of received."],
   ["Iron fly", "A condor with both short strikes at the current price. A bigger credit, but it needs the price to stay close."],
   ["Wing", "The option bought further out that caps the loss."],
   ["0DTE", "Zero days to expiry: opened and finished the same day."],

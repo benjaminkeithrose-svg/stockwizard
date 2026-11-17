@@ -13,6 +13,14 @@ daily candles go back far enough (20 years), which sets the two styles
   days into the trade (N=1 is the entry day's close). Managed either to
   expiry, or closed at the first daily close showing half the credit.
 
+Monthly (Ben, 18 Nov 2026): dte 21 (about 30 calendar days), credit
+spreads (bull put, bear call), debit spreads (bull call, bear put), iron
+condors and call and put condors (four strikes of one type, bought: a
+debit), every day with no direction rule, each managed one way: held to
+expiry, take 50% of the most it can make, close at 21 calendar days left, or
+stop at twice the credit (credit structures). Every management check is at a
+daily close.
+
 Costs (Ben, 18 Nov 2026): $0.65 commission a contract per leg on opening
 and on closing early (nothing at expiry), and 5 cents a leg slippage off the
 modelled price each way. One position at a time. Settlement at expiry is the
@@ -43,11 +51,11 @@ TRADING_DAYS = 252.0   # time is counted in trading sessions (see pricing.years_
 
 @dataclass(frozen=True)
 class OptionStrategy:
-    structure: str = "iron_condor"          # iron_condor or iron_fly
+    structure: str = "iron_condor"          # see STRUCTURES
     dte: int = 0                             # 0 = same day; N = expires at the close N trading days into the trade
     short_atr: float = 1.0                   # condor shorts this many daily ranges either side
     wing: float = 5.0                        # dollars beyond the shorts
-    manage: str = "expiry"                   # expiry or take_50
+    manage: str = "expiry"                   # expiry, take_50, close_21 (21 calendar days left) or stop_2x (loss of twice the credit)
     commission: float = 0.65                 # per contract per leg, on opening and on closing early
     slippage: float = 0.05                   # per leg, each way
     signal_rule: str | None = None           # a scan rule on SPY's daily candles; None = every day
@@ -64,14 +72,39 @@ class OptionStrategy:
         return asdict(self)
 
 
+STRUCTURES = ("iron_condor", "iron_fly", "bull_put", "bear_call", "bull_call_debit", "bear_put_debit", "call_condor", "put_condor")
+
+
 def legs_for(structure: str, centre: float, atr: float, wing: float, short_atr: float = 1.0) -> tuple[Leg, ...]:
-    """Strikes on $1 steps, as the chart places them."""
+    """Strikes on $1 steps, as the chart places them. Shorts (or a condor's inner strikes) `short_atr` daily ranges from the
+    price; debit spreads buy at the money; wings `wing` dollars further out."""
     at = round(centre)
     w = max(1, round(wing))
+    r = max(1, round(atr * short_atr))
     if structure == "iron_fly":
         return (Leg("P", "buy", at - w), Leg("P", "sell", at), Leg("C", "sell", at), Leg("C", "buy", at + w))
-    r = max(1, round(atr * short_atr))
-    return (Leg("P", "buy", at - r - w), Leg("P", "sell", at - r), Leg("C", "sell", at + r), Leg("C", "buy", at + r + w))
+    if structure == "iron_condor":
+        return (Leg("P", "buy", at - r - w), Leg("P", "sell", at - r), Leg("C", "sell", at + r), Leg("C", "buy", at + r + w))
+    if structure == "bull_put":
+        return (Leg("P", "buy", at - r - w), Leg("P", "sell", at - r))
+    if structure == "bear_call":
+        return (Leg("C", "sell", at + r), Leg("C", "buy", at + r + w))
+    if structure == "bull_call_debit":
+        return (Leg("C", "buy", at), Leg("C", "sell", at + w))
+    if structure == "bear_put_debit":
+        return (Leg("P", "sell", at - w), Leg("P", "buy", at))
+    if structure in ("call_condor", "put_condor"):
+        k = "C" if structure == "call_condor" else "P"
+        return (Leg(k, "buy", at - r - w), Leg(k, "sell", at - r), Leg(k, "sell", at + r), Leg(k, "buy", at + r + w))
+    raise ValueError(f"Unknown structure {structure}")
+
+
+def payoff_range(legs: tuple[Leg, ...], credit: float) -> tuple[float, float]:
+    """(most it can make, most it can lose) per share at expiry, with `credit` received at the start (negative = paid)."""
+    ks = sorted({l.strike for l in legs})
+    points = [ks[0] - 1000, *ks, ks[-1] + 1000]
+    vals = [credit + intrinsic(legs, x) for x in points]
+    return max(vals), -min(vals)
 
 
 def intrinsic(legs: tuple[Leg, ...], s: float) -> float:
@@ -108,7 +141,7 @@ class OptionTrade:
     exit_cost: float       # per share paid to close (negative = received), after slippage when closed early
     pnl: float             # dollars for one structure, after commission
     max_loss: float        # dollars, the most it could have lost at entry
-    exit_reason: str       # expiry or take_profit
+    exit_reason: str       # expiry, take_profit, days_left or stop
 
     def row(self) -> dict:
         d = asdict(self)
@@ -138,7 +171,6 @@ def run(s: OptionStrategy, spy: pd.DataFrame, vix: pd.DataFrame, start: date) ->
     trades: list[OptionTrade] = []
     skipped = {"already_in_trade": 0, "no_vix": 0, "filtered_out": 0, "not_enough_days": 0, "over_risk_limit": 0}
     busy_until = -1
-    n_legs = 4
     for i in range(1, len(days)):
         sig = i - 1                                    # judged at the previous close; enter today
         if days[i] < start or not hit.iloc[sig]:
@@ -160,24 +192,32 @@ def run(s: OptionStrategy, spy: pd.DataFrame, vix: pd.DataFrame, start: date) ->
         vol = float(vix_prev) / 100
         spot = float(d["open"].iloc[i])
         legs = legs_for(s.structure, spot, float(a), s.wing, s.short_atr)
+        n_legs = len(legs)
         cal_days = (days[last] - days[i]).days
         t0 = (last - i + 1) / TRADING_DAYS            # today's whole session plus each session to expiry
         value = net_value(legs, spot, t0, vol)         # per share, long plus: a credit structure is negative
         credit = -value - s.slippage * n_legs
-        widest = max(abs(legs[1].strike - legs[0].strike), abs(legs[3].strike - legs[2].strike))
-        max_loss = (widest - credit) * 100 + s.commission * n_legs
+        best, worst = payoff_range(legs, credit)
+        max_loss = worst * 100 + s.commission * n_legs
         if s.max_loss_cap is not None and max_loss > s.max_loss_cap:
             skipped["over_risk_limit"] += 1
             continue
         exit_day, exit_cost, reason, spot_out = last, None, "expiry", float(d["close"].iloc[last])
-        if s.manage == "take_50" and s.dte > 1:
+        if s.manage != "expiry" and s.dte > 1:
             for j in range(i, last):                   # each daily close before the expiry day
                 sj = float(d["close"].iloc[j])
                 vj = v.iloc[j]
                 tj = (last - j) / TRADING_DAYS            # from this close to the expiry close
                 cost = -net_value(legs, sj, tj, float(vj) / 100 if not pd.isna(vj) else vol) + s.slippage * n_legs
-                if credit - cost >= 0.5 * credit > 0:
+                made = credit - cost                   # per share, if closed now
+                if s.manage == "take_50" and best > 0 and made >= 0.5 * best:
                     exit_day, exit_cost, reason, spot_out = j, cost, "take_profit", sj
+                    break
+                if s.manage == "close_21" and (days[last] - days[j]).days <= 21:
+                    exit_day, exit_cost, reason, spot_out = j, cost, "days_left", sj
+                    break
+                if s.manage == "stop_2x" and credit > 0 and -made >= 2 * credit:
+                    exit_day, exit_cost, reason, spot_out = j, cost, "stop", sj
                     break
         if exit_cost is None:
             exit_cost = -intrinsic(legs, spot_out)     # what settling at expiry costs (positive = paid)
@@ -221,6 +261,8 @@ def metrics(trades: list[OptionTrade]) -> dict:
         "avg_return_on_risk": r(np.mean([t.pnl / t.max_loss * 100 for t in trades if t.max_loss > 0])) if n else None,
         "longest_losing_streak": longest,
         "take_profit_exits": sum(1 for t in trades if t.exit_reason == "take_profit"),
+        "days_left_exits": sum(1 for t in trades if t.exit_reason == "days_left"),
+        "stop_exits": sum(1 for t in trades if t.exit_reason == "stop"),
     }
 
 
