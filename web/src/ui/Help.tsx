@@ -12,6 +12,7 @@ const SCREENS: [string, string[]][] = [
   ["Options on the chart", [
     "Each leg is a line: ▲ for a call, ▼ for a put. Solid lines are legs you sell; dotted lines are legs you buy. Purple means planned; green means marked bought.",
     "Touch a line to see that leg, its expiry and days left.",
+    "Teal lines are a bot's open paper position. An arrow marks where a bot trade opened; a dot with its profit or loss, where it closed.",
     "Tap the structure's chip to open its analysis. Adjust on the chart lets you drag it: All moves everything, Side moves the put or call side, Leg moves one line.",
   ]],
   ["Analysis", [
@@ -33,12 +34,13 @@ const SCREENS: [string, string[]][] = [
     "Options: iron condors and flies, and monthly credit spreads, debit spreads, iron condors and call and put condors, tested with modelled prices. The chips at the top pick a group. Monthly ones run about a month, every day with no direction rule, each managed one way: held to expiry, take 50%, close at 21 days left, or a stop at twice the credit.",
     "0DTE: the same-day research. It shows how many strategies were tried, how many survived the false-discovery check, and whether they held up on data they weren't chosen on. Prices are modelled until real quotes are bought or recorded.",
     "Pattern lab: conditions that came before VIX spikes, every pattern counted and checked against luck.",
+    "Make a bot, at the top of an option backtest or a 0DTE survivor, sets up a bot with exactly the tested settings. Stock strategies and the pattern lab are stock signals, which the bot can't trade yet.",
     "Each backtest also shows what $5,000 would have become, with every trade risking 2% of the balance. Trades too big for 2% at one contract are skipped and counted.",
   ]],
   ["Safety and orders", [
     "The kill switch stops all trading: it drops waiting orders, and the bot cancels anything working.",
     "Waiting: orders the bot has proposed. Tap one to approve or reject it. Approving doesn't send it straight away: the bot checks every limit again first.",
-    "Strategies the bot runs: switch one on, and at its entry time each trading day the bot proposes the trade if the setup is there.",
+    "Bots: each one proposes its trade by itself at its entry time each trading day, if the setup is there. Make one from a backtest: open it in Backtests and tap Make a bot. Only a tested bot (its settings unchanged since the backtest) can be switched on. Each card shows its paper results against what its backtest expected.",
     "A strategy can expire the same day, in 3 or 9 trading days, or in about a month. Multi-day ones hold one position at a time overnight, take profit or stop whenever the bot checks, and settle at the expiry's close. The 3-day and 9-day condor presets are the ones in Backtests, Options.",
     "Limits: the most a trade or a day may lose, positions at once, capital at risk, and how old prices may be. While the daily limit is empty, every order is refused.",
     "Paper trading only. Live trading can't be turned on from the app.",

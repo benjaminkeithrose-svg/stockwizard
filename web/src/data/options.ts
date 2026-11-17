@@ -22,7 +22,7 @@ export interface OptionPosition {
   structure: Structure;
   expiry: string;            // YYYY-MM-DD
   legs: Leg[];
-  status: "planned" | "bought" | "closed";
+  status: "planned" | "bought" | "closed" | "bot";   // "bot": a bot's open paper position, drawn on the chart only
   note: string | null;
   updated_at?: string;
 }

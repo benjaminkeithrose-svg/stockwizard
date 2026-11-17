@@ -254,3 +254,87 @@ def test_shorts_by_daily_range():
     spot = 600.0 * INSTRUMENTS["XSP"].scale
     at_ = round(spot)
     assert [l["strike"] for l in legs] == [at_ - 4, at_ - 3, at_ + 3, at_ + 4], legs   # ATR 3 either side, $1 wings
+
+
+# --- bots made from backtests: their management and signals, as the backtests run them ---
+
+def _daily(n=120, up=True):
+    idx = pd.bdate_range(end="2026-11-17", periods=n, tz="UTC") + pd.Timedelta(hours=21)
+    c = np.linspace(300, 600, n) if up else np.full(n, 600.0)   # steps of 2.5 clear the previous high (+2)
+    return pd.DataFrame({"open": c, "high": c + 2, "low": c - 2, "close": c, "volume": 1e6}, index=idx)
+
+
+class DailyMarket(FakeMarket):
+    def __init__(self, daily, **kw):
+        super().__init__(**kw)
+        self._daily = daily
+
+    def daily(self, instrument, day):
+        return self._daily
+
+
+MONTHLY_BULL_PUT = {"instrument": "SPY", "structure": "bull_put", "entry": "10:00", "short_delta": 0.15, "short_atr": 3, "width": 5, "dte": 21}
+
+
+def test_a_bull_put_placed_by_daily_range():
+    s, r, clock = setup(MONTHLY_BULL_PUT, market=FakeMarket(path=lambda i, o: o))
+    clock["t"] = at(10, 5, date(2026, 11, 18))
+    r.cycle()
+    o = s.tables["paper_orders"][0]
+    legs = sorted(o["legs"], key=lambda l: l["strike"])
+    at_ = round(600.0 * INSTRUMENTS["SPY"].scale)
+    assert [(l["right"], l["side"], l["strike"]) for l in legs] == [("P", "buy", at_ - 14), ("P", "sell", at_ - 9)], legs   # ATR 3 × 3 below
+    assert o["price_kind"] == "credit"
+
+
+def test_close_with_21_days_left():
+    s, r, clock = setup({**MONTHLY_BULL_PUT, "close_days_left": 21}, limits=AUTO, market=FakeMarket(path=lambda i, o: o))
+    clock["t"] = at(10, 5, date(2026, 11, 18))
+    r.cycle()
+    o = s.tables["paper_orders"][0]
+    expiry = date.fromisoformat(str(o["expiry"])[:10])
+    assert o["status"] == "filled" and (expiry - date(2026, 11, 18)).days > 21
+    d = date(2026, 11, 19)
+    while (expiry - d).days > 21 or not calendar_is_trading(d):
+        d += timedelta(days=1)
+    clock["t"] = at(11, 0, d)
+    said = r.cycle()
+    assert o["status"] == "closed" and any("21 days left" in x for x in said), (d, said)
+
+
+def calendar_is_trading(d):
+    from stockwizard.zerodte.calendar import is_trading_day
+    return is_trading_day(d)
+
+
+class MidMarket(FakeMarket):
+    """Quotes at the model's middle price (no bid-ask spread), so the test is about the rule, not the model's spreads."""
+
+    def chain(self, *a, **kw):
+        from dataclasses import replace  # noqa: PLC0415
+        return {k: replace(q, bid=round((q.bid + q.ask) / 2, 4), ask=round((q.bid + q.ask) / 2, 4)) for k, q in super().chain(*a, **kw).items()}
+
+
+def test_take_profit_on_a_debit_spread_is_half_the_most_it_can_make():
+    cfg = {"instrument": "XSP", "structure": "bull_call_debit", "entry": "10:00", "short_delta": 0.15, "width": 2.0, "dte": 3, "profit_target": 0.5}
+    climb = lambda i, o: o * (1.0003 if i >= 6 else 1.0)  # noqa: E731   # a steady rise of about 2.5 by 13:00
+    s, r, clock = setup(cfg, limits=AUTO, market=MidMarket(path=climb))
+    clock["t"] = at(10, 5, date(2026, 11, 18))
+    r.cycle()
+    o = s.tables["paper_orders"][0]
+    assert o["price_kind"] == "debit" and o["status"] == "filled"
+    clock["t"] = at(13, 0, date(2026, 11, 18))
+    said = r.cycle()
+    assert o["status"] == "closed" and o["pnl"] > 0 and any("profit target" in x for x in said), said
+
+
+def test_only_on_signal_days():
+    cfg = {**THREE_DAY, "signal_rule": "breakout", "signal_params": {"length": 20}}
+    s, r, clock = setup(cfg, market=DailyMarket(_daily(up=False)))
+    clock["t"] = at(10, 5, date(2026, 11, 18))
+    said = r.cycle()
+    assert not s.tables["paper_orders"] and any("wasn't on" in x for x in said), said
+    s, r, clock = setup(cfg, market=DailyMarket(_daily(up=True)))
+    clock["t"] = at(10, 5, date(2026, 11, 18))
+    r.cycle()
+    assert s.tables["paper_orders"], "a breakout at the last close: it trades"

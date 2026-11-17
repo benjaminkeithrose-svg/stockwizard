@@ -257,6 +257,8 @@ export interface PaperOrder {
   reason: string | null;
   pnl: number | null;
   strategy_id?: string | null;
+  updated_at?: string;
+  fill_price?: number | null;
 }
 
 /** Ben's request to the bot from the app: order a chart structure (paper) or close a paper position. Not an order. */
@@ -326,10 +328,26 @@ export interface StrategyConfig {
   dte?: number;
   /** Condor shorts this many daily ranges (ATR 14) either side, instead of by delta. */
   short_atr?: number | null;
+  /** Close with this many calendar days or fewer to expiry (the backtests' "close at 21 days left"). */
+  close_days_left?: number | null;
+  /** Only on days this scan rule fired on the underlying's daily candles at the previous close. */
+  signal_rule?: string | null;
+  signal_params?: Record<string, unknown>;
+  vix_max?: number | null;
+  vix_min?: number | null;
   [k: string]: unknown;
 }
 
-export interface BotStrategy { id: string; label: string; config: StrategyConfig; enabled: boolean }
+/** The backtest a bot was made from, with the settings it tested and its held-back result. */
+export interface BotSource {
+  kind: "option" | "research";
+  id: string;
+  label: string;
+  config: StrategyConfig;
+  held_back: { trades: number; win_rate: number | null; expectancy: number | null } | null;
+}
+
+export interface BotStrategy { id: string; label: string; config: StrategyConfig; enabled: boolean; source?: BotSource | null }
 
 // --- 0DTE research runs (research_runs; the server writes) ---
 
@@ -340,6 +358,7 @@ export interface ResearchMetrics {
 
 export interface ResearchStrategy {
   strategy: string;
+  config?: Record<string, unknown>;
   development?: ResearchMetrics;
   validation?: ResearchMetrics;
   walk_forward?: number[];
