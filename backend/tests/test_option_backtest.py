@@ -122,3 +122,11 @@ def test_intrinsic():
     legs = (Leg("P", "buy", 90), Leg("P", "sell", 95), Leg("C", "sell", 105), Leg("C", "buy", 110))
     assert intrinsic(legs, 100) == 0
     assert intrinsic(legs, 120) == pytest.approx(-5)
+
+
+def test_the_risk_cap_skips_what_the_bot_would_refuse():
+    spy, vx = market(80)
+    capped = run(OptionStrategy(dte=0, wing=5, max_loss_cap=50), spy, vx, date(2020, 1, 1))
+    assert not capped["trades"] and capped["skipped"]["over_risk_limit"] > 0   # $5 wings risk hundreds
+    fly = run(OptionStrategy(dte=0, structure="iron_fly", wing=1, max_loss_cap=50), spy, vx, date(2020, 1, 1))
+    assert all(t.max_loss <= 50 for t in fly["trades"])

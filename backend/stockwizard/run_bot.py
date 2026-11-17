@@ -35,6 +35,8 @@ from dataclasses import asdict
 from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
+QUOTE_EVERY = timedelta(minutes=30)
+
 from stockwizard.bot import Bot, Proposal
 from stockwizard.broker import BrokerOrder, PretendBroker
 from stockwizard.data.store import SupabaseStore
@@ -62,6 +64,7 @@ class BotRunner:
         remembered = [BrokerOrder(r["broker_id"], request_from_dict(r), "working" if r["status"] == "sent" else "filled", r.get("fill_price"))
                       for r in rows if r.get("broker_id") and r["status"] in ("sent", "filled")]
         self.broker = broker or PretendBroker(clock=clock)
+        self.last_quotes: datetime | None = None
         self.broker.remember(remembered)
         self.bot = Bot(self.broker, self.limits, self.audit, clock=clock, on_change=self.save, requote=self.broker.quote)
         for r in rows:
@@ -161,6 +164,26 @@ class BotRunner:
         self.bot.close(bid, price)
         return f"order {q['order_id']} closed at a theoretical ${price:.2f} for ${p.pnl:+,.2f}"
 
+    # --- recording real quotes (our own option-price history) ---
+    def record_quotes(self) -> list[str]:
+        """Every 30 minutes through the US session, when the broker can give real quotes (Interactive Brokers only)."""
+        if not hasattr(self.broker, "chain_snapshot") or not self.broker.connected():
+            return []
+        now = self.clock()
+        ny = now.astimezone(NY)
+        if ny.weekday() >= 5 or not (ny.replace(hour=9, minute=30, second=0, microsecond=0) <= ny <= ny.replace(hour=16, minute=0, second=0, microsecond=0)):
+            return []
+        if self.last_quotes is not None and now - self.last_quotes < QUOTE_EVERY:
+            return []
+        self.last_quotes = now
+        try:
+            rows = self.broker.chain_snapshot("SPY")
+        except Exception as e:  # noqa: BLE001 - quotes are a record, never a reason to stop trading
+            return [f"Couldn't record quotes: {e}"]
+        for i in range(0, len(rows), 500):
+            self.store.insert("option_quotes", rows[i : i + 500])
+        return [f"Recorded {len(rows)} SPY option quotes"]
+
     # --- one cycle ---
     def cycle(self) -> list[str]:
         said: list[str] = []
@@ -184,6 +207,7 @@ class BotRunner:
                     self.bot.orders[bid].status = "cancelled"   # the app's kill switch dropped it (already recorded)
                     said.append(f"Order {r['id']}: cancelled by the kill switch")
         said += self.requests()
+        said += self.record_quotes()
         if isinstance(self.broker, PretendBroker):
             self.broker.step()   # the pretend market: working orders fill straight away, at their limit price
         pretend = " (pretend)" if isinstance(self.broker, PretendBroker) else ""

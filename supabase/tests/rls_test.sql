@@ -286,7 +286,7 @@ grant all on public.option_strategies, public.option_runs to anon, authenticated
 set role authenticated;
 set request.jwt.claim.sub = '00000000-0000-0000-0000-00000000000a';
 do $$ begin
-  if (select count(*) from public.option_strategies) <> 8 then raise exception 'FAIL: the 8 option strategies are not readable'; end if;
+  if (select count(*) from public.option_strategies) <> 13 then raise exception 'FAIL: the 13 option strategies are not readable'; end if;
   update public.option_strategies set enabled = false;
   if exists (select 1 from public.option_strategies where not enabled) then raise exception 'FAIL: the app changed an option strategy'; end if;
   begin
@@ -299,6 +299,18 @@ reset role;
 set role anon;
 do $$ begin
   if (select count(*) from public.option_strategies) <> 0 then raise exception 'FAIL: signed-out users read option strategies'; end if;
+end $$;
+reset role;
+
+-- Option quotes: signed-in users read; the app can't write.
+grant all on public.option_quotes to anon, authenticated;
+set role authenticated;
+set request.jwt.claim.sub = '00000000-0000-0000-0000-00000000000a';
+do $$ begin
+  begin
+    insert into public.option_quotes (taken_at, symbol, expiry, strike, "right", underlying) values (now(), 'SPY', '2026-11-20', 600, 'C', 600);
+    raise exception 'FAIL: the app wrote a quote';
+  exception when insufficient_privilege then null; end;
 end $$;
 reset role;
 
