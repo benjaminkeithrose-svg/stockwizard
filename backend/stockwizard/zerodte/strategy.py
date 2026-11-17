@@ -30,6 +30,10 @@ class Config:
     stop_delta: float | None = None    # close when a short leg's delta reaches this (0.35, 0.40, 0.50)
     exit_time: str | None = None       # close by this time (14:30, 15:00, 15:30)
     slippage: float = 0.0              # per leg, each way, beyond paying the bid-ask spread
+    dte: int = 0                       # the bot's multi-day trades (Ben, 18 Nov 2026), as in the option backtests: expires at the
+                                       # close `dte` trading days into the trade, counting the entry day (0 and 1 are both today)
+    short_atr: float | None = None     # condor shorts this many daily ranges (ATR 14) either side, as the option backtests place them,
+                                       # instead of by delta
 
     def entry_time(self) -> time:
         return time.fromisoformat(self.entry)

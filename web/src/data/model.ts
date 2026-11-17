@@ -320,6 +320,10 @@ export interface StrategyConfig {
   profit_target?: number | null;
   stop_mult?: number | null;
   exit_time?: string | null;
+  /** Multi-day: expires at the close this many trading days into the trade, counting the entry day (0 = same day). */
+  dte?: number;
+  /** Condor shorts this many daily ranges (ATR 14) either side, instead of by delta. */
+  short_atr?: number | null;
   [k: string]: unknown;
 }
 

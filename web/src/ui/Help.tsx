@@ -39,6 +39,7 @@ const SCREENS: [string, string[]][] = [
     "The kill switch stops all trading: it drops waiting orders, and the bot cancels anything working.",
     "Waiting: orders the bot has proposed. Tap one to approve or reject it. Approving doesn't send it straight away: the bot checks every limit again first.",
     "Strategies the bot runs: switch one on, and at its entry time each trading day the bot proposes the trade if the setup is there.",
+    "A strategy can expire the same day, in 3 or 9 trading days, or in about a month. Multi-day ones hold one position at a time overnight, take profit or stop whenever the bot checks, and settle at the expiry's close. The 3-day and 9-day condor presets are the ones in Backtests, Options.",
     "Limits: the most a trade or a day may lose, positions at once, capital at risk, and how old prices may be. While the daily limit is empty, every order is refused.",
     "Paper trading only. Live trading can't be turned on from the app.",
   ]],

@@ -16,6 +16,7 @@ class FakeStore:
     def __init__(self):
         self.tables: dict[str, list[dict]] = {"paper_orders": [], "audit_log": [], "safety_limits": [], "candles": [], "workspaces": []}
         self.next_id = 1
+        self.clock = None   # stamps like the database's now(); tests that move the clock set it
 
     @staticmethod
     def _match(row, query):
@@ -43,11 +44,13 @@ class FakeStore:
         out = []
         for r in rows:
             r = {**r}
+            now = (self.clock() if self.clock else NOW).isoformat()
             if table == "audit_log":
-                r.setdefault("at", NOW.isoformat())   # the database stamps every entry
+                r.setdefault("at", now)   # the database stamps every entry
             if table in ("paper_orders", "bot_requests"):
                 r.setdefault("id", self.next_id)
-                r["updated_at"] = NOW.isoformat()
+                r["updated_at"] = now
+                r.setdefault("created_at", now)
                 self.next_id += 1
             self.tables.setdefault(table, []).append(r)
             out.append(dict(r))

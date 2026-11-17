@@ -14,6 +14,13 @@ what the bot trades follows the same rules the research tests. Each cycle:
 3. Settle: after 16:00 New York on the expiry day, a position still open
    settles at its intrinsic value from the last price.
 
+Multi-day strategies (`dte` above 1; Ben, 18 Nov 2026) follow the option
+backtests: one position at a time, expiring at the close `dte` trading days
+into the trade, shorts placed by delta or by daily ranges (`short_atr`),
+priced with the VIX rather than VIX1D. They differ from the backtests in
+two ways: entry is at the strategy's entry time, not the open, and the
+profit target is checked every cycle, not only at each day's close.
+
 The market comes from a MarketView: the free source's 5-minute candles and
 the model's quotes with the pretend broker (prices are made up), or
 Interactive Brokers' bars and real quotes with the IBKR broker.
@@ -47,8 +54,11 @@ class MarketView(Protocol):
     def bars_today(self, instrument: str, now: datetime) -> pd.DataFrame | None:
         """Today's finished bars for the instrument's underlying (New York index), scaled to the instrument."""
 
-    def chain(self, instrument: str, now: datetime, spot: float, only: list | None = None) -> dict:
-        """Quotes for today's expiry (or just `only`)."""
+    def chain(self, instrument: str, now: datetime, spot: float, only: list | None = None, expiry: date | None = None) -> dict:
+        """Quotes for an expiry, today's by default (or just `only`)."""
+
+    def atr(self, instrument: str, day: date) -> float | None:
+        """ATR(14) of the daily candles before `day`, scaled to the instrument."""
 
     def vix_prev(self, day: date) -> float | None:
         """The VIX's close before `day`."""
@@ -91,11 +101,27 @@ class PretendMarket:
         prev = self.vix_prev(now.astimezone(NY).date() + timedelta(days=1))
         return prev / 100 if prev else 0.2
 
-    def chain(self, instrument, now, spot, only=None):
-        close = datetime.combine(now.astimezone(NY).date(), time(16, 0), NY)
-        left = max((close - now.astimezone(NY)).total_seconds(), 0)
-        vol = self._vol(now) * (1.2 if instrument == "QQQ" else 1.0)
+    def chain(self, instrument, now, spot, only=None, expiry=None):
+        today = now.astimezone(NY).date()
+        expiry = expiry or today
+        left = _seconds_to_expiry(now, expiry)
+        if expiry > today:   # multi-day: the VIX (30 days), as the option backtests price it
+            prev = self.vix_prev(today + timedelta(days=1))
+            vol = prev / 100 if prev else 0.2
+        else:
+            vol = self._vol(now)
+        vol *= 1.2 if instrument == "QQQ" else 1.0
         return self.quotes.chain(INSTRUMENTS[instrument], now, spot, left, vol, only=only)
+
+    def atr(self, instrument, day):
+        rows = self.store.select("candles", {"select": "ts,high,low,close", "symbol": f"eq.{UNDERLYING[instrument]}", "timeframe": "eq.1d",
+                                             "order": "ts.desc", "limit": "120"})
+        rows = [r for r in rows if pd.Timestamp(r["ts"]).tz_convert(NY).date() < day]
+        if len(rows) < 14:
+            return None
+        from stockwizard.option_backtest import atr14  # noqa: PLC0415
+        df = pd.DataFrame([{k: float(r[k]) for k in ("high", "low", "close")} for r in reversed(rows)])
+        return float(atr14(df).iloc[-1]) * INSTRUMENTS[instrument].scale
 
     def vix_prev(self, day):
         rows = self.store.select("candles", {"select": "ts,close", "symbol": "eq.^VIX", "timeframe": "eq.1d", "order": "ts.desc", "limit": "10"})
@@ -105,12 +131,29 @@ class PretendMarket:
         return None
 
 
+def _seconds_to_expiry(now: datetime, expiry: date) -> float:
+    """Trading seconds from now to the expiry's close: what's left of today's session plus 6.5 hours a session after it."""
+    ny = now.astimezone(NY)
+    today = max((datetime.combine(ny.date(), time(16, 0), NY) - max(ny, datetime.combine(ny.date(), time(9, 30), NY))).total_seconds(), 0)
+    return today + calendar.sessions_between(ny.date(), expiry) * 6.5 * 3600
+
+
 def _rail_legs(legs: tuple[Leg, ...]) -> tuple[RailLeg, ...]:
     return tuple(RailLeg(l.right, l.side, float(l.strike), 1) for l in legs)
 
 
 def _tick(x: float, tick: float, down: bool) -> float:
     return round((math.floor(x / tick + 1e-9) if down else math.ceil(x / tick - 1e-9)) * tick, 2)
+
+
+def _atr_condor(cfg: Config, chain: dict, spot: float, atr: float, step: float) -> tuple[Leg, ...] | None:
+    """An iron condor with shorts `short_atr` daily ranges either side of the price, on the strike grid."""
+    r = max(step, round(atr * cfg.short_atr / step) * step)
+    at = round(spot / step) * step
+    cw = cfg.call_width if cfg.call_width is not None else cfg.width
+    legs = (Leg("P", "buy", round(at - r - cfg.width, 2)), Leg("P", "sell", round(at - r, 2)),
+            Leg("C", "sell", round(at + r, 2)), Leg("C", "buy", round(at + r + cw, 2)))
+    return legs if all((l.right, l.strike) in chain for l in legs) else None
 
 
 class StrategyRunner:
@@ -122,8 +165,8 @@ class StrategyRunner:
 
     def _already_today(self, sid: str, day: date) -> bool:
         start = datetime.combine(day, time(0, 0), NY).astimezone(ZoneInfo("UTC")).isoformat()
-        if self.r.store.select("paper_orders", {"select": "id", "strategy_id": f"eq.{sid}", "expiry": f"eq.{day.isoformat()}"}):
-            return True   # same-day trades: one with today's expiry means today's is done
+        if self.r.store.select("paper_orders", {"select": "id", "strategy_id": f"eq.{sid}", "created_at": f"gte.{start}"}):
+            return True   # one proposed today
         skips = self.r.store.select("audit_log", {"select": "detail", "action": "eq.strategy_no_trade", "at": f"gte.{start}"})
         return any((s.get("detail") or {}).get("strategy") == sid for s in skips)
 
@@ -158,7 +201,7 @@ class StrategyRunner:
     def propose_due(self, now: datetime) -> list[str]:
         said = []
         ny = now.astimezone(NY)
-        if ny.weekday() >= 5:
+        if not calendar.is_trading_day(ny.date()):
             return said
         for st in self.strategies():
             cfg = Config.from_dict(st["config"])
@@ -168,8 +211,17 @@ class StrategyRunner:
             said.append(self._propose(st, cfg, ny))
         return said
 
+    def _open_position(self, sid: str) -> int | None:
+        for pid, p in self.r.bot.orders.items():
+            if self.r.strategy_of.get(pid, {}).get("id") == sid and p.status in ("proposed", "sent", "filled"):
+                return self.r.db_ids.get(pid)
+        return None
+
     def _propose(self, st: dict, cfg: Config, ny: datetime) -> str:
         day = ny.date()
+        expiry = calendar.trading_day_ahead(day, max(cfg.dte - 1, 0))
+        if expiry > day and (held := self._open_position(st["id"])) is not None:
+            return self._no_trade(st, f"order {held} is still open (one at a time)")
         if any(t in cfg.skip_tags for t in calendar.tags(day)):
             return self._no_trade(st, "a day the strategy skips")
         vix = self.market.vix_prev(day)
@@ -189,8 +241,14 @@ class StrategyRunner:
         if structure is None:
             return self._no_trade(st, f"no setup ({sig.direction} day)")
         inst = INSTRUMENTS[cfg.instrument]
-        chain = self.market.chain(cfg.instrument, ny, sig.price)
-        legs = legs_for(cfg, structure, chain, sig.price, inst.step) if chain else None
+        chain = self.market.chain(cfg.instrument, ny, sig.price, expiry=expiry)
+        if cfg.short_atr is not None and structure == "iron_condor":
+            atr = self.market.atr(cfg.instrument, day)
+            if atr is None:
+                return self._no_trade(st, "no daily range (ATR) to place the shorts")
+            legs = _atr_condor(cfg, chain, sig.price, atr, inst.step) if chain else None
+        else:
+            legs = legs_for(cfg, structure, chain, sig.price, inst.step) if chain else None
         if legs is None:
             return self._no_trade(st, "the strikes it needs aren't quoted")
         paid = _open_price(legs, chain, cfg.slippage)
@@ -201,9 +259,10 @@ class StrategyRunner:
             if credit <= 0 or credit < cfg.min_credit:
                 return self._no_trade(st, f"the credit (${credit:.2f}) is too small")
             price, kind = _tick(credit, inst.tick, down=True), "credit"
-        req = OrderRequest(symbol=cfg.instrument, structure=structure, expiry=day, legs=_rail_legs(legs), quantity=1,
+        req = OrderRequest(symbol=cfg.instrument, structure=structure, expiry=expiry, legs=_rail_legs(legs), quantity=1,
                            limit_price=price, price_kind=kind, prices_as_of=ny.astimezone(ZoneInfo("UTC")))
-        p = self.r.bot.propose(req, reason=f"{st['label']}: {sig.direction} at {cfg.entry}, {structure.replace('_', ' ')} "
+        held = f", expires {expiry:%a %d %b}" if expiry > day else ""
+        p = self.r.bot.propose(req, reason=f"{st['label']}: {sig.direction} at {cfg.entry}{held}, {structure.replace('_', ' ')} "
                                             f"{'/'.join(f'{l.strike:g}' for l in legs)}, {kind} ${price:.2f}")
         self.r.store.update("paper_orders", {"id": f"eq.{self.r.db_ids[p.id]}"}, {"strategy_id": st["id"]})
         self.r.strategy_of[p.id] = st
@@ -216,7 +275,7 @@ class StrategyRunner:
         ny = now.astimezone(NY)
         for pid, p in list(self.r.bot.orders.items()):
             st = self.r.strategy_of.get(pid)
-            if st is None or p.status != "filled" or p.request.expiry != ny.date():
+            if st is None or p.status != "filled" or p.request.expiry < ny.date() or not calendar.is_trading_day(ny.date()):
                 continue
             cfg = Config.from_dict(st["config"])
             legs = tuple(Leg(l.right, l.side, l.strike) for l in p.request.legs)
@@ -225,7 +284,7 @@ class StrategyRunner:
                 continue
             spot = float(bars["close"].iloc[-1])
             only = [(l.right, l.strike) for l in legs]
-            ch = self.market.chain(cfg.instrument, ny, spot, only=only)
+            ch = self.market.chain(cfg.instrument, ny, spot, only=only, expiry=p.request.expiry)
             mid = _mid_value(legs, ch)
             cost = _close_price(legs, ch, cfg.slippage)
             if mid is None or cost is None:
@@ -244,7 +303,7 @@ class StrategyRunner:
                 why = "short strike reached"
             elif cfg.stop_delta is not None and any(abs(ch[(l.right, round(l.strike, 2))].delta) >= cfg.stop_delta for l in shorts):
                 why = "delta"
-            elif cfg.exit_at() is not None and ny.time() >= cfg.exit_at():
+            elif cfg.exit_at() is not None and p.request.expiry == ny.date() and ny.time() >= cfg.exit_at():
                 why = "time"
             if why:
                 close_px = abs(cost)
@@ -305,10 +364,10 @@ class IBKRMarket:
         done = df[df.index + pd.Timedelta(minutes=5) <= now.astimezone(NY)]
         return done[done.index.date == now.astimezone(NY).date()]
 
-    def chain(self, instrument, now, spot, only=None):
+    def chain(self, instrument, now, spot, only=None, expiry=None):
         from stockwizard.zerodte.quotes import OptionQuote, bs  # noqa: PLC0415
         inst = INSTRUMENTS[instrument]
-        day = now.astimezone(NY).date()
+        day = expiry or now.astimezone(NY).date()
         if only is None:
             lo, hi = math.floor(spot * 0.96 / inst.step) * inst.step, math.ceil(spot * 1.04 / inst.step) * inst.step
             ks = [round(lo + i * inst.step, 2) for i in range(int((hi - lo) / inst.step) + 1)]
@@ -325,13 +384,16 @@ class IBKRMarket:
                 iv = getattr(g, "impliedVol", None) or 0.2
                 delta = getattr(g, "delta", None)
                 if delta is None or (isinstance(delta, float) and math.isnan(delta)):
-                    left = max((datetime.combine(day, time(16, 0), NY) - now.astimezone(NY)).total_seconds(), 0) / (252 * 6.5 * 3600)
+                    left = _seconds_to_expiry(now, day) / (252 * 6.5 * 3600)
                     delta = bs(c.right, spot, float(c.strike), left, iv)[1]
                 out[(c.right, round(float(c.strike), 2))] = OptionQuote(c.right, float(c.strike), float(t.bid), float(t.ask), iv, float(delta))
         return out
 
     def vix_prev(self, day):
         return PretendMarket.vix_prev(self, day)
+
+    def atr(self, instrument, day):
+        return PretendMarket.atr(self, instrument, day)
 
     def vol_now(self, now):
         """VIX1D from IBKR when the data is subscribed; otherwise the VIX's last close."""

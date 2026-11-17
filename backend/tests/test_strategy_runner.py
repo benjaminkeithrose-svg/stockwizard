@@ -22,9 +22,10 @@ class FakeMarket:
 
     def __init__(self, path=None, vix=16.0):
         self.path, self.vix = path or (lambda i, o: o * 1.0001), vix
+        self.expiries = []
 
     def bars_today(self, instrument, now):
-        start = datetime.combine(DAY, datetime.min.time(), NY).replace(hour=9, minute=30)
+        start = datetime.combine(now.astimezone(NY).date(), datetime.min.time(), NY).replace(hour=9, minute=30)
         rows, px, t = [], 600.0, start
         i = 0
         while t + timedelta(minutes=5) <= now.astimezone(NY) and t.hour < 16:
@@ -34,9 +35,13 @@ class FakeMarket:
             px, t, i = c, t + timedelta(minutes=5), i + 1
         return pd.DataFrame(rows).set_index("ts") if rows else None
 
-    def chain(self, instrument, now, spot, only=None):
-        close = datetime.combine(DAY, datetime.min.time(), NY).replace(hour=16)
-        return ModelQuotes().chain(INSTRUMENTS[instrument], now, spot, max((close - now.astimezone(NY)).total_seconds(), 0), 0.16, only=only)
+    def chain(self, instrument, now, spot, only=None, expiry=None):
+        from stockwizard.strategy_runner import _seconds_to_expiry  # noqa: PLC0415
+        self.expiries.append(expiry)
+        return ModelQuotes().chain(INSTRUMENTS[instrument], now, spot, _seconds_to_expiry(now, expiry or now.astimezone(NY).date()), 0.16, only=only)
+
+    def atr(self, instrument, day):
+        return 3.0
 
     def vix_prev(self, day):
         return self.vix
@@ -45,8 +50,8 @@ class FakeMarket:
         return 0.16
 
 
-def at(h, m):
-    return datetime.combine(DAY, datetime.min.time(), NY).replace(hour=h, minute=m).astimezone(timezone.utc)
+def at(h, m, day=DAY):
+    return datetime.combine(day, datetime.min.time(), NY).replace(hour=h, minute=m).astimezone(timezone.utc)
 
 
 def setup(cfg, limits=None, market=None):
@@ -54,6 +59,7 @@ def setup(cfg, limits=None, market=None):
     s.set_limits(**(limits or {**LIMITS, "max_loss_per_trade": 500, "max_capital_at_risk": 1000, "max_loss_per_day": 1000}))
     s.tables["bot_strategies"] = [{"id": "st-1", "owner": OWNER, "label": "XSP condor", "config": cfg, "enabled": True}]
     clock = {"t": at(10, 0)}
+    s.clock = lambda: clock["t"]
     r = BotRunner(s, OWNER, clock=lambda: clock["t"], market=market or FakeMarket())
     return s, r, clock
 
@@ -183,3 +189,68 @@ def test_the_today_snapshot_is_saved_during_the_session_only():
     assert sn["symbol"] == "SPY" and sn["vix1d"] == 16.0 and sn["vix"] == 16.0 and sn["source"] == "pretend"
     assert sn["or_high"] >= sn["or_low"] and sn["expected_move"] > 0 and sn["direction"] in ("bullish", "bearish", "neutral")
     assert sn["taken_at"].startswith("2026-11-18T16:30")
+
+
+# --- multi-day strategies (as the option backtests: one at a time, expiry `dte` trading days into the trade) ---
+
+from datetime import date  # noqa: E402
+
+AUTO = {**LIMITS, "approval_mode": "automatic", "max_loss_per_trade": 500, "max_capital_at_risk": 1000, "max_loss_per_day": 1000}
+THREE_DAY = {"instrument": "XSP", "structure": "iron_condor", "entry": "10:00", "short_delta": 0.15, "width": 2.0, "dte": 3}
+
+
+def test_a_three_day_condor_expires_two_sessions_on_skipping_the_weekend():
+    s, r, clock = setup(THREE_DAY)
+    clock["t"] = at(10, 5, date(2026, 11, 19))        # a Thursday: Thu, Fri, Mon
+    r.cycle()
+    o = s.tables["paper_orders"][0]
+    assert str(o["expiry"]).startswith("2026-11-23") and o["status"] == "proposed", o
+    assert r.strategies.market.expiries[-1] == date(2026, 11, 23), "priced for that expiry"
+
+
+def test_thanksgiving_is_skipped_both_ways():
+    s, r, clock = setup(THREE_DAY)
+    clock["t"] = at(10, 5, date(2026, 11, 26))        # Thanksgiving: no proposal at all
+    r.cycle()
+    assert not s.tables["paper_orders"]
+    clock["t"] = at(10, 5, date(2026, 11, 25))        # Wed, Fri, Mon
+    r.cycle()
+    assert str(s.tables["paper_orders"][0]["expiry"]).startswith("2026-11-30")
+
+
+def test_one_position_at_a_time_held_overnight_then_settled_at_expiry():
+    s, r, clock = setup(THREE_DAY, limits=AUTO)
+    clock["t"] = at(10, 5, date(2026, 11, 18))        # Wed → expires Fri 20th
+    r.cycle()
+    o = s.tables["paper_orders"][0]
+    assert o["status"] == "filled"
+    clock["t"] = at(16, 5, date(2026, 11, 18))
+    r.cycle()
+    assert o["status"] == "filled", "not settled before its expiry"
+    for d in (19, 20):
+        clock["t"] = at(10, 5, date(2026, 11, d))
+        said = r.cycle()
+        assert len(s.tables["paper_orders"]) == 1 and any("one at a time" in x for x in said), said
+    clock["t"] = at(16, 5, date(2026, 11, 20))
+    said = r.cycle()
+    assert o["status"] == "closed" and any("settled at the close" in x for x in said), said
+
+
+def test_a_multi_day_profit_target_closes_on_a_later_day():
+    s, r, clock = setup({**THREE_DAY, "profit_target": 0.5}, limits=AUTO, market=FakeMarket(path=lambda i, o: o))
+    clock["t"] = at(10, 5, date(2026, 11, 18))
+    r.cycle()
+    o = s.tables["paper_orders"][0]
+    clock["t"] = at(15, 0, date(2026, 11, 20))         # a flat market, most of the time value gone
+    said = r.cycle()
+    assert o["status"] == "closed" and o["pnl"] > 0 and any("profit target" in x for x in said), said
+
+
+def test_shorts_by_daily_range():
+    s, r, clock = setup({**THREE_DAY, "short_atr": 1.0, "width": 1.0}, market=FakeMarket(path=lambda i, o: o))
+    clock["t"] = at(10, 5, date(2026, 11, 18))
+    r.cycle()
+    legs = sorted(s.tables["paper_orders"][0]["legs"], key=lambda l: l["strike"])
+    spot = 600.0 * INSTRUMENTS["XSP"].scale
+    at_ = round(spot)
+    assert [l["strike"] for l in legs] == [at_ - 4, at_ - 3, at_ + 3, at_ + 4], legs   # ATR 3 either side, $1 wings
