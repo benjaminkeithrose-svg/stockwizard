@@ -8,6 +8,7 @@ import { useWorkspaces } from "../data/useWorkspaces";
 import ChartScreen from "./ChartScreen";
 import SafetyScreen from "./Safety";
 import AnalysisScreen from "./Analysis";
+import { OptionBacktestScreen } from "./OptionBacktests";
 import { structureLabel } from "../data/options";
 import { Back, Flask, Grid, Home, List, Radar, Spark } from "./icons";
 import ClaudePanel from "./ClaudePanel";
@@ -24,7 +25,7 @@ import SignIn from "./SignIn";
 import { useWatchlists, WatchlistScreen, WatchlistsScreen } from "./Watchlists";
 import { APP_BUILD } from "../config";
 
-type Screen = { name: "chart" } | { name: "scanner" } | { name: "pages" } | { name: "card" } | { name: "backtests" } | { name: "backtest"; id: string } | { name: "watchlists" } | { name: "safety" } | { name: "analysis"; id: string } | { name: "watchlist"; list: Watchlist };
+type Screen = { name: "chart" } | { name: "scanner" } | { name: "pages" } | { name: "card" } | { name: "backtests" } | { name: "backtest"; id: string } | { name: "watchlists" } | { name: "safety" } | { name: "analysis"; id: string } | { name: "optbacktest"; id: string } | { name: "watchlist"; list: Watchlist };
 
 export function makeStore(): Store {
   return new URLSearchParams(location.search).has("demo") ? new DemoStore() : new SupabaseStore();
@@ -99,13 +100,13 @@ function SignedIn({ store, user }: { store: Store; user: User }) {
 
   const back = screen.name === "watchlist" ? () => setScreen({ name: "watchlists" })
     : screen.name === "card" ? () => setScreen({ name: "pages" })
-    : screen.name === "backtest" ? () => setScreen({ name: "backtests" })
+    : screen.name === "backtest" || screen.name === "optbacktest" ? () => setScreen({ name: "backtests" })
     : screen.name === "backtests" ? () => setScreen({ name: "chart" })
     : screen.name === "watchlists" || screen.name === "scanner" || screen.name === "pages" || screen.name === "safety" || screen.name === "analysis" ? () => setScreen({ name: "chart" }) : undefined;
   const title = screen.name === "chart" ? "Stock Wizard" : screen.name === "scanner" ? "Scanner"
     : screen.name === "pages" ? "Chart pages" : screen.name === "backtests" ? "Backtests"
     : screen.name === "backtest" ? (strategyLabels[screen.id] ?? "Backtest") : screen.name === "card" ? (ws.active?.name ?? "Chart")
-    : screen.name === "watchlists" ? "Watchlists" : screen.name === "safety" ? "Safety" : screen.name === "analysis" ? (analysing ? `${structureLabel(analysing.structure)} · ${analysing.symbol}` : "Analysis") : screen.list.name;
+    : screen.name === "watchlists" ? "Watchlists" : screen.name === "optbacktest" ? "Option backtest" : screen.name === "safety" ? "Safety" : screen.name === "analysis" ? (analysing ? `${structureLabel(analysing.structure)} · ${analysing.symbol}` : "Analysis") : screen.list.name;
   // Open a symbol and timeframe in the current tab; a tab still on its automatic name follows.
   const openOnChart = (s: string, tf?: Timeframe) => {
     const w = ws.active;
@@ -149,7 +150,9 @@ function SignedIn({ store, user }: { store: Store; user: User }) {
             }
           }} />
       )}
-      {screen.name === "backtests" && <BacktestsScreen store={store} onOpen={(id) => setScreen({ name: "backtest", id })} />}
+      {screen.name === "backtests" && <BacktestsScreen store={store} onOpen={(id) => setScreen({ name: "backtest", id })} onOpenOption={(id) => setScreen({ name: "optbacktest", id })} />
+      }
+      {screen.name === "optbacktest" && <OptionBacktestScreen store={store} id={screen.id} />}
       {screen.name === "backtest" && <BacktestScreen store={store} id={screen.id} />}
       {screen.name === "pages" && (
         <PagesScreen store={store} views={views} ws={ws} positions={pos.list} onOpen={(id) => { ws.setActiveId(id); setScreen({ name: "card" }); }} />

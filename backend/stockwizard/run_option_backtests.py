@@ -1,0 +1,113 @@
+"""Run the saved option-structure strategies and save each run.
+
+    python -m stockwizard.run_option_backtests                 # every enabled one
+    python -m stockwizard.run_option_backtests --strategy ic_9d_take50
+    python -m stockwizard.run_option_backtests --rerun 3      # repeat run 3, say whether it matches
+
+Same record as the other backtests: settings, as_of, start and split, code
+version, source, fingerprints of the candles and the results. A later run of
+a strategy with different settings marks its held-back years burned, as the
+stock backtests do.
+"""
+
+from __future__ import annotations
+
+import argparse
+import sys
+
+import pandas as pd
+
+from stockwizard import __version__
+from stockwizard.backtest import fingerprint
+from stockwizard.data.store import SupabaseStore
+from stockwizard.option_backtest import OptionStrategy, report, run
+from stockwizard.run_backtests import WARM_UP, read_range
+from stockwizard.scan import candles_fingerprint
+
+CODE = f"{__version__}+options1"
+
+
+class OptionBacktester:
+    def __init__(self, store):
+        self.store = store
+
+    def compute(self, cfg: dict, start, split, as_of: pd.Timestamp, source: str | None = None) -> dict:
+        s = OptionStrategy.from_config(cfg)
+        start_ts = pd.Timestamp(start, tz="UTC")
+        spy, src = read_range(self.store, "SPY", start_ts - WARM_UP, as_of, source)
+        vix, _ = read_range(self.store, "^VIX", start_ts - WARM_UP, as_of, source)
+        res = run(s, spy, vix, pd.Timestamp(start).date())
+        rep = report(res, pd.Timestamp(split).date(), s)
+        trades = [t.row() for t in res["trades"]]
+        return {
+            "source": src,
+            "data_hash": candles_fingerprint({"SPY": spy, "^VIX": vix}),
+            "result_hash": fingerprint({"trades": trades, "report": rep}),
+            "report": rep,
+            "trades": trades,
+        }
+
+    def burned(self, strat: dict, config_hash: str) -> bool:
+        earlier = self.store.select("option_runs", {"select": "config_hash", "strategy_id": f"eq.{strat['id']}", "trigger": "neq.rerun"})
+        return any(r["config_hash"] != config_hash for r in earlier)
+
+    def save(self, strat: dict, cfg: dict, as_of, out: dict, trigger: str, burned: bool, notes: str | None = None) -> int:
+        row = self.store.insert("option_runs", [{
+            "strategy_id": strat["id"], "strategy_version": strat["version"], "config": cfg, "config_hash": fingerprint(cfg),
+            "as_of": as_of.isoformat(), "start_date": strat["start_date"], "split_date": strat["split_date"], "code_version": CODE,
+            "source": out["source"], "data_hash": out["data_hash"], "result_hash": out["result_hash"], "report": out["report"],
+            "trades": out["trades"], "held_back_burned": burned, "trigger": trigger, "notes": notes,
+        }], returning=True)
+        return row[0]["id"]
+
+    def run(self, ids: list[str] | None = None, as_of: pd.Timestamp | None = None) -> list[str]:
+        as_of = as_of or pd.Timestamp.now(tz="UTC").floor("s")
+        lines = []
+        for st in self.store.select("option_strategies", {"select": "*", "enabled": "eq.true", "order": "position"}):
+            if ids and st["id"] not in ids:
+                continue
+            out = self.compute(st["config"], st["start_date"], st["split_date"], as_of)
+            burned = self.burned(st, fingerprint(st["config"]))
+            rid = self.save(st, st["config"], as_of, out, "manual", burned)
+            b, h = out["report"]["build"], out["report"]["held_back"]
+            fmt = lambda m: f"{m['trades']} trades, {m['win_rate']:.0f}% won, ${m['expectancy']:+.2f} a trade" if m["trades"] else "no trades"  # noqa: E731
+            lines.append(f"{st['id']}: run {rid}. Build {fmt(b)}; held back {fmt(h)}" + (" [held-back burned]" if burned else ""))
+        return lines
+
+    def rerun(self, run_id: int) -> str:
+        old = self.store.select("option_runs", {"select": "*", "id": f"eq.{run_id}"})
+        if not old:
+            raise SystemExit(f"No option run {run_id}")
+        old = old[0]
+        if old["code_version"] != CODE:
+            return f"Run {run_id} was made with {old['code_version']}; this is {CODE}. Not comparable."
+        st = self.store.select("option_strategies", {"select": "*", "id": f"eq.{old['strategy_id']}"})[0]
+        out = self.compute(old["config"], old["start_date"], old["split_date"], pd.Timestamp(old["as_of"]), source=old["source"])
+        if out["data_hash"] != old["data_hash"]:
+            verdict = f"the candles have changed since run {run_id}, so the results can't be compared"
+        elif out["result_hash"] == old["result_hash"]:
+            verdict = f"identical to run {run_id}"
+        else:
+            verdict = f"DIFFERENT from run {run_id} on the same candles: a bug to investigate"
+        st = {**st, "version": old["strategy_version"], "start_date": old["start_date"], "split_date": old["split_date"]}
+        new_id = self.save(st, old["config"], pd.Timestamp(old["as_of"]), out, "rerun", old["held_back_burned"], notes=f"Re-run of {run_id}: {verdict}")
+        return f"Re-run {new_id} of run {run_id}: {verdict}."
+
+
+def main(argv: list[str] | None = None) -> int:
+    p = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    p.add_argument("--strategy", action="append")
+    p.add_argument("--rerun", type=int)
+    a = p.parse_args(argv)
+    bt = OptionBacktester(SupabaseStore())
+    if a.rerun:
+        v = bt.rerun(a.rerun)
+        print(v)
+        return 1 if "DIFFERENT" in v else 0
+    for line in bt.run(a.strategy):
+        print(line)
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

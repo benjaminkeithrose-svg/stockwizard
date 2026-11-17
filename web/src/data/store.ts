@@ -7,7 +7,7 @@ import { Candles, emptyCandles, madeUpCandles, Timeframe } from "./candles";
 import type { ClaudeMessage, ClaudeReply } from "./claude";
 import type { OptionPosition } from "./options";
 import { analyse, historicalVol, positionAt } from "./pricing";
-import { BacktestRun, BacktestTrade, BotRequest, ChartView, DEFAULT_FAVOURITES, DEFAULT_LIMITS, PaperOrder, PatternRun, SafetyLimits, UserSettings, ScanDef, ScanResult, ScanRun, StrategyDef, SymbolInfo, Watchlist, Workspace } from "./model";
+import { BacktestRun, BacktestTrade, BotRequest, OptionRun, OptionStrategyDef, OptionTradeRow, ChartView, DEFAULT_FAVOURITES, DEFAULT_LIMITS, PaperOrder, PatternRun, SafetyLimits, UserSettings, ScanDef, ScanResult, ScanRun, StrategyDef, SymbolInfo, Watchlist, Workspace } from "./model";
 import { SUPABASE_KEY, SUPABASE_URL } from "../config";
 
 export interface User {
@@ -64,6 +64,10 @@ export interface Store {
   backtestTrades(runId: number): Promise<BacktestTrade[]>;
   /** The latest pattern lab run (not a re-run check), with the patterns it kept. */
   latestPatternRun(): Promise<PatternRun | null>;
+  /** Option-structure backtests: the strategies, the latest run of each (without its trades), and one run's trades. */
+  optionStrategies(): Promise<OptionStrategyDef[]>;
+  latestOptionRuns(): Promise<Record<string, OptionRun>>;
+  optionTrades(runId: number): Promise<OptionTradeRow[]>;
 
   /** Send the conversation to Claude (the Supabase function); get back its new turns and actions for the app. */
   askClaude(messages: ClaudeMessage[]): Promise<ClaudeReply>;
@@ -304,6 +308,23 @@ export class SupabaseStore implements Store {
       for (const { run_id, ...m } of rows) byId.get(run_id)?.metrics.push(m);
     }
     return latest;
+  }
+
+  async optionStrategies() {
+    return this.check(await this.sb.from("option_strategies").select("*").eq("enabled", true).order("position")) as OptionStrategyDef[];
+  }
+
+  async latestOptionRuns() {
+    const rows = this.check(await this.sb.from("option_runs").select("id,strategy_id,ran_at,source,split_date,held_back_burned,report")
+      .neq("trigger", "rerun").order("ran_at", { ascending: false }).limit(200)) as OptionRun[];
+    const out: Record<string, OptionRun> = {};
+    for (const r of rows) if (!out[r.strategy_id]) out[r.strategy_id] = r;
+    return out;
+  }
+
+  async optionTrades(runId: number) {
+    const rows = this.check(await this.sb.from("option_runs").select("trades").eq("id", runId)) as { trades: OptionTradeRow[] }[];
+    return rows[0]?.trades ?? [];
   }
 
   async latestPatternRun() {
@@ -598,6 +619,33 @@ export class DemoStore implements Store {
       ],
     });
     return { demo_a: run(1, "demo_a"), demo_b: run(2, "demo_b", ["Few trades: the win-rate ranges are wide, so treat the win rates as rough."]) };
+  }
+
+  async optionStrategies(): Promise<OptionStrategyDef[]> {
+    return [
+      { id: "demo_ic", label: "Made-up 9-day iron condor", family: "demo", config: { structure: "iron_condor", dte: 9, manage: "expiry", wing: 5, short_atr: 1 },
+        start_date: "2006-01-02", split_date: "2021-11-17", position: 0, notes: "Made-up results" },
+    ];
+  }
+
+  async latestOptionRuns(): Promise<Record<string, OptionRun>> {
+    const m = (trades: number, win_rate: number, expectancy: number) => ({
+      trades, wins: Math.round((trades * win_rate) / 100), win_rate, next_100_wins_low: win_rate - 8, next_100_wins_high: win_rate + 8,
+      avg_win: 95, avg_loss: -210, expectancy, total_pnl: expectancy * trades, max_drawdown: -1450, worst_trade: -430,
+      profit_factor: 1.2, avg_return_on_risk: 6.5, longest_losing_streak: 4, take_profit_exits: 0 });
+    return { demo_ic: { id: 1, strategy_id: "demo_ic", ran_at: "2026-11-18T09:00:00Z", source: "made-up", split_date: "2021-11-17", held_back_burned: false,
+      report: { build: m(445, 64, 38.85), held_back: m(138, 51, 30.86), warnings: ["Modelled prices: Black-Scholes with the VIX as volatility."], skipped: {} } } };
+  }
+
+  async optionTrades(): Promise<OptionTradeRow[]> {
+    const legs = [{ right: "P" as const, side: "buy" as const, strike: 389, qty: 1 }, { right: "P" as const, side: "sell" as const, strike: 394, qty: 1 },
+      { right: "C" as const, side: "sell" as const, strike: 406, qty: 1 }, { right: "C" as const, side: "buy" as const, strike: 411, qty: 1 }];
+    return Array.from({ length: 40 }, (_, i) => {
+      const d = new Date(Date.UTC(2020, 0, 2 + i * 14)).toISOString().slice(0, 10);
+      const pnl = i % 3 === 2 ? -230 : 95;
+      return { signal_day: d, entry_day: d, expiry_day: d, exit_day: d, spot_in: 400, spot_out: 400 + (pnl < 0 ? 9 : 1), legs, vol: 0.18,
+        credit: 1.05, exit_cost: pnl < 0 ? 3.3 : 0, pnl, max_loss: 395, exit_reason: "expiry" as const };
+    });
   }
 
   async latestPatternRun(): Promise<PatternRun | null> {
