@@ -41,3 +41,6 @@ export const Grid = () => (
 export const Flask = () => (
   <svg className="ic" viewBox="0 0 24 24" aria-hidden="true"><path {...P} d="M9 3h6M10 3v6L4.5 19a1.5 1.5 0 0 0 1.3 2h12.4a1.5 1.5 0 0 0 1.3-2L14 9V3M7.5 14h9" /></svg>
 );
+export const Spark = () => (
+  <svg className="ic" viewBox="0 0 24 24" aria-hidden="true"><path {...P} d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8L12 3zM19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8L19 15z" /></svg>
+);

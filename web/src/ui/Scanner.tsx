@@ -12,6 +12,7 @@ const TABS: [ScanDef["tab"], string][] = [
   ["squeeze_fired", "Fired"],
   ["breakout", "Breakouts"],
   ["spy", "SPY"],
+  ["custom", "Mine"],
 ];
 
 const n = (v: number | null | undefined, digits = 2) =>
@@ -65,12 +66,12 @@ export default function ScannerScreen(props: { store: Store; onOpen: (symbol: st
 
   const inTab = useMemo(() => scans.filter((s) => s.tab === tab).sort((a, b) => a.position - b.position), [scans, tab]);
   const timeframes = [...new Set(inTab.map((s) => s.timeframe))];
-  const shown = tab === "spy" ? inTab : inTab.filter((s) => s.timeframe === (timeframes.includes(tf) ? tf : timeframes[0]));
+  const shown = tab === "spy" || tab === "custom" ? inTab : inTab.filter((s) => s.timeframe === (timeframes.includes(tf) ? tf : timeframes[0]));
 
   return (
     <div className="list">
       <div className="seg" role="group" aria-label="Scan" style={{ marginBottom: 8 }}>
-        {TABS.map(([id, label]) => (
+        {TABS.filter(([id]) => id !== "custom" || scans.some((s) => s.tab === "custom")).map(([id, label]) => (
           <button key={id} className={tab === id ? "on" : ""} aria-pressed={tab === id} onClick={() => setTab(id)}>{label}</button>
         ))}
       </div>
@@ -88,7 +89,7 @@ export default function ScannerScreen(props: { store: Store; onOpen: (symbol: st
         const run = runs[scan.id];
         return (
           <section key={scan.id}>
-            {tab === "spy" && <h2>{scan.label.replace(/^SPY /, "")}</h2>}
+            {(tab === "spy" || tab === "custom") && <h2>{scan.label.replace(/^SPY /, "")}</h2>}
             {!run ? (
               <p className="empty">Not run yet. Scans run after each US trading day's close.</p>
             ) : (
