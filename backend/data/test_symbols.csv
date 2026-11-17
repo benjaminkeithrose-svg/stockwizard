@@ -4,6 +4,7 @@ QQQ,US,etf,true,Invesco QQQ
 IWM,US,etf,true,iShares Russell 2000 ETF
 ^VIX,US,index,false,CBOE Volatility Index
 ^VIX3M,US,index,false,CBOE 3-Month Volatility Index
+^VIX1D,US,index,false,CBOE 1-Day Volatility Index
 AAPL,US,stock,true,Apple
 MSFT,US,stock,true,Microsoft
 BHP.AX,ASX,stock,false,BHP Group
