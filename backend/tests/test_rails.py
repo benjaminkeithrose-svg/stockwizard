@@ -198,7 +198,25 @@ def test_rail_6_kill_switch_set_in_the_app_is_acted_on():
     run.limits = replace(run.limits, kill_switch=True)
     run.bot.watch()
     assert run.broker.orders[sent.broker_id].status == "cancelled"
+    assert "kill_switch_acted" in run.actions()
     blocked(Run(run.limits), condor(), "kill_switch")
+
+
+def test_rail_6_turning_the_kill_switch_off_in_the_app_resumes_trading():
+    run = Run(replace(SET, kill_switch=True))
+    run.bot.watch()
+    assert run.bot.propose(condor()).status == "refused"
+    run.limits = replace(run.limits, kill_switch=False)
+    run.bot.watch()
+    assert "trading_resumed" in run.actions()
+    assert run.bot.propose(condor()).status == "proposed"
+
+
+def test_rail_6_a_kill_from_the_bot_itself_is_not_lifted_by_the_app():
+    run = Run()
+    run.bot.kill()
+    run.bot.watch()  # the app's switch is off, but the bot's own kill stands
+    assert any(r.rail == "kill_switch" for r in run.bot.propose(condor()).refusals)
 
 
 # --- 7. approval mode ---
@@ -214,6 +232,20 @@ def test_rail_7_nothing_is_sent_until_ben_approves():
     run.bot.approve(p.id)
     assert p.status == "sent" and run.sent() == 1
     assert run.actions() == ["order_proposed", "order_approved", "order_sent"]
+
+
+def test_rail_7_approval_requotes_then_checks_again():
+    run = Run()
+    p = run.bot.propose(condor())
+    run.now = NOW + timedelta(minutes=5)
+    # A fresh quote at approval: still $40 at risk, so it goes.
+    run.bot.requote = lambda req: replace(req, prices_as_of=run.now)
+    assert run.bot.approve(p.id).status == "sent"
+    # A fresh quote that has moved: now $60 at risk, so it's refused.
+    q = run.bot.propose(condor(prices_as_of=run.now))
+    run.bot.requote = lambda req: replace(req, limit_price=4.4, prices_as_of=run.now)
+    q = run.bot.approve(q.id)
+    assert q.status == "refused" and any(r.rail == "per_trade" for r in q.refusals) and run.sent() == 1
 
 
 def test_rail_7_a_rejected_proposal_is_never_sent():

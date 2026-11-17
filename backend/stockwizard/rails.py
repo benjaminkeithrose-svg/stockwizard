@@ -21,7 +21,7 @@ on one expiry, whole contracts, and a broker that is connected and reconciled.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from typing import Literal
 
 MULTIPLIER = 100  # shares per US equity option contract
@@ -189,3 +189,28 @@ def check(order: OrderRequest, limits: Limits, book: Book, now: datetime) -> lis
         if sage > limits.max_data_age_seconds:
             r.append(Refusal("stale_data", f"The signal is {sage:.0f} seconds old; the limit is {limits.max_data_age_seconds}."))
     return r
+
+
+def request_to_dict(o: OrderRequest) -> dict:
+    """An order as plain data (for the database and the pretend broker)."""
+    return {
+        "symbol": o.symbol, "structure": o.structure, "expiry": o.expiry.isoformat(),
+        "legs": [{"right": l.right, "side": l.side, "strike": l.strike, "qty": l.qty} for l in o.legs],
+        "quantity": o.quantity, "limit_price": o.limit_price, "price_kind": o.price_kind,
+        "prices_as_of": o.prices_as_of.isoformat(), "signal_as_of": o.signal_as_of.isoformat() if o.signal_as_of else None,
+    }
+
+
+def request_from_dict(d: dict) -> OrderRequest:
+    def when(v):
+        if v is None:
+            return None
+        t = datetime.fromisoformat(str(v).replace("Z", "+00:00"))
+        return t if t.tzinfo else t.replace(tzinfo=timezone.utc)
+
+    return OrderRequest(
+        symbol=d["symbol"], structure=d["structure"], expiry=date.fromisoformat(str(d["expiry"])[:10]),
+        legs=tuple(Leg(l["right"], l["side"], float(l["strike"]), int(l.get("qty", 1))) for l in d["legs"]),
+        quantity=int(d["quantity"]), limit_price=None if d.get("limit_price") is None else float(d["limit_price"]),
+        price_kind=d["price_kind"], prices_as_of=when(d["prices_as_of"]), signal_as_of=when(d.get("signal_as_of")),
+    )

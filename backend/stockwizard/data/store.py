@@ -104,6 +104,15 @@ class SupabaseStore:
             raise RuntimeError(f"Supabase refused writing {table}: HTTP {status} {body[:300]!r}")
         return json.loads(body) if returning and body else []
 
+    def update(self, table: str, match: dict[str, str], values: dict) -> list[dict]:
+        """Change the rows matching `match` (PostgREST filters, e.g. {"id": "eq.5"}); returns them as changed."""
+        headers = {**self._headers(), "Prefer": "return=representation"}
+        url = f"{self.url}/rest/v1/{table}?{urllib.parse.urlencode(match)}"
+        status, body = self.send("PATCH", url, headers, _json(values))
+        if status >= 300:
+            raise RuntimeError(f"Supabase refused updating {table}: HTTP {status} {body[:300]!r}")
+        return json.loads(body) if body else []
+
     def read_candles(self, symbol: str, timeframe: str, source: str, before: pd.Timestamp, count: int) -> pd.DataFrame:
         """The last `count` candles that opened before `before`, oldest first, as a candle frame."""
         rows = self.select(
