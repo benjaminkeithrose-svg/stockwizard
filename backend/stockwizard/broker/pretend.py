@@ -7,7 +7,9 @@ Gateway's daily restart.
 
 from __future__ import annotations
 
-from itertools import count
+import secrets
+from dataclasses import replace
+from datetime import datetime, timezone
 
 from stockwizard.rails import OrderRequest
 
@@ -17,9 +19,11 @@ from .base import Broker, BrokerOrder
 class PretendBroker(Broker):
     is_live = False
 
-    def __init__(self):
-        self._ids = count(1)
-        self.orders: dict[str, BrokerOrder] = {}
+    def __init__(self, remembered: list[BrokerOrder] | None = None, clock=lambda: datetime.now(timezone.utc)):
+        """`remembered`: orders it already holds. A pretend broker has no memory of its own between runs,
+        so the runner hands it the paper orders the database says were sent or filled."""
+        self.orders: dict[str, BrokerOrder] = {o.broker_id: o for o in remembered or []}
+        self.clock = clock
         self.calls: list[tuple[str, str]] = []   # (what, broker_id)
         self._up = True
 
@@ -31,7 +35,7 @@ class PretendBroker(Broker):
             raise ConnectionError("pretend broker is disconnected")
         if order.order_type != "limit":
             raise ValueError("pretend broker takes limit orders only")
-        bid = f"P{next(self._ids)}"
+        bid = f"P-{secrets.token_hex(4)}"
         self.orders[bid] = BrokerOrder(bid, order, "working")
         self.calls.append(("place", bid))
         return bid
@@ -47,6 +51,18 @@ class PretendBroker(Broker):
 
     def positions(self) -> list[BrokerOrder]:
         return [o for o in self.orders.values() if o.status == "filled"]
+
+    def quote(self, order: OrderRequest) -> OrderRequest:
+        """A pretend quote: the same price, stamped now. The real adapter asks the market."""
+        return replace(order, prices_as_of=self.clock())
+
+    def step(self) -> list[str]:
+        """Pretend the market moved: every working order fills at its limit price."""
+        done = []
+        for o in self.open_orders():
+            self.fill(o.broker_id)
+            done.append(o.broker_id)
+        return done
 
     # --- for tests ---
     def fill(self, broker_id: str, price: float | None = None) -> None:

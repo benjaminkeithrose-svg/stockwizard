@@ -33,6 +33,8 @@ class Proposal:
     refusals: list[Refusal] = field(default_factory=list)
     broker_id: str | None = None
     pnl: float | None = None
+    reason: str | None = None        # why the bot proposed it, in plain words
+    fill_price: float | None = None
 
 
 def _describe(req: OrderRequest) -> dict:
@@ -46,13 +48,19 @@ def _describe(req: OrderRequest) -> dict:
 
 class Bot:
     def __init__(self, broker: Broker, limits: Callable[[], Limits], audit: Audit,
-                 clock: Callable[[], datetime] = lambda: datetime.now(timezone.utc)):
+                 clock: Callable[[], datetime] = lambda: datetime.now(timezone.utc),
+                 on_change: Callable[[Proposal], None] | None = None,
+                 requote: Callable[[OrderRequest], OrderRequest] | None = None):
+        """`on_change` is told of every change to an order (the runner saves it);
+        `requote` refreshes an order's price just before it is sent after approval."""
         if broker.is_live:
             raise LiveTradingDisabled("Live trading is disabled. The bot only runs against a paper or pretend account.")
         self.broker, self._limits, self.audit, self.clock = broker, limits, audit, clock
         self.orders: dict[int, Proposal] = {}
         self._ids = count(1)
         self.killed = False
+        self._kill_from_limits = False
+        self.on_change, self.requote = on_change, requote
         self.reconciled = True
         self.realised_loss_today = 0.0
 
@@ -70,15 +78,27 @@ class Bot:
             reconciled=self.reconciled,
         )
 
+    def _changed(self, p: Proposal) -> None:
+        if self.on_change:
+            self.on_change(p)
+
+    def adopt(self, p: Proposal) -> Proposal:
+        """Take back an order from storage after a restart."""
+        p.id = next(self._ids)
+        self.orders[p.id] = p
+        return p
+
     def _refuse(self, p: Proposal, refusals: list[Refusal], when: str) -> Proposal:
         p.status, p.refusals = "refused", refusals
+        self._changed(p)
         self.audit("bot", "order_refused", {"order": p.id, "when": when, "refusals": [asdict(r) for r in refusals]})
         return p
 
     # --- orders ---
-    def propose(self, req: OrderRequest) -> Proposal:
-        p = Proposal(next(self._ids), req, "proposed", max_loss(req))
+    def propose(self, req: OrderRequest, reason: str | None = None) -> Proposal:
+        p = Proposal(next(self._ids), req, "proposed", max_loss(req), reason=reason)
         self.orders[p.id] = p
+        self._changed(p)
         self.audit("bot", "order_proposed", {"order": p.id, "request": _describe(req), "max_loss": p.max_loss})
         lim = self.limits()
         refusals = check(req, lim, self.book(), self.clock())
@@ -88,23 +108,32 @@ class Bot:
             return self._send(p, approved_by="automatic")
         return p  # waits for Ben
 
-    def approve(self, order_id: int) -> Proposal:
+    def approve(self, order_id: int, recorded: bool = False) -> Proposal:
+        """Ben approved. `recorded`: the approval is already in the audit log (made in the app)."""
         p = self.orders[order_id]
         if p.status != "proposed":
             raise ValueError(f"Order {order_id} is {p.status}, not waiting for approval")
+        if self.requote:
+            # A fresh price first: the one it was proposed at is likely old by now.
+            p.request = self.requote(p.request)
+            p.max_loss = max_loss(p.request)
+            self.audit("bot", "order_requoted", {"order": p.id, "limit_price": p.request.limit_price, "max_loss": p.max_loss})
         # Checked again: prices may have gone stale, or the day's losses grown, since it was proposed.
         refusals = check(p.request, self.limits(), self.book(), self.clock())
         if refusals:
             return self._refuse(p, refusals, "approval")
-        self.audit("ben", "order_approved", {"order": p.id})
+        if not recorded:
+            self.audit("ben", "order_approved", {"order": p.id})
         return self._send(p, approved_by="ben")
 
-    def reject(self, order_id: int) -> Proposal:
+    def reject(self, order_id: int, recorded: bool = False) -> Proposal:
         p = self.orders[order_id]
         if p.status != "proposed":
             raise ValueError(f"Order {order_id} is {p.status}, not waiting for approval")
         p.status = "rejected"
-        self.audit("ben", "order_rejected", {"order": p.id})
+        if not recorded:
+            self.audit("ben", "order_rejected", {"order": p.id})
+        self._changed(p)
         return p
 
     def _send(self, p: Proposal, approved_by: str) -> Proposal:
@@ -112,15 +141,18 @@ class Bot:
             p.broker_id = self.broker.place(p.request)
         except Exception as e:  # noqa: BLE001 - any broker failure stops this order and is recorded
             p.status = "failed"
+            self._changed(p)
             self.audit("bot", "order_failed", {"order": p.id, "error": str(e)})
             return p
         p.status = "sent"
+        self._changed(p)
         self.audit("bot", "order_sent", {"order": p.id, "broker_id": p.broker_id, "approved_by": approved_by})
         return p
 
     def record_fill(self, order_id: int, price: float) -> None:
         p = self.orders[order_id]
-        p.status = "filled"
+        p.status, p.fill_price = "filled", price
+        self._changed(p)
         self.audit("bot", "order_filled", {"order": p.id, "price": price})
 
     def record_close(self, order_id: int, pnl: float) -> None:
@@ -129,6 +161,7 @@ class Bot:
         p.status, p.pnl = "closed", pnl
         if pnl < 0:
             self.realised_loss_today += -pnl
+        self._changed(p)
         self.audit("bot", "position_closed", {"order": p.id, "pnl": pnl, "realised_loss_today": self.realised_loss_today})
 
     def new_day(self) -> None:
@@ -136,7 +169,7 @@ class Bot:
         self.audit("bot", "new_day", {})
 
     # --- the kill switch ---
-    def kill(self, by: str = "ben") -> dict:
+    def kill(self, by: str = "ben", action: str = "kill_switch") -> dict:
         """Cancel every working order, drop every waiting proposal, block new orders. Recorded."""
         self.killed = True
         cancelled = []
@@ -146,14 +179,21 @@ class Bot:
         for p in self.orders.values():
             if p.status == "proposed" or (p.status == "sent" and p.broker_id in cancelled):
                 p.status = "cancelled"
+                self._changed(p)
         out = {"cancelled_at_broker": cancelled, "proposals_dropped": sum(1 for p in self.orders.values() if p.status == "cancelled")}
-        self.audit(by, "kill_switch", out)
+        self.audit(by, action, out)
         return out
 
     def watch(self) -> None:
         """Run each cycle: acts on a kill switch set elsewhere (the app), and stops trading on a disconnect."""
-        if self._limits().kill_switch and not self.killed:
-            self.kill(by="ben")
+        on = self._limits().kill_switch
+        if on and not self.killed:
+            self._kill_from_limits = True
+            self.kill(by="bot", action="kill_switch_acted")
+        elif not on and self.killed and self._kill_from_limits:
+            # Ben turned trading back on in the app (that change is audited by the database).
+            self.killed = self._kill_from_limits = False
+            self.audit("bot", "trading_resumed", {})
         if not self.broker.connected() and self.reconciled:
             self.reconciled = False
             self.audit("bot", "broker_disconnected", {})
@@ -169,7 +209,8 @@ class Bot:
             if p is None:
                 problems.append(f"The broker has {o.status} order {o.broker_id} that the bot didn't send.")
             elif o.status == "filled" and p.status == "sent":
-                p.status = "filled"  # filled while we were away: take the broker's word
+                p.status, p.fill_price = "filled", o.fill_price  # filled while we were away: take the broker's word
+                self._changed(p)
         known = {o.broker_id for o in self.broker.open_orders() + self.broker.positions()}
         for bid, p in ours.items():
             if p.status in ("sent", "filled") and bid not in known:

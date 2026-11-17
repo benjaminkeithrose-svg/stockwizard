@@ -1,0 +1,162 @@
+"""Runs the paper bot against Supabase: Ben's limits in, proposals out, his decisions acted on.
+
+    python -m stockwizard.run_bot                 # one cycle with the pretend broker
+    python -m stockwizard.run_bot --practice      # also propose one made-up practice order
+    python -m stockwizard.run_bot --loop 30       # a cycle every 30 seconds until stopped
+
+Each cycle:
+1. Reads safety_limits (the defaults while Ben hasn't saved any: the daily
+   limit empty, so every order is refused).
+2. Acts on the kill switch: cancels working orders at the broker; resumes when
+   Ben turns trading back on.
+3. Acts on Ben's decisions in paper_orders: an approval gets a fresh quote and
+   every rail checked again before it is sent; a rejection is closed.
+4. Records fills from the broker.
+
+Every order the bot makes or changes is written to paper_orders, and every
+step to the audit log. On start it takes back its open orders from the
+database and reconciles them with the broker before doing anything else.
+
+Only the pretend broker exists so far (Interactive Brokers comes later), so
+every price here is made up and nothing reaches a market. Needs SUPABASE_URL
+and SUPABASE_SECRET_KEY, like the loaders.
+"""
+
+from __future__ import annotations
+
+import argparse
+import sys
+import time
+from dataclasses import asdict
+from datetime import datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
+
+from stockwizard.bot import Bot, Proposal
+from stockwizard.broker import BrokerOrder, PretendBroker
+from stockwizard.data.store import SupabaseStore
+from stockwizard.rails import Leg, Limits, OrderRequest, request_from_dict, request_to_dict
+
+NY = ZoneInfo("America/New_York")
+OPEN_STATUSES = ("proposed", "approved", "sent", "filled")
+
+
+def find_owner(store: SupabaseStore) -> str:
+    """The one person the bot works for: whoever has saved limits or chart tabs."""
+    owners = {r["owner"] for r in store.select("safety_limits", {"select": "owner"})}
+    owners |= {r["owner"] for r in store.select("workspaces", {"select": "owner"})}
+    if len(owners) != 1:
+        raise SystemExit(f"Expected one person using Stock Wizard, found {len(owners)}: pass --owner")
+    return owners.pop()
+
+
+class BotRunner:
+    def __init__(self, store, owner: str, clock=lambda: datetime.now(timezone.utc)):
+        self.store, self.owner, self.clock = store, owner, clock
+        self.db_ids: dict[int, int] = {}   # the bot's order number → paper_orders.id
+        rows = store.select("paper_orders", {"select": "*", "owner": f"eq.{owner}", "status": f"in.({','.join(OPEN_STATUSES)})", "order": "id"})
+        remembered = [BrokerOrder(r["broker_id"], request_from_dict(r), "working" if r["status"] == "sent" else "filled", r.get("fill_price"))
+                      for r in rows if r.get("broker_id") and r["status"] in ("sent", "filled")]
+        self.broker = PretendBroker(remembered, clock=clock)
+        self.bot = Bot(self.broker, self.limits, self.audit, clock=clock, on_change=self.save, requote=self.broker.quote)
+        for r in rows:
+            p = Proposal(0, request_from_dict(r), "proposed" if r["status"] == "approved" else r["status"],
+                         None if r.get("max_loss") is None else float(r["max_loss"]), broker_id=r.get("broker_id"), reason=r.get("reason"))
+            self.bot.adopt(p)
+            self.db_ids[p.id] = r["id"]
+        self.bot.realised_loss_today = self.losses_today()
+        # Back from a restart: check against the broker before anything else.
+        self.bot.reconciled = False
+        self.bot.reconcile()
+
+    # --- what the bot reads and writes ---
+    def limits(self) -> Limits:
+        rows = self.store.select("safety_limits", {"select": "*", "owner": f"eq.{self.owner}"})
+        return Limits.from_row(rows[0]) if rows else Limits()
+
+    def losses_today(self) -> float:
+        today = self.clock().astimezone(NY).date()
+        start = datetime.combine(today, datetime.min.time(), NY).astimezone(timezone.utc)
+        rows = self.store.select("paper_orders", {"select": "pnl", "owner": f"eq.{self.owner}", "status": "eq.closed",
+                                                  "updated_at": f"gte.{start.isoformat()}"})
+        return sum(-float(r["pnl"]) for r in rows if r.get("pnl") is not None and float(r["pnl"]) < 0)
+
+    def audit(self, actor: str, action: str, detail: dict) -> None:
+        if "order" in detail and detail["order"] in self.db_ids:
+            detail = {**detail, "order": self.db_ids[detail["order"]]}
+        self.store.insert("audit_log", [{"actor": actor, "user_id": self.owner, "action": action, "detail": detail}])
+
+    def save(self, p: Proposal) -> None:
+        req = request_to_dict(p.request)
+        row = {**req, "max_loss": p.max_loss, "status": p.status, "refusals": [asdict(r) for r in p.refusals],
+               "reason": p.reason, "broker_id": p.broker_id, "fill_price": p.fill_price, "pnl": p.pnl}
+        if p.id in self.db_ids:
+            self.store.update("paper_orders", {"id": f"eq.{self.db_ids[p.id]}"}, row)
+        else:
+            self.db_ids[p.id] = self.store.insert("paper_orders", [{**row, "owner": self.owner}], returning=True)[0]["id"]
+
+    # --- one cycle ---
+    def cycle(self) -> list[str]:
+        said: list[str] = []
+        self.bot.watch()
+        if not self.bot.reconciled and self.broker.connected():
+            problems = self.bot.reconcile()
+            said += problems
+        by_db = {db: bid for bid, db in self.db_ids.items()}
+        waiting = [bid for bid, p in self.bot.orders.items() if p.status == "proposed"]
+        if waiting:
+            ids = ",".join(str(self.db_ids[b]) for b in waiting)
+            for r in self.store.select("paper_orders", {"select": "id,status", "id": f"in.({ids})"}):
+                bid = by_db[r["id"]]
+                if r["status"] == "approved":
+                    p = self.bot.approve(bid, recorded=True)
+                    said.append(f"Order {r['id']}: approved by Ben, then {p.status}" + (f" ({'; '.join(x.why for x in p.refusals)})" if p.refusals else ""))
+                elif r["status"] == "rejected":
+                    self.bot.reject(bid, recorded=True)
+                    said.append(f"Order {r['id']}: rejected by Ben")
+                elif r["status"] == "cancelled":
+                    self.bot.orders[bid].status = "cancelled"   # the app's kill switch dropped it (already recorded)
+                    said.append(f"Order {r['id']}: cancelled by the kill switch")
+        # The pretend market: working orders fill straight away, at their limit price.
+        sent_before = {p.broker_id for p in self.bot.orders.values() if p.status == "sent"}
+        for bid in self.broker.step():
+            if bid in sent_before:
+                p = next(p for p in self.bot.orders.values() if p.broker_id == bid)
+                self.bot.record_fill(p.id, self.broker.orders[bid].fill_price)
+                said.append(f"Order {self.db_ids[p.id]}: filled (pretend) at {self.broker.orders[bid].fill_price}")
+        return said
+
+    # --- practice ---
+    def practice(self) -> Proposal:
+        """A made-up iron condor on SPY with $1 wings, proposed so Ben can try approving one. The price is made up."""
+        rows = self.store.select("candles", {"select": "close", "symbol": "eq.SPY", "timeframe": "eq.1d", "order": "ts.desc", "limit": "1"})
+        price = round(float(rows[0]["close"])) if rows else 600
+        expiry = self.clock().astimezone(NY).date() + timedelta(days=1)
+        while expiry.weekday() >= 5:
+            expiry += timedelta(days=1)
+        legs = (Leg("P", "buy", price - 7), Leg("P", "sell", price - 6), Leg("C", "sell", price + 6), Leg("C", "buy", price + 7))
+        req = OrderRequest(symbol="SPY", structure="iron_condor", expiry=expiry, legs=legs, quantity=1, limit_price=0.6,
+                           price_kind="credit", prices_as_of=self.clock())
+        return self.bot.propose(req, reason="Practice: a made-up price on the pretend broker. Nothing reaches a market.")
+
+
+def main(argv: list[str] | None = None) -> int:
+    ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    ap.add_argument("--owner", help="the person's user id (found automatically when there is one)")
+    ap.add_argument("--practice", action="store_true", help="propose one made-up practice order")
+    ap.add_argument("--loop", type=int, metavar="SECONDS", help="run a cycle every SECONDS until stopped")
+    a = ap.parse_args(argv)
+    store = SupabaseStore()
+    runner = BotRunner(store, a.owner or find_owner(store))
+    if a.practice:
+        p = runner.practice()
+        print(f"Practice order {runner.db_ids[p.id]}: {p.status}" + (f" ({'; '.join(r.why for r in p.refusals)})" if p.refusals else " — waiting for Ben"))
+    while True:
+        for line in runner.cycle():
+            print(line)
+        if not a.loop:
+            return 0
+        time.sleep(a.loop)
+
+
+if __name__ == "__main__":
+    sys.exit(main())

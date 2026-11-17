@@ -1,0 +1,38 @@
+# One cycle of the paper bot with the pretend broker: acts on approvals,
+# rejections and the kill switch from the app's Safety screen. Tick
+# "practice" to also propose one made-up practice order. Run it by hand:
+# Actions tab, "Paper bot (pretend broker)", Run workflow. Nothing reaches a
+# market. Needs the repository secret SUPABASE_SECRET_KEY.
+name: Paper bot (pretend broker)
+
+on:
+  workflow_dispatch:
+    inputs:
+      practice:
+        description: Propose one made-up practice order
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: bot
+
+jobs:
+  cycle:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: backend
+    env:
+      SUPABASE_URL: https://cxpspihahmztfydvdwpd.supabase.co
+      SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install .
+      - run: python -m stockwizard.run_bot ${{ inputs.practice && '--practice' || '' }}
