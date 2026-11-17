@@ -53,7 +53,13 @@ Gateway's login on your phone when it asks.
    SUPABASE_SECRET_KEY=sb_secret_your-key-here
    ```
 
-6. Save and close Notepad.
+6. For phone notifications, add a third line with your ntfy topic name (the same one you put in GitHub as `NTFY_TOPIC`):
+
+   ```
+   NTFY_TOPIC=your-topic-name
+   ```
+
+7. Save and close Notepad.
 
 This file stays on your PC. It isn't in the repository and never should be.
 
@@ -73,6 +79,8 @@ This file stays on your PC. It isn't in the repository and never should be.
 To stop the bot, close its window. The kill switch in the app also stops all trading straight away.
 
 ## Good to know
+
+- **Phone notifications** come through the free **ntfy** app: an order waiting for you, filled, closed or stopped, and the daily limit reached. They need the `NTFY_TOPIC` line in step 5. The messages pass through ntfy's server: they say the symbol, strikes, prices and profit or loss, nothing else.
 
 - **IB Gateway restarts once a day** and sometimes asks you to log in again, with the confirmation on your phone. While it's down, the bot stops trading. When it's back, the bot checks its orders and positions against Interactive Brokers before doing anything else. If they don't match, it stays stopped and says why.
 - **Market data:** quotes need an options data subscription. Without one, add `--delayed` to the line in `start-bot.bat`. Delayed quotes count as 15 minutes old, so the stale-data limit refuses every order until you subscribe. That's on purpose.

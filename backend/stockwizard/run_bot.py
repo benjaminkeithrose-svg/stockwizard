@@ -41,6 +41,7 @@ from stockwizard.bot import Bot, Proposal
 from stockwizard.broker import BrokerOrder, PretendBroker
 from stockwizard.data.store import SupabaseStore
 from stockwizard.pricing import historical_vol, limit_price, net_value, years_left
+from stockwizard.notify import Notifier, limit_message, message
 from stockwizard.rails import Leg, Limits, OrderRequest, request_from_dict, request_to_dict
 
 NY = ZoneInfo("America/New_York")
@@ -57,8 +58,12 @@ def find_owner(store: SupabaseStore) -> str:
 
 
 class BotRunner:
-    def __init__(self, store, owner: str, clock=lambda: datetime.now(timezone.utc), broker=None, market=None):
+    def __init__(self, store, owner: str, clock=lambda: datetime.now(timezone.utc), broker=None, market=None, notifier: Notifier | None = None):
         self.store, self.owner, self.clock = store, owner, clock
+        self.notifier = notifier
+        self.last_status: dict[int, str] = {}     # paper_orders.id → the status Ben last heard about (or started with)
+        self.changed: dict[int, Proposal] = {}    # orders changed this cycle, told once at its end
+        self.close_why: dict[int, str] = {}       # the bot's order number → why it was closed
         self.db_ids: dict[int, int] = {}   # the bot's order number → paper_orders.id
         self.strategy_of: dict[int, dict] = {}   # the bot's order number → the bot_strategies row that proposed it
         rows = store.select("paper_orders", {"select": "*", "owner": f"eq.{owner}", "status": f"in.({','.join(OPEN_STATUSES)})", "order": "id"})
@@ -73,6 +78,7 @@ class BotRunner:
                          None if r.get("max_loss") is None else float(r["max_loss"]), broker_id=r.get("broker_id"), reason=r.get("reason"))
             self.bot.adopt(p)
             self.db_ids[p.id] = r["id"]
+            self.last_status[r["id"]] = r["status"]
             if r.get("strategy_id"):
                 st = store.select("bot_strategies", {"select": "*", "id": f"eq.{r['strategy_id']}"})
                 if st:
@@ -109,6 +115,28 @@ class BotRunner:
             self.store.update("paper_orders", {"id": f"eq.{self.db_ids[p.id]}"}, row)
         else:
             self.db_ids[p.id] = self.store.insert("paper_orders", [{**row, "owner": self.owner}], returning=True)[0]["id"]
+        self.changed[self.db_ids[p.id]] = p
+
+    # --- phone notifications: each order's state at the end of the cycle, once ---
+    def notify(self, lost_before: float) -> list[str]:
+        if self.notifier is None:
+            self.changed.clear()
+            return []
+        out = []
+        bids = {db: bid for bid, db in self.db_ids.items()}
+        for db, p in self.changed.items():
+            if self.last_status.get(db) == p.status:
+                continue
+            self.last_status[db] = p.status
+            m = message(p.status, p, self.close_why.get(bids.get(db)))
+            if m:
+                out.append(self.notifier.send(*m))
+        self.changed.clear()
+        lim = self.limits().max_loss_per_day
+        lost = self.bot.realised_loss_today
+        if lim and lost_before < lim <= lost:
+            out.append(self.notifier.send(*limit_message(lost, lim)))
+        return [x for x in out if x]
 
     # --- prices (theoretical until Interactive Brokers supplies quotes) ---
     def market(self, symbol: str) -> tuple[float, str, float, str]:
@@ -168,6 +196,7 @@ class BotRunner:
         spot, when, vol, source = self.market(p.request.symbol)
         v = net_value(p.request.legs, spot, years_left(p.request.expiry, self.clock()), vol)
         price = round(round(abs(v) / 0.05) * 0.05, 2)
+        self.close_why[bid] = "by you"
         self.bot.close(bid, price)
         return f"order {q['order_id']} closed at a theoretical ${price:.2f} for ${p.pnl:+,.2f}"
 
@@ -194,6 +223,7 @@ class BotRunner:
     # --- one cycle ---
     def cycle(self) -> list[str]:
         said: list[str] = []
+        lost_before = self.bot.realised_loss_today
         self.bot.watch()
         if not self.bot.reconciled and self.broker.connected():
             problems = self.bot.reconcile()
@@ -240,6 +270,7 @@ class BotRunner:
         if self.strategies is not None:
             said += self.strategies.manage(self.clock())
             said += self.strategies.settle(self.clock())
+        said += self.notify(lost_before)
         return said
 
     # --- practice ---
@@ -273,7 +304,7 @@ def main(argv: list[str] | None = None) -> int:
         print(f"Connected to Interactive Brokers, paper account {broker.account}.")
     from stockwizard.strategy_runner import IBKRMarket, PretendMarket  # noqa: PLC0415
     market = IBKRMarket(broker, store) if broker is not None else PretendMarket(store)
-    runner = BotRunner(store, a.owner or find_owner(store), broker=broker, market=market)
+    runner = BotRunner(store, a.owner or find_owner(store), broker=broker, market=market, notifier=Notifier.from_env())
     if a.practice:
         p = runner.practice()
         print(f"Practice order {runner.db_ids[p.id]}: {p.status}" + (f" ({'; '.join(r.why for r in p.refusals)})" if p.refusals else " — waiting for Ben"))

@@ -5,7 +5,7 @@
 # broker)", Run workflow; tick "practice" to also propose one made-up
 # practice order. Nothing reaches a market. Turn the schedule off once the
 # bot runs on Ben's PC with Interactive Brokers. Needs the repository secret
-# SUPABASE_SECRET_KEY.
+# SUPABASE_SECRET_KEY, and NTFY_TOPIC for phone notifications.
 name: Paper bot (pretend broker)
 
 on:
@@ -34,6 +34,7 @@ jobs:
     env:
       SUPABASE_URL: https://cxpspihahmztfydvdwpd.supabase.co
       SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+      NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}   # phone notifications; none while it's unset
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
