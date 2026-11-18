@@ -40,7 +40,7 @@ class SettingsApi:
     def load(self) -> dict:
         v = _values(_read(self.path))
         key = v.get("BOT_KEY", "")
-        ben = bool(v.get("SUPABASE_SECRET_KEY"))
+        ben = bool(v.get("SUPABASE_SECRET_KEY") or v.get("SUPABASE_SECRET_KEY_PROTECTED"))
         return {
             "bot_key_set": key.startswith("swbot1."),
             "uses_secret_key": ben,
@@ -63,12 +63,13 @@ class SettingsApi:
             return {"error": "The ntfy topic can only have letters, numbers, - and _ (up to 64)."}
         lines = _read(self.path)
         current = _values(lines)
-        if not key and not current.get("BOT_KEY") and not current.get("SUPABASE_SECRET_KEY"):
+        secret = current.get("SUPABASE_SECRET_KEY") or current.get("SUPABASE_SECRET_KEY_PROTECTED")
+        if not key and not current.get("BOT_KEY") and not secret:
             return {"error": "Paste your bot key: make one in the app (menu, Bot key)."}
         new = {"IB_PORT": PORTS[connection], "IB_DELAYED": "1" if form.get("delayed") else "0", "NTFY_TOPIC": topic}
         if key:
             new["BOT_KEY"] = key
-        if current.get("SUPABASE_SECRET_KEY") and form.get("run_data") is not None:
+        if secret and form.get("run_data") is not None:
             new["RUN_DATA"] = "1" if form.get("run_data") else "0"
         kept = [ln for ln in lines if ln.partition("=")[0].strip() not in new and ln.strip()]
         out = kept + [f"{k}={v}" for k, v in new.items() if v != "" or k != "NTFY_TOPIC"]

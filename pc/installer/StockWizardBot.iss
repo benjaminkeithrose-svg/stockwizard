@@ -83,8 +83,25 @@ begin
   Result := ExpandConstant('{localappdata}\StockWizard\stockwizard.env');
 end;
 
-procedure InitializeWizard;
+{ A setting already saved on this PC (an update), or Default. }
+function Existing(Name, Default: String): String;
+var
+  Lines: TArrayOfString;
+  I: Integer;
 begin
+  Result := Default;
+  if LoadStringsFromFile(SettingsFile, Lines) then
+    for I := 0 to GetArrayLength(Lines) - 1 do
+      if Pos(Name + '=', Lines[I]) = 1 then Result := Trim(Copy(Lines[I], Length(Name) + 2, MaxInt));
+end;
+
+procedure InitializeWizard;
+var
+  Port, Delayed: String;
+begin
+  { On an update, start from the person's own choices; the command line can still override them. }
+  Port := ExpandConstant('{param:PORT|' + Existing('IB_PORT', '7497') + '}');
+  Delayed := ExpandConstant('{param:DELAYED|' + Existing('IB_DELAYED', '0') + '}');
   KeyPage := CreateInputQueryPage(wpWelcome, 'Your bot key',
     'Paste the bot key from Stock Wizard.',
     'In the Stock Wizard app, open the menu at the top right (three dots), choose Bot key, make a key and copy it. ' +
@@ -98,15 +115,15 @@ begin
     True, False);
   ConnPage.Add('TWS (Trader Workstation): paper port 7497');
   ConnPage.Add('IB Gateway: paper port 4002');
-  if ExpandConstant('{param:PORT|7497}') = '4002' then ConnPage.SelectedValueIndex := 1 else ConnPage.SelectedValueIndex := 0;
+  if Port = '4002' then ConnPage.SelectedValueIndex := 1 else ConnPage.SelectedValueIndex := 0;
 
   DataPage := CreateInputOptionPage(ConnPage.ID, 'Market data',
     'Does your Interactive Brokers account have real-time US options data?',
     'Without a subscription, Interactive Brokers sends prices about 15 minutes late. Tick the box so the bot knows; ' +
-    'you can change it later in Stock Wizard Bot settings.',
+    'you can change it later in Stock Wizard settings.',
     False, False);
   DataPage.Add('No real-time options data: use delayed prices');
-  DataPage.Values[0] := ExpandConstant('{param:DELAYED|0}') = '1';
+  DataPage.Values[0] := (Delayed = '1') or (LowerCase(Delayed) = 'yes') or (LowerCase(Delayed) = 'true');
 end;
 
 function NextButtonClick(CurPageID: Integer): Boolean;

@@ -47,6 +47,28 @@ def read_settings(path: Path) -> dict[str, str]:
     return out
 
 
+def load_settings(path: Path) -> dict[str, str]:
+    """The settings for the programs (stage 3): a plain secret key in the file is encrypted there with
+    Windows' protection (SUPABASE_SECRET_KEY_PROTECTED) and only ever decrypted in memory; the archive
+    lives beside the settings unless ARCHIVE_PATH says otherwise."""
+    s = read_settings(path)
+    plain = s.get("SUPABASE_SECRET_KEY")
+    if plain and sys.platform == "win32":
+        from stockwizard.winsecret import protect  # noqa: PLC0415
+        lines = path.read_text(encoding="utf-8-sig").splitlines()
+        lines = [f"SUPABASE_SECRET_KEY_PROTECTED={protect(plain)}" if ln.partition("=")[0].strip() == "SUPABASE_SECRET_KEY" else ln
+                 for ln in lines]
+        tmp = path.with_suffix(".tmp")
+        tmp.write_text("\n".join(lines) + "\n", encoding="utf-8")
+        tmp.replace(path)
+    elif not plain and s.get("SUPABASE_SECRET_KEY_PROTECTED"):
+        from stockwizard.winsecret import unprotect  # noqa: PLC0415
+        s["SUPABASE_SECRET_KEY"] = unprotect(s["SUPABASE_SECRET_KEY_PROTECTED"])
+    s.pop("SUPABASE_SECRET_KEY_PROTECTED", None)
+    s.setdefault("ARCHIVE_PATH", str(path.parent / "archive.sqlite"))
+    return s
+
+
 def _account(line: str) -> str:
     m = re.search(r"paper account (DU\w*)", line)
     return f"paper account {m.group(1)[:2]}…{m.group(1)[-3:]}" if m else "paper account"
@@ -272,7 +294,8 @@ def run_desktop(sup: Supervisor, settings_path: Path, log_dir: Path, lock: socke
         main.show()
         main.restore()
 
-    def saved(values: dict[str, str]) -> None:
+    def saved(_values: dict[str, str]) -> None:
+        values = load_settings(settings_path)   # with the secret key decrypted, as at start
         os.environ.update(values)
         sup.reload(values, _run_data(values, forced_data))
 
@@ -378,7 +401,7 @@ def main(argv: list[str] | None = None) -> int:
     if not a.settings.exists():
         print(f"No settings at {a.settings}: run the installer again and paste your bot key.")
         return 1
-    settings = read_settings(a.settings)
+    settings = load_settings(a.settings)
     os.environ.update(settings)
     python = sys.executable.replace("pythonw.exe", "python.exe")
     log_dir = a.settings.parent / "logs"
