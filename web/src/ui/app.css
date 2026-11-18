@@ -120,6 +120,13 @@ header .sub { font-size: 11px; color: var(--ink-3); white-space: nowrap; overflo
   border-radius: var(--r) var(--r) 0 0; box-shadow: var(--lift-2); }
 @media (min-width: 720px) { .sheet { border-radius: var(--r); } }
 .sheet.full { width: 100vw; height: 100%; max-height: none; border-radius: 0; }
+/* On a wider screen a "full" sheet is a panel near the top, and the menu drops down from its button. */
+@media (min-width: 720px) {
+  .scrim:has(> .sheet.full) { align-items: flex-start; }
+  .sheet.full { width: min(560px, 100vw); height: auto; max-height: min(80vh, 760px); margin-top: 64px; border-radius: var(--r); }
+  .sheet.full.at-menu { position: absolute; top: 52px; right: 10px; margin: 0; width: 380px; }
+  .sheet.full.at-menu .navmenu { padding: 0 4px 12px; }
+}
 .sh-h { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-bottom: 1px solid var(--line-2);
   position: sticky; top: 0; background: var(--surface); z-index: 1; }
 .sh-h b { flex: 1; font-size: 15px; }

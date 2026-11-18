@@ -82,8 +82,8 @@ python -m stockwizard.run_data --deepen
 
 ### Stock Wizard isn't running on the PC
 1. Click **Start**, type **Stock Wizard**, and open it.
-2. If it asks for a key, its settings are missing: open **Stock Wizard
-   settings** from the Start menu and fill them in (or ask me).
+2. If the icon is amber and says **Not set up yet**, this PC isn't connected:
+   in Stock Wizard, **Menu**, **Setup**, **Connect this PC**.
 3. Keep the PC from sleeping: Start, **Power & sleep settings**, set **When
    plugged in, PC goes to sleep after** to **Never**.
 

@@ -5,6 +5,8 @@ on GitHub (#number). Kept up when Ben asks for a documentation refresh.
 
 ## 19 November 2026
 
+- #61 On the PC the menu drops down from its button, and symbol and help search open as panels; full screen stays on the phone
+
 - #59 Setup inside the app: the installer asks nothing; connect the PC in one tap, check TWS, prices and alerts, a window per monitor
 
 - #58 Trading: what's running, orders as a broker lists them (Working, Filled, Closed, Not traded), results over time; Auto markers on charts
