@@ -85,3 +85,17 @@ Follows on from the one-tap option structures above.
 - Why: Ben doesn't want to start these things over and over. It should
   start with Windows, keep the bot and the data program running, restart
   them when TWS restarts, and show their state in one place.
+- Shareable (Ben, 18 Nov 2026): packaged so that, shared later, it installs
+  and runs on any Windows PC: its own Python inside, nothing else to
+  install. Each person would still need their own Interactive Brokers
+  account with TWS or IB Gateway, and their own Supabase project and keys
+  (or the app made multi-user), set up on first run rather than by editing
+  files.
+
+## Menus, navigation and style from Finance Vault (18 Nov 2026)
+
+- Take cues from Ben's Finance Vault (`benjaminkeithrose-svg/financevault`)
+  for how he likes menus, navigating the app and its styles.
+- Today Stock Wizard follows Field CRM's look (CLAUDE.md, Hard rules). Read
+  Finance Vault first, list what it does differently, and agree with Ben
+  which parts to bring over before changing anything.
