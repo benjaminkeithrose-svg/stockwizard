@@ -4,6 +4,7 @@
 
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
 import { Candles, emptyCandles, madeUpCandles, Timeframe } from "./candles";
+import type { LiveBar } from "./live";
 import type { ClaudeMessage, ClaudeReply } from "./claude";
 import type { OptionPosition } from "./options";
 import { analyse, historicalVol, positionAt } from "./pricing";
@@ -25,6 +26,8 @@ export interface Store {
 
   symbols(): Promise<SymbolInfo[]>;
   candles(symbol: string, tf: Timeframe): Promise<Candles>;
+  /** Today's live 1-minute bars for a symbol from `sinceIso` on (written by the data program in US hours). */
+  liveBars(symbol: string, sinceIso: string): Promise<LiveBar[]>;
 
   workspaces(): Promise<Workspace[]>;
   saveWorkspace(w: Workspace): Promise<Workspace>;
@@ -173,6 +176,12 @@ export class SupabaseStore implements Store {
       }
     }
     return emptyCandles();
+  }
+
+  async liveBars(symbol: string, sinceIso: string): Promise<LiveBar[]> {
+    const rows = this.check(await this.sb.from("live_bars").select("ts,open,high,low,close,volume,delayed")
+      .eq("symbol", symbol).gte("ts", sinceIso).order("ts").limit(1000)) as { ts: string; open: number; high: number; low: number; close: number; volume: number; delayed: boolean }[];
+    return rows.map((r) => ({ time: Date.parse(r.ts) / 1000, open: r.open, high: r.high, low: r.low, close: r.close, volume: r.volume, delayed: r.delayed }));
   }
 
   async workspaces() {
@@ -619,6 +628,8 @@ export class DemoStore implements Store {
   async botRequests() { return this.load().requests.filter((q) => q.status === "waiting"); }
 
   async botStrategies() { return this.load().strategies; }
+
+  async liveBars(): Promise<LiveBar[]> { return []; }   // made-up candles don't move
 
   async marketSnapshot(): Promise<MarketSnapshot | null> {
     const now = new Date();

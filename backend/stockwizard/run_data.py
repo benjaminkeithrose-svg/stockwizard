@@ -14,15 +14,17 @@ Each catch-up, for every symbol in data/universe.csv and each timeframe:
 Then delete IBKR candles older than the window from Supabase. Candles from
 other sources (the long Yahoo history the backtests use) are left alone.
 
-After each US close it catches up, runs the scans and backs the archive up to
-OneDrive. If TWS goes away it exits, so start-data.bat starts it again.
+During the US session it streams prices for live bars (data/live.py): today's
+1-minute bars into Supabase every few seconds, and IBKR's finished 5-minute bars
+into the candles every 5 minutes. After each US close it catches up, runs the
+scans and backs the archive up to OneDrive. If TWS goes away it exits, so
+start-data.bat starts it again.
 """
 
 from __future__ import annotations
 
 import argparse
 import sys
-import time
 from datetime import date, datetime, timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo
@@ -119,12 +121,19 @@ def main(argv: list[str] | None = None) -> int:
         if a.once:
             archive.backup()
             return 1 if failed else 0
+    from stockwizard.data.live import LiveFeed, streaming  # noqa: PLC0415
+    live = LiveFeed(source, runner.store, archive, [s["symbol"] for s in runner.symbols])
     while True:
-        due = runner.after_close_due(done)
-        if due:
-            runner.after_close()
-            done = due
-        time.sleep(60)
+        if streaming(runner.clock()):
+            live.tick()
+            source.ib.sleep(1)   # ib_async's own wait: prices keep arriving while it waits
+        else:
+            live.stop()
+            due = runner.after_close_due(done)
+            if due:
+                runner.after_close()
+                done = due
+            source.ib.sleep(60)
         if not source.ib.isConnected():
             print("Interactive Brokers disconnected (TWS or IB Gateway closed or restarted). Restarting to reconnect.")
             return 1

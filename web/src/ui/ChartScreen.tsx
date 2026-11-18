@@ -4,6 +4,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Chart, { TapMode } from "../chart/Chart";
 import { Candles, emptyCandles, TIMEFRAMES, Timeframe } from "../data/candles";
+import { anyDelayed, LIVE_EVERY_MS, LiveBar, sessionOpen, todayStartIso, withLive } from "../data/live";
 import { Favourite, newId, PaperOrder, SymbolInfo, Workspace } from "../data/model";
 import { botsOnChart } from "../data/botsOnChart";
 import { expiryChoices, expiryLabel, MoveMode, moveLeg, newPosition, OptionPosition, placementBasis, Structure, structureLabel, todayNY } from "../data/options";
@@ -79,6 +80,22 @@ export default function ChartScreen(props: {
     return () => { live = false; };
   }, [store, w?.symbol, w?.timeframe]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Live bars: while the US market is open and this chart is on screen, today's 1-minute bars every 5 seconds.
+  const [live, setLive] = useState<LiveBar[]>([]);
+  useEffect(() => {
+    setLive([]);
+    if (!w || store.demo) return;
+    let on = true;
+    const check = () => {
+      if (!sessionOpen(new Date()) || document.hidden) return;
+      store.liveBars(w.symbol, todayStartIso(new Date())).then((b) => on && setLive(b)).catch(() => { /* offline: the chart stays as it is */ });
+    };
+    check();
+    const t = window.setInterval(check, LIVE_EVERY_MS);
+    return () => { on = false; window.clearInterval(t); };
+  }, [store, w?.symbol]); // eslint-disable-line react-hooks/exhaustive-deps
+  const shown = useMemo(() => (w ? withLive(candles, live, w.timeframe) : candles), [candles, live, w?.timeframe]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const stopTapping = () => { setTapMode("none"); setTrendStart(null); setAnchorFor(null); };
   useEffect(stopTapping, [w?.id]);
   const firstRender = useRef(true);
@@ -110,8 +127,11 @@ export default function ChartScreen(props: {
   const sourceBadge = useMemo(() => {
     if (candles.source === "made-up") return <span className="badge est">Made-up candles</span>;
     if (candles.source === "yahoo-unofficial") return <span className="badge est" title="Free, unofficial source. Nothing on it counts as validated.">Free data source</span>;
+    if (live.length) return anyDelayed(live)
+      ? <span className="badge est" title="Interactive Brokers is sending prices about 15 minutes behind: there's no real-time data subscription on the account.">Delayed</span>
+      : <span className="badge ok" title="Updating from Interactive Brokers every few seconds.">Live</span>;
     return null;
-  }, [candles.source]);
+  }, [candles.source, live]);
 
   if (!w) return <div className="main"><div className="chartcard"><div className="chartmsg">Loading…</div></div></div>;
 
@@ -120,7 +140,7 @@ export default function ChartScreen(props: {
   const setTf = (tf: Timeframe) => ws.update({ ...w, timeframe: tf, name: autoName(w.symbol, tf) });
   const positions = pos.forSymbol(w.symbol);
   const bots = botsOnChart(botOrders, botLabels, w.symbol);
-  const basis = placementBasis(candles);
+  const basis = placementBasis(shown);
   const setExpiry = (e: string) => {
     setExpiryState(e);
     const n = expiryChoices(todayNY(), 15).indexOf(e);
@@ -195,7 +215,7 @@ export default function ChartScreen(props: {
       </div>
 
       <div className="chartcard">
-        <Chart candles={candles} timeframe={w.timeframe} indicators={w.indicators} drawings={w.drawings}
+        <Chart candles={shown} timeframe={w.timeframe} indicators={w.indicators} drawings={w.drawings}
           viewKey={`${w.id}|${w.symbol}|${w.timeframe}`} onTap={onTap}
           positions={[...positions, ...bots.positions]} editId={adjusting} onDragLeg={dragLeg} markers={bots.markers} />
         {adjustingPos && !tapPrompt && !details && (
