@@ -93,6 +93,8 @@ function SignedIn({ store, user }: { store: Store; user: User }) {
   const pos = usePositions(store, user.id);
   const fav = useFavourites(store, user.id);
   const [strategyLabels, setStrategyLabels] = useState<Record<string, string>>({});
+  const [optionLabels, setOptionLabels] = useState<Record<string, string>>({});
+  useEffect(() => { store.optionStrategies().then((s) => setOptionLabels(Object.fromEntries(s.map((x) => [x.id, x.label])))).catch(() => {}); }, [store]);
   useEffect(() => { store.strategies().then((s) => setStrategyLabels(Object.fromEntries(s.map((x) => [x.id, x.label])))).catch(() => {}); }, [store]);
   // A window opened for one job on its own screen (Setup, Screens: ?view=watch) starts there.
   const startAt = ((): Screen => { const v = viewFromUrl(); return v === "watch" ? { name: "pages" } : v === "trading" ? { name: "trading" } : { name: "chart" }; })();
@@ -160,7 +162,7 @@ function SignedIn({ store, user }: { store: Store; user: User }) {
   const titleOf = (s: Screen): string => s.name === "chart" ? "Stock Wizard" : s.name === "scanner" ? "Scanner"
     : s.name === "pages" ? "Chart pages" : s.name === "backtests" ? "Backtests"
     : s.name === "backtest" ? (strategyLabels[s.id] ?? "Backtest") : s.name === "card" ? (ws.active?.name ?? "Chart")
-    : s.name === "watchlists" ? "Watchlists" : s.name === "optbacktest" ? "Option backtest" : s.name === "safety" ? "Safety and orders" : s.name === "trading" ? "Trading" : s.name === "setup" ? "Setup" : s.name === "whatsnew" ? "What's new" : s.name === "botkey" ? "Access key" : s.name === "help" ? "Help" : s.name === "today" ? "Today"
+    : s.name === "watchlists" ? "Watchlists" : s.name === "optbacktest" ? (optionLabels[s.id] ?? "Option backtest") : s.name === "safety" ? "Safety and orders" : s.name === "trading" ? "Trading" : s.name === "setup" ? "Setup" : s.name === "whatsnew" ? "What's new" : s.name === "botkey" ? "Access key" : s.name === "help" ? "Help" : s.name === "today" ? "Today"
     : s.name === "analysis" ? (() => { const p = pos.list.find((x) => x.id === s.id); return p ? `${structureLabel(p.structure)} · ${p.symbol}` : "Analysis"; })()
     : s.list.name;
   const title = titleOf(screen);

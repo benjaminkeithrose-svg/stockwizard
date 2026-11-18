@@ -180,7 +180,7 @@ export default function SafetyScreen({ store }: { store: Store }) {
           </div>
         </button>
       </div>
-      {limits.max_loss_per_day === null && <p className="msg warn">The daily loss limit isn't set, so every order is refused. Set it once real spread prices are known.</p>}
+      {limits.max_loss_per_day === null && <p className="msg warn">The daily loss limit isn't set, so every order is refused. Set it before trading: tap the card above.</p>}
       <p className="hint">Paper trading only. Live trading is disabled and can't be turned on from the app. Claude can't change anything on this screen.</p>
 
       {open && (
