@@ -459,3 +459,9 @@ button.info:hover, button.info:focus-visible { background-color: var(--cyan-dk);
 /* Auto: automated trading on this symbol (strategies switched on, positions open). */
 .automark { display: inline-block; margin-right: 6px; padding: 1px 6px; border-radius: var(--r-pill); font-size: 10.5px; font-weight: 700;
   background: #0E7C86; color: #fff; vertical-align: 1px; letter-spacing: .02em; }
+/* Setup (Menu, Setup): Next and Skip at the top. */
+.setupnav { display: flex; gap: 8px; }
+.setupnav .big { flex: 2; }
+.setupnav .ghost { flex: 1; }
+.setupnav .ghost:first-child { flex: 2; }
+ul.steps { margin: 6px 0 0; padding-left: 22px; line-height: 1.6; }

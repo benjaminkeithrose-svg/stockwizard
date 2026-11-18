@@ -55,6 +55,11 @@ export const GLOSSARY = {
   accesskey: { title: "Access key", text: "What Stock Wizard on your PC signs in with. It can only see the shared market data and touch your own orders. It's shown once when made; making a new one stops the old one." },
   pcline: { title: "The PC line", text: "What Stock Wizard on your PC is doing, from the heartbeat it sends every 30 seconds: whether trading is connected to TWS, and on Ben's PC whether market data is running. Red or old means the PC is off, asleep, or TWS isn't logged in." },
   live: { title: "Live / Delayed", text: "In US market hours the chart adds today's bars every 5 seconds. Live means real-time prices; Delayed means about 15 minutes late, when there's no market data subscription." },
+  tws: { title: "TWS's connection (API)", text: "Stock Wizard talks to Interactive Brokers through TWS on the same PC, on port 7497 (paper trading). TWS has to be open, logged in to Paper Trading, with its API turned on. Live ports are refused." },
+  delayedprices: { title: "Real-time or delayed prices", text: "Without a market data subscription, Interactive Brokers sends prices about 15 minutes late. Choose Delayed so Stock Wizard knows; delayed prices count as 15 minutes old against your limits." },
+  ntfy: { title: "Phone notifications", text: "Through the free ntfy app: an order waiting for you, filled, closed or stopped, and the daily limit reached. The topic name is like a password: make it hard to guess." },
+  marketdata: { title: "Market data for everyone", text: "On Ben's PC only: it fetches the candles for the symbol list from Interactive Brokers, streams live bars in US hours and runs the scans, for everyone who uses Stock Wizard." },
+  screens: { title: "Screens", text: "Give each monitor a job and Stock Wizard opens a window on it: Main chart (the working chart), Watch page (your chart page) or Trading (what's running). Only on the PC program." },
   entrytime: { title: "Entry time", text: "The time (New York) an automated strategy looks for its trade, once a day. It has 15 minutes after it to propose; Stock Wizard must be running on your PC then." },
 } satisfies Record<string, Term>;
 

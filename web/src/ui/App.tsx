@@ -8,6 +8,8 @@ import { ARRIVED_BY, DemoStore, Store, SupabaseStore, User } from "../data/store
 import type { SymbolInfo, Watchlist } from "../data/model";
 import { useWorkspaces } from "../data/useWorkspaces";
 import ChartScreen from "./ChartScreen";
+import SetupScreen from "./Setup";
+import { pcBridge, SETUP_SEEN, viewFromUrl } from "../data/pc";
 import TradingScreen from "./Trading";
 import SafetyScreen from "./Safety";
 import HelpScreen from "./Help";
@@ -31,7 +33,7 @@ import BotKeyScreen from "./BotKey";
 import { useWatchlists, WatchlistScreen, WatchlistsScreen } from "./Watchlists";
 import { APP_BUILD } from "../config";
 
-type Screen = { name: "chart" } | { name: "scanner" } | { name: "pages" } | { name: "card" } | { name: "backtests" } | { name: "backtest"; id: string } | { name: "watchlists" } | { name: "safety" } | { name: "trading" } | { name: "botkey" } | { name: "help" } | { name: "today" } | { name: "analysis"; id: string } | { name: "optbacktest"; id: string } | { name: "watchlist"; list: Watchlist };
+type Screen = { name: "chart" } | { name: "scanner" } | { name: "pages" } | { name: "card" } | { name: "backtests" } | { name: "backtest"; id: string } | { name: "watchlists" } | { name: "safety" } | { name: "trading" } | { name: "setup" } | { name: "botkey" } | { name: "help" } | { name: "today" } | { name: "analysis"; id: string } | { name: "optbacktest"; id: string } | { name: "watchlist"; list: Watchlist };
 
 /** One screen's identity, for the path and the menu: its name, and which backtest, structure or list. */
 function screenKey(s: Screen): string {
@@ -90,9 +92,19 @@ function SignedIn({ store, user }: { store: Store; user: User }) {
   const fav = useFavourites(store, user.id);
   const [strategyLabels, setStrategyLabels] = useState<Record<string, string>>({});
   useEffect(() => { store.strategies().then((s) => setStrategyLabels(Object.fromEntries(s.map((x) => [x.id, x.label])))).catch(() => {}); }, [store]);
-  const [screen, setScreenNow] = useState<Screen>({ name: "chart" });
+  // A window opened for one job on its own screen (Setup, Screens: ?view=watch) starts there.
+  const startAt = ((): Screen => { const v = viewFromUrl(); return v === "watch" ? { name: "pages" } : v === "trading" ? { name: "trading" } : { name: "chart" }; })();
+  const [screen, setScreenNow] = useState<Screen>(startAt);
   // The path you came down from the chart (the home screen), for the path bar and for back.
-  const [trail, setTrail] = useState<Screen[]>([]);
+  const [trail, setTrail] = useState<Screen[]>(startAt.name === "chart" ? [] : [startAt]);
+  // The first time the PC program has nothing set up, Setup opens by itself.
+  useEffect(() => {
+    if (store.demo) return;
+    let seen = false;
+    try { seen = !!localStorage.getItem(SETUP_SEEN); } catch { /* fine */ }
+    if (seen || viewFromUrl()) return;
+    pcBridge().then((pc) => pc?.load()).then((s) => { if (s && !s.configured) { setTrail([{ name: "setup" }]); setScreenNow({ name: "setup" }); } }).catch(() => {});
+  }, [store]);
   const go = (next: Screen, fresh = false) => {
     if (next.name === "chart") setTrail([]);
     else if (fresh) setTrail([next]);   // the menu starts a new path
@@ -135,7 +147,7 @@ function SignedIn({ store, user }: { store: Store; user: User }) {
   const titleOf = (s: Screen): string => s.name === "chart" ? "Stock Wizard" : s.name === "scanner" ? "Scanner"
     : s.name === "pages" ? "Chart pages" : s.name === "backtests" ? "Backtests"
     : s.name === "backtest" ? (strategyLabels[s.id] ?? "Backtest") : s.name === "card" ? (ws.active?.name ?? "Chart")
-    : s.name === "watchlists" ? "Watchlists" : s.name === "optbacktest" ? "Option backtest" : s.name === "safety" ? "Safety and orders" : s.name === "trading" ? "Trading" : s.name === "botkey" ? "Access key" : s.name === "help" ? "Help" : s.name === "today" ? "Today"
+    : s.name === "watchlists" ? "Watchlists" : s.name === "optbacktest" ? "Option backtest" : s.name === "safety" ? "Safety and orders" : s.name === "trading" ? "Trading" : s.name === "setup" ? "Setup" : s.name === "botkey" ? "Access key" : s.name === "help" ? "Help" : s.name === "today" ? "Today"
     : s.name === "analysis" ? (() => { const p = pos.list.find((x) => x.id === s.id); return p ? `${structureLabel(p.structure)} · ${p.symbol}` : "Analysis"; })()
     : s.list.name;
   const title = titleOf(screen);
@@ -162,6 +174,7 @@ function SignedIn({ store, user }: { store: Store; user: User }) {
     { label: "Research", entries: [entry({ name: "scanner" }), entry({ name: "backtests" }), entry({ name: "watchlists" })] },
     { label: "Trading", entries: [entry({ name: "trading" }), entry({ name: "safety" }), entry({ name: "botkey" })] },
     { label: "Settings and help", entries: [
+      entry({ name: "setup" }),
       entry({ name: "help" }),
       { key: "update", label: "Get latest version", onPick: () => { setToast("Getting the latest version…"); getLatestVersion(); } },
       { key: "signout", label: `Sign out of ${store.demo ? "demo" : user.email}`, onPick: () => store.signOut() },
@@ -203,6 +216,7 @@ function SignedIn({ store, user }: { store: Store; user: User }) {
       {screen.name === "chart" && <ChartScreen store={store} ws={ws} pos={pos} fav={fav} symbols={symbols} firstSymbol={firstSymbol}
         onAnalyse={(id) => { setAdjust(null); setScreen({ name: "analysis", id }); }} adjust={adjust} />}
       {screen.name === "safety" && <SafetyScreen store={store} />}
+      {screen.name === "setup" && <SetupScreen store={store} onAccessKey={() => go({ name: "botkey" })} onFinish={() => go({ name: "chart" })} />}
       {screen.name === "trading" && <TradingScreen store={store} onSafety={() => go({ name: "safety" })} />}
       {screen.name === "botkey" && <BotKeyScreen store={store} />}
       {screen.name === "help" && <HelpScreen />}

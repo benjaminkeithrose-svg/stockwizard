@@ -7,6 +7,11 @@ supervisor restarts the bot (and data program) with the new settings.
 
 The bot key is never sent back to the screen: it only shows whether one is set.
 The data-program switch only appears on a PC with the secret key (Ben's).
+
+Since 19 Nov 2026 (setup inside the app) nothing has to be entered before saving: a PC
+without an access key simply doesn't trade until one is added (Menu, Setup, in the app,
+which makes the key and hands it over through `set_key`). SCREENS records which monitor
+shows what ("0:main,1:watch,2:trading").
 """
 
 from __future__ import annotations
@@ -18,6 +23,7 @@ from typing import Callable
 PORTS = {"tws": "7497", "gateway": "4002"}
 TOPIC = re.compile(r"^[A-Za-z0-9_-]{0,64}$")
 YES = ("1", "yes", "true")
+JOBS = ("main", "watch", "trading")
 
 
 def _read(path: Path) -> list[str]:
@@ -33,9 +39,19 @@ def _values(lines: list[str]) -> dict[str, str]:
     return out
 
 
+def parse_screens(text: str) -> dict[int, str]:
+    """'0:main,1:watch' -> {0: 'main', 1: 'watch'}; anything unreadable is left out."""
+    out = {}
+    for part in (text or "").split(","):
+        i, _, job = part.partition(":")
+        if i.strip().isdigit() and job.strip() in JOBS:
+            out[int(i)] = job.strip()
+    return out
+
+
 class SettingsApi:
     def __init__(self, path: Path, on_saved: Callable[[dict[str, str]], None] = lambda s: None):
-        self.path, self.on_saved = path, on_saved
+        self.path, self._on_saved = path, on_saved   # private: the page can call public methods only
 
     def load(self) -> dict:
         v = _values(_read(self.path))
@@ -48,6 +64,8 @@ class SettingsApi:
             "delayed": v.get("IB_DELAYED", "").lower() in YES,
             "ntfy_topic": v.get("NTFY_TOPIC", ""),
             "run_data": (v.get("RUN_DATA", "").lower() in YES) if ben else None,
+            "configured": key.startswith("swbot1.") or ben,
+            "screens": {str(k): j for k, j in parse_screens(v.get("SCREENS", "")).items()},
         }
 
     def save(self, form: dict) -> dict:
@@ -64,21 +82,33 @@ class SettingsApi:
         lines = _read(self.path)
         current = _values(lines)
         secret = current.get("SUPABASE_SECRET_KEY") or current.get("SUPABASE_SECRET_KEY_PROTECTED")
-        if not key and not current.get("BOT_KEY") and not secret:
-            return {"error": "Paste your access key: make one in the app (Menu, Access key)."}
         new = {"IB_PORT": PORTS[connection], "IB_DELAYED": "1" if form.get("delayed") else "0", "NTFY_TOPIC": topic}
+        if isinstance(form.get("screens"), dict):
+            screens = parse_screens(",".join(f"{k}:{j}" for k, j in form["screens"].items()))
+            new["SCREENS"] = ",".join(f"{k}:{j}" for k, j in sorted(screens.items()))
         if key:
             new["BOT_KEY"] = key
         if secret and form.get("run_data") is not None:
             new["RUN_DATA"] = "1" if form.get("run_data") else "0"
         kept = [ln for ln in lines if ln.partition("=")[0].strip() not in new and ln.strip()]
-        out = kept + [f"{k}={v}" for k, v in new.items() if v != "" or k != "NTFY_TOPIC"]
+        out = kept + [f"{k}={v}" for k, v in new.items() if v != "" or k not in ("NTFY_TOPIC", "SCREENS")]
         self.path.parent.mkdir(parents=True, exist_ok=True)
         tmp = self.path.with_suffix(".tmp")
         tmp.write_text("\n".join(out) + "\n", encoding="utf-8")
         tmp.replace(self.path)
-        self.on_saved(_values(out))
+        self._on_saved(_values(out))
         return {"ok": True}
+
+    def set_key(self, key: str) -> dict:
+        """The app made an access key for this PC: keep everything else as it is."""
+        return self.save({**self._form(), "bot_key": key})
+
+    def set_screens(self, screens: dict) -> dict:
+        return self.save({**self._form(), "screens": screens})
+
+    def _form(self) -> dict:
+        s = self.load()
+        return {"connection": s["connection"], "delayed": s["delayed"], "ntfy_topic": s["ntfy_topic"], "run_data": s["run_data"]}
 
 
 PAGE = """<!doctype html>

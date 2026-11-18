@@ -143,6 +143,8 @@ class Supervisor:
 
     def configure(self, settings: dict[str, str], run_data: bool) -> None:
         self.settings = settings
+        # Nothing to sign in with yet (a fresh install): wait quietly until Setup in the app adds an access key.
+        self.ready = bool(settings.get("BOT_KEY") or settings.get("SUPABASE_SECRET_KEY"))
         self.port = int(settings.get("IB_PORT") or 7497)
         self.port_open = self._port_open or (lambda: _port_open(self.port))
         delayed = ["--delayed"] if settings.get("IB_DELAYED", "").lower() in ("1", "yes", "true") else []
@@ -150,6 +152,9 @@ class Supervisor:
                                self.log_dir / "bot.log")]
         if run_data:
             self.children.append(Child("data", [self.python, "-u", "-m", "stockwizard.run_data", "--port", str(self.port)], self.log_dir / "data.log"))
+        if not self.ready:
+            for c in self.children:
+                c.state, c.detail = "setup", NOT_SET_UP
 
     def reload(self, settings: dict[str, str], run_data: bool) -> None:
         """New settings from the Settings screen: stop the programs and start them again with them."""
@@ -191,8 +196,8 @@ class Supervisor:
         """Start what isn't running; note what stopped and start it again a minute later."""
         now = self.clock()
         for c in self.children:
-            if self.stopping:
-                return
+            if self.stopping or not self.ready:
+                break
             if c.proc is None:
                 self.start(c)
             elif c.proc.poll() is not None and c.restart_at is None:
@@ -239,6 +244,9 @@ class Supervisor:
                 pass
 
 
+NOT_SET_UP = "Not set up yet: open Stock Wizard, then Menu, Setup"
+
+
 def _port_open(port: int) -> bool:
     try:
         with socket.create_connection(("127.0.0.1", port), timeout=1):
@@ -255,7 +263,7 @@ def heartbeat(store, owner: str):
 
 # --- the icon by the clock ---
 
-COLOURS = {"connected": "#237F35", "waiting": "#C77700", "starting": "#C77700", "stopped": "#B2232F"}
+COLOURS = {"connected": "#237F35", "waiting": "#C77700", "starting": "#C77700", "setup": "#C77700", "stopped": "#B2232F"}
 
 
 def _icon_image(state: str, size: int = 64):
@@ -278,6 +286,21 @@ def _icon_image(state: str, size: int = 64):
 
 
 APP_URL = "https://benjaminkeithrose-svg.github.io/stockwizard/"
+SCREEN_TITLES = {"main": "chart", "watch": "watch page", "trading": "trading"}
+#: What a fresh install starts with (Ben, 19 Nov 2026: the installer asks nothing it can know).
+DEFAULT_SETTINGS = "IB_PORT=7497\nIB_DELAYED=0\n"
+
+
+def make_beat():
+    """The heartbeat to the app's PC line, once there's a key to sign in with; None until then."""
+    try:
+        from stockwizard.data.store import SupabaseStore  # noqa: PLC0415
+        from stockwizard.run_bot import find_owner  # noqa: PLC0415
+        store = SupabaseStore()
+        return heartbeat(store, find_owner(store))
+    except BaseException as e:  # noqa: BLE001 - trading still runs; the status line just won't show
+        print(f"No PC status line: {e}")
+        return None
 
 
 def _run_data(settings: dict[str, str], forced: bool) -> bool:
@@ -295,14 +318,57 @@ def run_desktop(sup: Supervisor, settings_path: Path, log_dir: Path, lock: socke
     import pystray  # noqa: PLC0415
     import webview  # noqa: PLC0415
 
-    from stockwizard.pc_settings import PAGE, SettingsApi  # noqa: PLC0415
+    from stockwizard.pc_settings import PAGE, SettingsApi, parse_screens  # noqa: PLC0415
     from stockwizard.updates import Updater  # noqa: PLC0415
 
-    state: dict = {"quitting": False, "settings": None}
+    state: dict = {"quitting": False, "settings": None, "screens": {}}
     updater = Updater(None, settings_path.parent / "updates")
     if updater.current:
         sup.version = updater.current   # the installed release, in the app's PC status line
-    main = webview.create_window("Stock Wizard", APP_URL, width=1280, height=860, min_size=(380, 600), hidden=not show)
+    class Bridge(SettingsApi):
+        """What the app in this window can ask of the PC program (Menu, Setup): settings, never the keys themselves."""
+
+        def status(self):
+            return {**sup.status(), "ready": sup.ready, "pc": True}
+
+        def monitors(self):
+            return [{"index": i, "width": s.width, "height": s.height, "x": s.x, "y": s.y} for i, s in enumerate(webview.screens)]
+
+        def set_screens(self, screens):
+            r = super().set_screens(screens)
+            if r.get("ok"):
+                threading.Thread(target=open_screens, daemon=True).start()
+            return r
+
+    main = webview.create_window("Stock Wizard", APP_URL, width=1280, height=860, min_size=(380, 600), hidden=not show,
+                                 js_api=Bridge(settings_path, lambda v: saved(v)))
+
+    def open_screens():
+        """A window on each monitor given a job in Setup, Screens: the main window moves to its own; the others open there."""
+        jobs = parse_screens(load_settings(settings_path).get("SCREENS", ""))
+        screens = list(webview.screens)
+        for job, w in list(state["screens"].items()):
+            if job not in jobs.values():
+                try:
+                    w.destroy()
+                except Exception:  # noqa: BLE001 - already closed
+                    pass
+                state["screens"].pop(job, None)
+        for i, job in jobs.items():
+            if i >= len(screens):
+                continue   # that monitor isn't plugged in today
+            s = screens[i]
+            if job == "main":
+                main.move(s.x, s.y)
+                main.maximize()
+                continue
+            if job in state["screens"]:
+                continue
+            w = webview.create_window(f"Stock Wizard: {SCREEN_TITLES[job]}", f"{APP_URL}?view={job}", x=s.x, y=s.y,
+                                      width=s.width, height=s.height, js_api=Bridge(settings_path, lambda v: saved(v)))
+            w.events.shown += lambda w=w: w.maximize()
+            w.events.closed += lambda job=job: state["screens"].pop(job, None)
+            state["screens"][job] = w
 
     def on_closing():
         if state["quitting"]:
@@ -314,11 +380,15 @@ def run_desktop(sup: Supervisor, settings_path: Path, log_dir: Path, lock: socke
     def show_main():
         main.show()
         main.restore()
+        if load_settings(settings_path).get("SCREENS"):
+            threading.Thread(target=open_screens, daemon=True).start()
 
     def saved(_values: dict[str, str]) -> None:
         values = load_settings(settings_path)   # with the secret key decrypted, as at start
         os.environ.update(values)
         sup.reload(values, _run_data(values, forced_data))
+        if sup.beat_fn is None:
+            sup.beat_fn = make_beat()   # set up just now: the app's PC line starts too
 
     class Api(SettingsApi):
         def close(self):
@@ -437,6 +507,8 @@ def run_desktop(sup: Supervisor, settings_path: Path, log_dir: Path, lock: socke
         threading.Thread(target=loop, daemon=True).start()
         if open_settings_first:
             open_settings()
+        if show and load_settings(settings_path).get("SCREENS"):
+            open_screens()
 
     storage = settings_path.parent / "window"
     storage.mkdir(parents=True, exist_ok=True)
@@ -464,21 +536,16 @@ def main(argv: list[str] | None = None) -> int:
         except OSError:
             print("Stock Wizard is already running on this PC (look for its icon by the clock).")
             return 1
-    if not a.settings.exists():
-        print(f"No settings at {a.settings}: open Stock Wizard settings from the Start menu and paste your access key.")
-        return 1
+    if not a.settings.exists():   # a fresh install: start with what's known; Setup in the app adds the rest
+        a.settings.parent.mkdir(parents=True, exist_ok=True)
+        a.settings.write_text(DEFAULT_SETTINGS, encoding="utf-8")
     settings = load_settings(a.settings)
     os.environ.update(settings)
     python = sys.executable.replace("pythonw.exe", "python.exe")
     log_dir = a.settings.parent / "logs"
-    beat = None
-    try:
-        from stockwizard.data.store import SupabaseStore  # noqa: PLC0415
-        from stockwizard.run_bot import find_owner  # noqa: PLC0415
-        store = SupabaseStore()
-        beat = heartbeat(store, find_owner(store))
-    except BaseException as e:  # noqa: BLE001 - the bots still run; the status line just won't show
-        print(f"No PC status line: {e}")
+    beat = make_beat() if (settings.get("BOT_KEY") or settings.get("SUPABASE_SECRET_KEY")) else None
+    if not settings.get("BOT_KEY") and not settings.get("SUPABASE_SECRET_KEY"):
+        a.show = True   # nothing set up yet: open the window so Setup can start
     sup = Supervisor(python, settings, _run_data(settings, a.data), log_dir, beat=beat)
     if a.no_tray:
         try:
