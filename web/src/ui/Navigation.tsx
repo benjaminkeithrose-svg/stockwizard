@@ -21,7 +21,7 @@ export interface MenuGroup {
 export function FullMenu(props: { groups: MenuGroup[]; current: string; onClose: () => void; foot?: React.ReactNode }) {
   const [mode, setMode] = useState<Mode>(readMode());
   return (
-    <Sheet title="Menu" full onClose={props.onClose}>
+    <Sheet title="Menu" full anchor="menu" onClose={props.onClose}>
       <nav className="navmenu" aria-label="Screens">
         {props.groups.map((g) => (
           <section key={g.label}>

@@ -10,7 +10,10 @@ export function Sheet(props: {
   onClose: () => void;
   /** The Done button: leaves the sheet and keeps what was entered. */
   onDone?: () => void;
+  /** Full screen on the phone; on a wider screen a panel near the top (Ben, 19 Nov 2026: full screen made no sense on the PC). */
   full?: boolean;
+  /** On a wider screen, drop down from the Menu button at the top right instead. */
+  anchor?: "menu";
   children: ReactNode;
 }) {
   useEffect(() => {
@@ -20,7 +23,7 @@ export function Sheet(props: {
   }, [props.onClose]);
   return (
     <div className="scrim" onClick={(e) => e.target === e.currentTarget && props.onClose()}>
-      <div className={`sheet${props.full ? " full" : ""}`} role="dialog" aria-label={props.title}>
+      <div className={`sheet${props.full ? " full" : ""}${props.anchor ? ` at-${props.anchor}` : ""}`} role="dialog" aria-label={props.title}>
         <div className="sh-h">
           <button className="icon" aria-label="Close" onClick={props.onClose}><Close /></button>
           <b>{props.title}</b>
