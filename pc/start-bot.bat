@@ -16,6 +16,12 @@ if not exist stockwizard.env (
 for /f "usebackq tokens=1,* delims==" %%a in ("stockwizard.env") do set "%%a=%%b"
 rem IB Gateway paper is 4002 (the default). With TWS instead, add IB_PORT=7497 to stockwizard.env.
 if not defined IB_PORT set "IB_PORT=4002"
+rem No options data subscription: add IB_DELAYED=1 to stockwizard.env. Quotes then count as 15 minutes
+rem old, so raise "Oldest prices allowed" in the app's Safety screen (about 1200 seconds) or every order is refused.
+set "DELAYED="
+if /i "%IB_DELAYED%"=="1" set "DELAYED=--delayed"
+if /i "%IB_DELAYED%"=="yes" set "DELAYED=--delayed"
+if /i "%IB_DELAYED%"=="true" set "DELAYED=--delayed"
 
 if not exist .venv (
   echo Setting up the first time...
@@ -27,9 +33,10 @@ if not exist .venv (
 echo.
 echo Stock Wizard paper bot. Paper account only; live trading is refused.
 echo It checks every 30 seconds. Leave this window open.
+if defined DELAYED echo Delayed market data: quotes count as 15 minutes old.
 echo.
 :run
-.venv\Scripts\python -m stockwizard.run_bot --broker ibkr --port %IB_PORT% --loop 30
+.venv\Scripts\python -m stockwizard.run_bot --broker ibkr --port %IB_PORT% %DELAYED% --loop 30
 echo.
 echo The bot stopped. It starts again in 60 seconds (close this window to stop it for good).
 timeout /t 60
