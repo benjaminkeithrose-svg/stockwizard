@@ -36,9 +36,13 @@ Lib\site-packages
 import site
 "@
 
-# 2. The bot's packages (the same as backend/pyproject.toml's, plus Windows' time zones)
-& $Python -m pip install --quiet --target "$build\python\Lib\site-packages" --platform win_amd64 `
-  --python-version ($PythonVersion -replace '^(\d+\.\d+).*', '$1') --implementation cp --only-binary=:all: `
+# 2. The bot's packages (the same as backend/pyproject.toml's, plus Windows' time zones). The Python
+#    building this must be the bundle's own kind (Windows, 64-bit, 3.13), so its packages fit; one
+#    of pywebview's comes only as source, which rules out fetching ready-made ones for another Python.
+$kind = & $Python -c "import sys, platform; print(f'{sys.version_info.major}.{sys.version_info.minor} {platform.machine()}')"
+$want = ($PythonVersion -replace '^(\d+\.\d+).*', '$1') + " AMD64"
+if ($kind -ne $want) { throw "Build with Python $want (this is $kind): its packages go into the bundle" }
+& $Python -m pip install --quiet --target "$build\python\Lib\site-packages" `
   "numpy>=1.26" "pandas>=2.1" "ib_async>=2.0" tzdata "pystray>=0.19" "Pillow>=10" "pywebview>=5"
 if ($LASTEXITCODE) { throw "pip couldn't fetch the bot's packages" }
 
