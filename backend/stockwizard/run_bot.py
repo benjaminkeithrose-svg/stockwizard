@@ -58,7 +58,7 @@ def find_owner(store: SupabaseStore) -> str:
     if bot is not None:
         rows = store.select("bot_accounts", {"select": "owner", "bot_user": f"eq.{bot.user_id}"})
         if not rows:
-            raise SystemExit("This bot key isn't linked to anyone any more: make a new one in the app (⋯, Bot key)")
+            raise SystemExit("This bot key isn't linked to anyone any more: make a new one in the app (the menu, three dots, then Bot key)")
         return rows[0]["owner"]
     owners = {r["owner"] for r in store.select("safety_limits", {"select": "owner"})}
     owners |= {r["owner"] for r in store.select("workspaces", {"select": "owner"})}
