@@ -427,3 +427,32 @@ button.info { display: inline-flex; align-items: center; justify-content: center
   text-transform: none; letter-spacing: 0;
   cursor: pointer; vertical-align: middle; }
 button.info:hover, button.info:focus-visible { background-color: var(--cyan-dk); color: #fff; }
+
+/* Chart workspace (Ben, 19 Nov 2026): the open tab changes the symbol; the toolbar sits along the top,
+   down the side, floating where it's dragged, or hidden behind a Tools button. */
+.tab .tchev { margin-left: 6px; font-size: 11px; opacity: .85; }
+.work { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 8px; }
+.workcol { flex: 1; min-height: 0; min-width: 0; display: flex; flex-direction: column; gap: 8px; }
+.tbgrip { padding: 0 9px; color: var(--ink-3); letter-spacing: -3px; font-weight: 700; }
+.tbdrag { cursor: move; touch-action: none; user-select: none; min-height: 40px; padding: 0 4px;
+  display: inline-flex; align-items: center; font-size: 18px; color: var(--ink-3); }
+.tbshow { align-self: flex-start; display: inline-flex; align-items: center; gap: 6px; min-height: 40px; padding: 0 14px;
+  border: 1px solid var(--edge); border-radius: var(--r-pill); background: var(--surface); color: var(--ink-2); cursor: pointer; }
+.work.tb-side { flex-direction: row; }
+.work.tb-side > .bar { flex: none; width: 118px; flex-direction: column; flex-wrap: nowrap; align-items: stretch; overflow-y: auto; }
+.work.tb-side > .bar .seg { flex-direction: column; }
+.work.tb-side > .bar .tool { justify-content: flex-start; }
+.work.tb-float > .bar { position: fixed; z-index: 40; max-width: min(94vw, 720px); padding: 6px;
+  background: var(--surface); border: 1px solid var(--edge); border-radius: var(--r); box-shadow: var(--lift-2); }
+@media (max-width: 720px) {
+  .work.tb-side { flex-direction: column; }
+  .work.tb-side > .bar { width: auto; flex-direction: row; flex-wrap: wrap; }
+  .work.tb-side > .bar .seg { flex-direction: row; }
+}
+.work.tb-side > .bar .seg button { border-left: 0; border-top: 1px solid var(--line-2); }
+.work.tb-side > .bar .seg button:first-child { border-top: 0; }
+@media (max-width: 720px) { .work.tb-side > .bar .seg button { border-top: 0; border-left: 1px solid var(--line-2); } .work.tb-side > .bar .seg button:first-child { border-left: 0; } }
+/* Chart pages: the selected card, which the toolbar acts on. */
+.gcard.sel { outline: 2px solid var(--act); outline-offset: 1px; }
+.gbar .gfull { min-width: 36px; min-height: 36px; }
+.main.embed { padding: 0; }

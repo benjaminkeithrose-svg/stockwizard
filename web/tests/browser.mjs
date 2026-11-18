@@ -137,12 +137,12 @@ try {
   await page.getByRole("button", { name: "Add Bull put (credit) to DEMO's favourites" }).click();
   await page.getByRole("button", { name: "Close" }).click();
   check(await page.locator(".chipbar").getByRole("button", { name: "Add Bull put (credit)" }).isVisible(), "a symbol's own favourite shows on its chart");
-  await page.getByRole("button", { name: /^Symbol DEMO/ }).click();
+  await page.getByRole("tab", { name: /^DEMO.*change the symbol/ }).click();   // the open tab is the symbol control
   await page.getByRole("textbox").first().fill("TEST");
   await page.getByRole("button", { name: /^TEST/ }).first().click();
   await wait(400);
   check(!(await page.locator(".chipbar").getByRole("button", { name: "Add Bull put (credit)" }).count()), "and not on another symbol's");
-  await page.getByRole("button", { name: /^Symbol TEST/ }).click();
+  await page.getByRole("tab", { name: /^TEST.*change the symbol/ }).click();
   await page.getByRole("textbox").first().fill("DEMO");
   await page.getByRole("button", { name: /^DEMO/ }).first().click();
   await wait(400);
@@ -237,7 +237,7 @@ try {
   await page.getByRole("button", { name: "Fired", exact: true }).click();
   await page.getByRole("button", { name: /^TEST/ }).click();
   await page.waitForSelector("[data-testid=chart] canvas");
-  check(await page.getByRole("button", { name: /Symbol TEST/ }).isVisible(), "tapping a result opens it on the chart");
+  check(await page.getByRole("tab", { name: /^TEST.*change the symbol/ }).isVisible(), "tapping a result opens it on the chart");
   check(await page.getByRole("button", { name: "1d", exact: true }).getAttribute("aria-pressed") === "true", "at the scan's timeframe");
 
   // Chart pages: new page, add cards, drag to swap, reload keeps it, tap opens full screen
@@ -303,10 +303,13 @@ try {
     "the page layout and sizes are kept after reload");
   const names = [null, await page.locator(`[data-card="${ids[1]}"] .gname`).textContent()];
 
-  // Tap a chart: full screen, no tab strip, Back returns to the page
+  // Tap a chart: it's selected and the one toolbar acts on it; its expand button opens it full screen
   await page.locator(`[data-card="${ids[1]}"] .gbody`).click();
+  check(await page.locator(`[data-card="${ids[1]}"]`).evaluate((el) => el.classList.contains("sel")), "tapping a card selects it");
+  check(await page.getByRole("toolbar", { name: "Chart tools" }).isVisible(), "with one toolbar for the page");
+  await page.getByRole("button", { name: `Open ${names[1]} full screen` }).click();
   await page.waitForSelector("[data-testid=chart] canvas");
-  check(await page.getByRole("heading", { name: names[1] }).isVisible(), "tapping a card opens it full screen");
+  check(await page.getByRole("heading", { name: names[1] }).isVisible(), "its expand button opens it full screen");
   check(!(await page.getByRole("tablist", { name: "Workspace tabs" }).count()), "full screen shows just that chart");
   check(await page.getByRole("button", { name: "Indicators" }).isVisible(), "with its tools");
   await page.getByRole("button", { name: "Back", exact: true }).click();
@@ -493,7 +496,7 @@ try {
   await page.getByRole("button", { name: /^Made-up list/ }).click();
   await page.getByRole("button", { name: /^TEST/ }).click();
   await page.waitForSelector("[data-testid=chart] canvas");
-  check(await page.getByRole("button", { name: /Symbol TEST/ }).isVisible(), "picking a symbol opens it on the chart");
+  check(await page.getByRole("tab", { name: /^TEST.*change the symbol/ }).isVisible(), "picking a symbol opens it on the chart");
 
   await page.screenshot({ path: "/tmp/sw-desktop.png" });
   await openFromMenu(page, "Chart pages");

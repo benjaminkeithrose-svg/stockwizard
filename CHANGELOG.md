@@ -5,6 +5,8 @@ on GitHub (#number). Kept up when Ben asks for a documentation refresh.
 
 ## 19 November 2026
 
+- #57 Chart workspace: the open tab changes the symbol; chart pages select a card and one toolbar acts on it; the toolbar along the top, down the side, floating or hidden
+
 - #56 (i) buttons beside settings and numbers: what each means, in plain words; one glossary for them and Help's Terms
 
 - #55 Plain names: Stock Wizard (no "bot"), Access key, Automate this strategy, Automated strategies, trading and market data on the PC line
