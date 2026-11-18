@@ -60,8 +60,15 @@ Name: "{userstartup}\Stock Wizard"; Filename: "{app}\python\pythonw.exe"; Parame
 
 [Run]
 Filename: "{app}\python\pythonw.exe"; Parameters: "-m stockwizard.supervisor --show"; WorkingDir: "{app}"; Description: "Open Stock Wizard now"; Flags: postinstall nowait skipifsilent
+; An update started from inside Stock Wizard (stage 4, /RESTART=1): open it again when done.
+Filename: "{app}\python\pythonw.exe"; Parameters: "-m stockwizard.supervisor"; WorkingDir: "{app}"; Flags: nowait; Check: Reopen
 
 [Code]
+function Reopen: Boolean;
+begin
+  Result := ExpandConstant('{param:RESTART|0}') = '1';
+end;
+
 { Updating: stop a running Stock Wizard (it keeps its files open) before replacing them. }
 function PrepareToInstall(var NeedsRestart: Boolean): String;
 var
