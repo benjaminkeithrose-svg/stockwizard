@@ -127,7 +127,7 @@ def test_automatic_mode_fills_then_a_time_exit_closes_it():
     assert o["status"] == "filled"
     clock["t"] = at(15, 5)
     said = r.cycle()
-    assert o["status"] == "closed" and any("closed (time)" in x for x in said), said
+    assert o["status"] == "closed" and any("close sent (time)" in x for x in said), said
 
 
 def test_a_stop_closes_on_a_strong_move():
@@ -171,7 +171,7 @@ def test_a_restart_remembers_which_strategy_an_order_came_from():
     r.cycle()
     r2 = BotRunner(s, OWNER, clock=lambda: at(15, 5), market=FakeMarket())
     said = r2.cycle()
-    assert any("closed (time)" in x for x in said), said
+    assert any("close sent (time)" in x for x in said), said
 
 
 def test_the_today_snapshot_is_saved_during_the_session_only():

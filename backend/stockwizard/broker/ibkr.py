@@ -48,6 +48,7 @@ def _ib_module():
 
 class IBKRBroker(Broker):
     is_live = False
+    real_quotes = True
 
     def __init__(self, host: str = "127.0.0.1", port: int = PAPER_PORT, client_id: int = CLIENT_ID,
                  delayed: bool = False, ib=None, lib=None, clock=lambda: datetime.now(timezone.utc)):
@@ -66,6 +67,7 @@ class IBKRBroker(Broker):
         self._trades: dict[str, object] = {}            # broker id → ib_async Trade, this session
         self._requests: dict[str, OrderRequest] = {}    # broker id → what it was, including remembered ones
         self._filled: dict[str, float | None] = {}      # remembered fills from the database
+        self._closes: dict[str, str] = {}               # close order id → the position it closes
 
     # --- contracts ---
     def _legs(self, req: OrderRequest):
@@ -106,7 +108,7 @@ class IBKRBroker(Broker):
             raise ValueError(f"{broker_id} wasn't placed in this session; cancel it in IB Gateway")
         self.ib.cancelOrder(trade.order)
 
-    def close(self, broker_id: str, price: float) -> None:
+    def close(self, broker_id: str, price: float) -> str:
         req = self._requests.get(broker_id)
         if req is None:
             raise ValueError(f"No record of {broker_id}")
@@ -115,10 +117,38 @@ class IBKRBroker(Broker):
         lim = self._limit(price, cash_in=req.price_kind == "debit")
         lim.totalQuantity = req.quantity
         trade = self.ib.placeOrder(self._bag(req, legs, closing=True), lim)
-        self._trades[f"{broker_id}-close"] = trade
+        cid = f"IB-{trade.order.orderId}"
+        self._trades[cid], self._closes[cid] = trade, broker_id
+        return cid
+
+    def remember_close(self, close_id: str, broker_id: str, price: float) -> None:
+        self._closes[close_id] = broker_id
+
+    def _find(self, broker_id: str):
+        """This session's trade, or one from before a restart (same client id, so the same order number)."""
+        trade = self._trades.get(broker_id)
+        if trade is None and broker_id.startswith("IB-") and broker_id[3:].isdigit():
+            trade = next((t for t in getattr(self.ib, "trades", list)() if t.order.orderId == int(broker_id[3:])), None)
+            if trade is not None:
+                self._trades[broker_id] = trade
+        return trade
+
+    def close_quote(self, order: OrderRequest) -> float:
+        """The structure's value now from leg midpoints, rounded on a 5c tick towards getting filled:
+        paying to close a credit is rounded up, collecting on a debit rounded down."""
+        legs = self._legs(order)
+        net = 0.0
+        for t, l in zip(self.ib.reqTickers(*legs), order.legs):
+            mid = t.midpoint()
+            if mid is None or (isinstance(mid, float) and math.isnan(mid)):
+                raise ValueError(f"No bid and ask for the {l.strike:g} {'call' if l.right == 'C' else 'put'}: is the market open and the data subscribed?")
+            net += (1 if l.side == "buy" else -1) * l.qty * mid
+        if order.price_kind == "credit":   # buying back: pay what the shorts are worth over the longs
+            return round(max(0.05, math.ceil(round(-net / 0.05, 6)) * 0.05), 2)
+        return round(max(0.05, math.floor(round(net / 0.05, 6)) * 0.05), 2)
 
     def status(self, broker_id: str) -> BrokerOrder | None:
-        trade = self._trades.get(broker_id)
+        trade = self._find(broker_id)
         if trade is None:
             return None
         st = trade.orderStatus.status
@@ -131,9 +161,9 @@ class IBKRBroker(Broker):
 
     def open_orders(self) -> list[BrokerOrder]:
         mine = {id(t) for t in self._trades.values()}
-        out = [o for bid in self._trades if not bid.endswith("-close") and (o := self.status(bid)) and o.status == "working"]
+        out = [o for bid in self._trades if bid not in self._closes and (o := self.status(bid)) and o.status == "working"]
         for t in self.ib.openTrades():
-            if id(t) not in mine and t.orderStatus.status in WORKING:
+            if id(t) not in mine and f"IB-{t.order.orderId}" not in self._closes and t.orderStatus.status in WORKING:
                 out.append(BrokerOrder(f"IB-{t.order.orderId}", None, "working"))   # placed by someone else: reconcile flags it
         return out
 
@@ -152,7 +182,7 @@ class IBKRBroker(Broker):
         filled = {bid: price for bid, price in self._filled.items()}
         for bid in self._trades:
             o = self.status(bid)
-            if o and o.status == "filled" and not bid.endswith("-close"):
+            if o and o.status == "filled" and bid not in self._closes:
                 filled[bid] = o.fill_price
         out: list[BrokerOrder] = []
         for bid, price in filled.items():

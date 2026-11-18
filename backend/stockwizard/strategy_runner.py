@@ -304,7 +304,7 @@ class StrategyRunner:
         ny = now.astimezone(NY)
         for pid, p in list(self.r.bot.orders.items()):
             st = self.r.strategy_of.get(pid)
-            if st is None or p.status != "filled" or p.request.expiry < ny.date() or not calendar.is_trading_day(ny.date()):
+            if st is None or p.status != "filled" or p.close_id or p.request.expiry < ny.date() or not calendar.is_trading_day(ny.date()):
                 continue
             cfg = Config.from_dict(st["config"])
             legs = tuple(Leg(l.right, l.side, l.strike) for l in p.request.legs)
@@ -340,8 +340,8 @@ class StrategyRunner:
             if why:
                 close_px = abs(cost)
                 self.r.close_why[pid] = why
-                self.r.bot.close(pid, close_px)
-                said.append(f"Order {self.r.db_ids[pid]}: closed ({why}) at ${close_px:.2f}, {p.pnl:+.2f}")
+                self.r.bot.close(pid, close_px, by="bot", why=why)
+                said.append(f"Order {self.r.db_ids[pid]}: close sent ({why}) at ${close_px:.2f}; booked when it fills")
         return said
 
     # 3. settle at the close
@@ -351,8 +351,8 @@ class StrategyRunner:
         if ny.time() < time(16, 0) and ny.weekday() < 5:
             return said
         for pid, p in list(self.r.bot.orders.items()):
-            if p.status != "filled" or p.request.expiry > ny.date():
-                continue
+            if p.status != "filled" or p.close_id or p.request.expiry > ny.date():
+                continue   # a close still working is left to fill or be cancelled at the day's end first
             bars = self.market.bars_today(p.request.symbol, ny) if p.request.symbol in INSTRUMENTS else None
             if bars is None or bars.empty:
                 continue

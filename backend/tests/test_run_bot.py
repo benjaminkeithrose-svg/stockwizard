@@ -268,8 +268,8 @@ def test_closing_a_filled_position_counts_its_loss_today():
     s.tables["candles"].append({"symbol": "SPY", "timeframe": "1d", "ts": "2026-11-18T05:00:00+00:00", "close": 612.0})  # through the call side
     q = request(s, kind="close", order_id=o["id"], quantity=1)
     r.cycle()
-    assert q["status"] == "done" and "closed" in q["result"], q["result"]
-    assert o["status"] == "closed" and o["pnl"] < 0
+    assert q["status"] == "done" and "close sent" in q["result"], q["result"]
+    assert o["status"] == "closed" and o["pnl"] < 0          # the pretend market filled the close in the same cycle
     assert r.bot.realised_loss_today == -o["pnl"]
     assert "close_sent" in actions(s) and "position_closed" in actions(s)
 
@@ -360,3 +360,146 @@ def test_when_tws_goes_away_the_bot_exits_so_start_bot_restarts_it(monkeypatch, 
     assert rb.main(["--broker", "ibkr", "--port", "7497", "--loop", "30", "--owner", OWNER]) == 1
     assert len(cycles) == 2, "one cycle while connected, then it stops instead of looping on"
     assert "Restarting to reconnect" in capsys.readouterr().out
+
+
+# --- prices from the market, and closes booked when they fill (Ben, 18 Nov 2026) ---
+
+from dataclasses import replace as _replace  # noqa: E402
+
+from stockwizard.broker import PretendBroker  # noqa: E402
+
+
+class SlowBroker(PretendBroker):
+    """The pretend broker, but nothing fills until the test says so."""
+
+    def step(self):
+        return []
+
+
+class MarketBroker(SlowBroker):
+    """Stands in for IBKR's real quotes: the chart order and the close are priced from 'the market'."""
+
+    real_quotes = True
+
+    def __init__(self, credit=0.85, to_close=0.40, fail=False, **kw):
+        super().__init__(**kw)
+        self.credit, self.to_close, self.fail = credit, to_close, fail
+
+    def quote(self, order):
+        if self.fail:
+            raise ValueError("No bid and ask for the 590 put: is the market open and the data subscribed?")
+        return _replace(order, limit_price=self.credit, price_kind="credit", prices_as_of=NOW)
+
+    def close_quote(self, order):
+        return self.to_close
+
+
+def opened(broker, **limits):
+    """An iron condor ordered from the chart in automatic mode and filled at its limit."""
+    s = FakeStore()
+    s.set_limits(**{**LIMITS, "approval_mode": "automatic", "max_loss_per_trade": 100, **limits})
+    market(s)
+    request(s, kind="open", position_id="pos-1", quantity=1)
+    r = BotRunner(s, OWNER, clock=lambda: NOW, broker=broker)
+    r.cycle()
+    p = next(iter(r.bot.orders.values()))
+    broker.fill(p.broker_id)
+    r.cycle()
+    assert order(s)["status"] == "filled"
+    return s, r, p
+
+
+def test_with_ibkr_a_chart_order_is_priced_from_the_market_not_the_model():
+    s, r, p = opened(MarketBroker(credit=0.85))
+    o = order(s)
+    assert o["limit_price"] == 0.85 and o["price_kind"] == "credit"
+    assert "bid/ask midpoints" in o["reason"] and "Theoretical" not in o["reason"]
+
+
+def test_with_no_market_quote_a_chart_order_fails_with_the_reason_and_nothing_is_sent():
+    s = FakeStore()
+    s.set_limits(**{**LIMITS, "approval_mode": "automatic", "max_loss_per_trade": 100})
+    market(s)
+    q = request(s, kind="open", position_id="pos-1", quantity=1)
+    b = MarketBroker(fail=True)
+    BotRunner(s, OWNER, clock=lambda: NOW, broker=b).cycle()
+    assert q["status"] == "failed" and "No bid and ask" in q["result"]
+    assert not s.tables["paper_orders"] and not b.calls, "a model price is never sent instead"
+
+
+def test_a_close_keeps_the_position_open_until_it_fills_then_books_the_fill_price():
+    b = MarketBroker(credit=0.85, to_close=0.40)
+    s, r, p = opened(b)
+    q = request(s, kind="close", order_id=order(s)["id"], quantity=1)
+    r.cycle()
+    o = order(s)
+    assert "close sent at $0.40" in q["result"]
+    assert o["status"] == "filled" and o["pnl"] is None and o["close_price"] == 0.40 and o["close_reason"] == "by you"
+    again = request(s, kind="close", order_id=o["id"], quantity=1)
+    r.cycle()
+    assert again["status"] == "failed" and "already being closed" in again["result"]
+    b.fill(o["close_broker_id"], 0.35)                 # filled better than its limit
+    r.cycle()
+    assert o["status"] == "closed" and o["pnl"] == 50.0  # (0.85 - 0.35) × 100: the real fill, not the limit
+    assert "close_filled" in actions(s)
+
+
+def test_a_close_cancelled_unfilled_leaves_the_position_open():
+    b = SlowBroker()
+    s, r, p = opened(b)
+    request(s, kind="close", order_id=order(s)["id"], quantity=1)
+    r.cycle()
+    cid = order(s)["close_broker_id"]
+    b.orders[cid].status = "cancelled"                  # the day ended unfilled
+    said = r.cycle()
+    o = order(s)
+    assert o["status"] == "filled" and o["close_broker_id"] is None and o["pnl"] is None
+    assert any("wasn't filled" in x for x in said) and "close_cancelled" in actions(s)
+    assert r.bot.realised_loss_today == 0
+
+
+def test_a_restart_keeps_the_fill_price_and_a_close_still_working():
+    b = SlowBroker()
+    s, r, p = opened(b)
+    request(s, kind="close", order_id=order(s)["id"], quantity=1)
+    r.cycle()
+    cid = order(s)["close_broker_id"]
+    order(s)["fill_price"] = 0.80                        # as IBKR reported it: filled 5c better than the model's 0.50
+    b2 = SlowBroker(remembered=[])                       # the bot restarts with a fresh broker connection
+    r2 = BotRunner(s, OWNER, clock=lambda: NOW, broker=b2)
+    assert r2.bot.reconciled
+    p2 = next(iter(r2.bot.orders.values()))
+    assert p2.fill_price == 0.80 and p2.close_id == cid
+    b2.fill(cid, 0.30)
+    r2.cycle()
+    assert order(s)["status"] == "closed" and order(s)["pnl"] == 50.0   # (0.80 - 0.30) × 100, from the remembered fill
+
+
+def test_the_kill_switch_leaves_a_working_close_alone():
+    b = SlowBroker()
+    s, r, p = opened(b)
+    request(s, kind="close", order_id=order(s)["id"], quantity=1)
+    r.cycle()
+    cid = order(s)["close_broker_id"]
+    s.set_limits(kill_switch=True)
+    r.cycle()
+    assert b.orders[cid].status == "working", "closing only reduces risk"
+
+
+class GoneBroker(SlowBroker):
+    """After a restart the broker no longer holds the position: its close filled while the bot was away."""
+
+    def positions(self):
+        return []
+
+
+def test_a_close_that_filled_while_the_bot_was_away_is_booked_at_its_limit():
+    b = SlowBroker()
+    s, r, p = opened(b)
+    request(s, kind="close", order_id=order(s)["id"], quantity=1)
+    r.cycle()
+    r2 = BotRunner(s, OWNER, clock=lambda: NOW, broker=GoneBroker())
+    o = order(s)
+    assert r2.bot.reconciled and o["status"] == "closed"
+    assert o["pnl"] == round((o["limit_price"] - o["close_price"]) * 100, 2)
+    assert "closed_while_away" in actions(s)
