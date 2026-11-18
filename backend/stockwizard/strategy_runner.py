@@ -35,6 +35,7 @@ from zoneinfo import ZoneInfo
 
 import pandas as pd
 
+from stockwizard.data.base import select_preferred
 from stockwizard.rails import Leg as RailLeg
 from stockwizard.rails import OrderRequest
 from stockwizard.zerodte import calendar, signals
@@ -117,8 +118,8 @@ class PretendMarket:
         return self.quotes.chain(INSTRUMENTS[instrument], now, spot, left, vol, only=only)
 
     def daily(self, instrument, day):
-        rows = self.store.select("candles", {"select": "ts,open,high,low,close,volume", "symbol": f"eq.{UNDERLYING[instrument]}",
-                                             "timeframe": "eq.1d", "order": "ts.desc", "limit": "400"})
+        rows = select_preferred(self.store, "candles", {"select": "ts,open,high,low,close,volume", "symbol": f"eq.{UNDERLYING[instrument]}",
+                                                         "timeframe": "eq.1d", "order": "ts.desc", "limit": "400"})
         rows = [r for r in rows if pd.Timestamp(r["ts"]).tz_convert(NY).date() < day]
         if not rows:
             return None
@@ -134,7 +135,7 @@ class PretendMarket:
         return float(atr14(df.reset_index(drop=True)).iloc[-1]) * INSTRUMENTS[instrument].scale
 
     def vix_prev(self, day):
-        rows = self.store.select("candles", {"select": "ts,close", "symbol": "eq.^VIX", "timeframe": "eq.1d", "order": "ts.desc", "limit": "10"})
+        rows = select_preferred(self.store, "candles", {"select": "ts,close", "symbol": "eq.^VIX", "timeframe": "eq.1d", "order": "ts.desc", "limit": "10"})
         for r in rows:
             if pd.Timestamp(r["ts"]).tz_convert(NY).date() < day:
                 return float(r["close"])

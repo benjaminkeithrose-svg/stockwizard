@@ -25,11 +25,11 @@ import pandas as pd
 
 from stockwizard import __version__
 from stockwizard.candles import TIMEFRAMES, session_dates
+from stockwizard.data.base import SOURCES  # the broker's data first, the free source otherwise
 from stockwizard.data.store import SupabaseStore
 from stockwizard.scans import RULES, evaluate
 
 CANDLES = 300  # history read per symbol: enough to warm up every rule's indicators
-SOURCES = ["ibkr", "yahoo-unofficial"]  # the broker's data once it exists; the free source until then
 # A symbol whose latest candle is older than this is left out rather than reported on old data.
 STALE_AFTER = {"5m": pd.Timedelta(days=4), "15m": pd.Timedelta(days=4), "30m": pd.Timedelta(days=4),
                "1h": pd.Timedelta(days=5), "1d": pd.Timedelta(days=6)}

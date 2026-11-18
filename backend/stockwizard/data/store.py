@@ -108,6 +108,15 @@ class SupabaseStore:
         """Insert rows, or replace the ones whose `on_conflict` column already exists."""
         return self._upsert(table, on_conflict, rows)
 
+    def delete(self, table: str, match: dict[str, str]) -> None:
+        """Remove the rows matching `match` (PostgREST filters). Refuses an empty match: never a whole table."""
+        if not match:
+            raise ValueError("delete needs at least one filter")
+        url = f"{self.url}/rest/v1/{table}?{urllib.parse.urlencode(match)}"
+        status, body = self.send("DELETE", url, {**self._headers(), "Prefer": "return=minimal"}, None)
+        if status >= 300:
+            raise RuntimeError(f"Supabase refused deleting from {table}: HTTP {status} {body[:300]!r}")
+
     def update(self, table: str, match: dict[str, str], values: dict) -> list[dict]:
         """Change the rows matching `match` (PostgREST filters, e.g. {"id": "eq.5"}); returns them as changed."""
         headers = {**self._headers(), "Prefer": "return=representation"}
