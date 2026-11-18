@@ -217,3 +217,22 @@ def test_a_plain_secret_key_is_encrypted_in_the_file_and_decrypted_only_in_memor
 def test_the_archive_sits_beside_the_settings_unless_told_otherwise(tmp_path):
     assert load_settings(settings_file(tmp_path, "BOT_KEY=swbot1.k\n"))["ARCHIVE_PATH"] == str(tmp_path / "archive.sqlite")
     assert load_settings(settings_file(tmp_path, "ARCHIVE_PATH=D:\a.sqlite\n"))["ARCHIVE_PATH"] == "D:\a.sqlite"
+
+
+def test_a_program_that_keeps_failing_stays_stopped_and_says_why(tmp_path):
+    """Stage 4 found it: the data program failed at once each restart while the line said 'starting'."""
+    beats = []
+    s, launch, clock = sup(tmp_path, data=True, beats=beats)
+    s.poll()
+    data = s.child("data")
+    data.take("Connected to Interactive Brokers for data (read-only, client 30).")
+    data.take("FileNotFoundError: [Errno 2] No such file or directory: 'C:\\app\\data\\universe.csv'")
+    launch.started[1][2].code = 1
+    clock["t"] = 1
+    s.poll()
+    assert data.state == "stopped" and data.detail.startswith("Stopped: FileNotFoundError")
+    clock["t"] = 1 + RESTART_AFTER
+    s.poll()                                   # restarted: still stopped, until it says otherwise
+    assert data.state == "stopped" and data.detail.startswith("Stopped: FileNotFoundError")
+    data.take("Caught up.")
+    assert data.state == "idle"

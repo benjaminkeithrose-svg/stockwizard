@@ -138,6 +138,7 @@ class Supervisor:
         log_dir.mkdir(parents=True, exist_ok=True)
         self.last_beat: float | None = None
         self.stopping = False
+        self.version = __version__   # the installed release number replaces it (updates.py)
         self.configure(settings, run_data)
 
     def configure(self, settings: dict[str, str], run_data: bool) -> None:
@@ -170,9 +171,12 @@ class Supervisor:
             c.log.replace(c.log.with_suffix(".old.log"))
         env = {**os.environ, **self.settings, "PYTHONUNBUFFERED": "1", "PYTHONIOENCODING": "utf-8"}
         flags = getattr(subprocess, "CREATE_NO_WINDOW", 0)
+        first = c.proc is None
         c.proc = self.popen(c.args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, env=env, creationflags=flags,
                             text=True, encoding="utf-8", errors="replace")
-        c.state, c.restart_at = "starting", None
+        c.restart_at = None
+        if first:
+            c.state = "starting"   # a restart keeps "stopped" or "waiting", and why, until the program says otherwise
         threading.Thread(target=self._read, args=(c, c.proc), daemon=True).start()
 
     def _read(self, c: Child, proc) -> None:
@@ -194,6 +198,9 @@ class Supervisor:
             elif c.proc.poll() is not None and c.restart_at is None:
                 if c.state not in ("stopped",):
                     c.state = "waiting" if c.kind == "bot" else "stopped"
+                err = next((ln for ln in reversed(c.lines) if re.match(r"^\w+(Error|Exception|Exit)\b", ln.strip())), None)
+                if err and (c.detail is None or c.state == "stopped" and not c.detail.startswith(("TWS", "The bot key", "No bot key", "Needs"))):
+                    c.detail = "Stopped: " + err.strip()[:150]
                 c.restart_at = now + RESTART_AFTER
             elif c.restart_at is not None and now >= c.restart_at:
                 self.start(c)
@@ -208,7 +215,7 @@ class Supervisor:
         bot, data = self.child("bot"), self.child("data")
         connected = any(c.state in ("connected", "catching up", "idle", "streaming") for c in self.children)
         return {
-            "host": socket.gethostname(), "version": __version__,
+            "host": socket.gethostname(), "version": self.version,
             "bot_state": bot.state, "bot_detail": bot.detail,
             "data_state": data.state if data else "off", "data_detail": data.detail if data else None,
             "tws_open": connected or bool(self.port_open()),
@@ -279,8 +286,12 @@ def run_desktop(sup: Supervisor, settings_path: Path, log_dir: Path, lock: socke
     import webview  # noqa: PLC0415
 
     from stockwizard.pc_settings import PAGE, SettingsApi  # noqa: PLC0415
+    from stockwizard.updates import Updater  # noqa: PLC0415
 
     state: dict = {"quitting": False, "settings": None}
+    updater = Updater(None, settings_path.parent / "updates")
+    if updater.current:
+        sup.version = updater.current   # the installed release, in the app's PC status line
     main = webview.create_window("Stock Wizard", APP_URL, width=1280, height=860, min_size=(380, 600), hidden=not show)
 
     def on_closing():
@@ -333,6 +344,17 @@ def run_desktop(sup: Supervisor, settings_path: Path, log_dir: Path, lock: socke
             return f"{'Bot' if kind == 'bot' else 'Data'}: {c.state}" + (f" · {c.detail[:70]}" if c.detail else "")
         return text
 
+    def update(icon, _item):
+        """Stage 4: download and check the new installer, start it, and close so it can replace the files."""
+        def run():
+            try:
+                updater.apply()
+            except Exception as e:  # noqa: BLE001 - say why and carry on as before
+                icon.notify(f"The update didn't start: {e}", "Stock Wizard")
+                return
+            quit_(icon, None)
+        threading.Thread(target=run, daemon=True).start()
+
     icon = pystray.Icon("stockwizard", _icon_image("starting"), "Stock Wizard", menu=pystray.Menu(
         pystray.MenuItem("Open Stock Wizard", lambda: show_main(), default=True),
         pystray.MenuItem(label("bot"), None, enabled=False),
@@ -340,6 +362,7 @@ def run_desktop(sup: Supervisor, settings_path: Path, log_dir: Path, lock: socke
         pystray.Menu.SEPARATOR,
         pystray.MenuItem("Settings", lambda: open_settings()),
         pystray.MenuItem("Logs", lambda: os.startfile(log_dir)),  # noqa: S606 - opens the logs folder
+        pystray.MenuItem(lambda _i: updater.label(), update, enabled=lambda _i: updater.can_apply()),
         pystray.Menu.SEPARATOR,
         pystray.MenuItem("Quit (stops the bot)", quit_),
     ))
@@ -358,6 +381,10 @@ def run_desktop(sup: Supervisor, settings_path: Path, log_dir: Path, lock: socke
 
     def loop():
         while not sup.stopping:
+            found = updater.maybe_check()
+            if found:
+                icon.notify(f"Stock Wizard {found.version} is ready. Right-click the icon by the clock and choose Update"
+                            + (" after the US close." if not updater.can_apply() else "."), "Stock Wizard update")
             sup.poll()
             bot = sup.child("bot")
             icon.icon = _icon_image(bot.state)
