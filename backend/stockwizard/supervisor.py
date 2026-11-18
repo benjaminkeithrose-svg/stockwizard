@@ -258,12 +258,22 @@ def heartbeat(store, owner: str):
 COLOURS = {"connected": "#237F35", "waiting": "#C77700", "starting": "#C77700", "stopped": "#B2232F"}
 
 
-def _icon_image(state: str):
-    from PIL import Image, ImageDraw  # noqa: PLC0415
-    img = Image.new("RGBA", (64, 64), (0, 0, 0, 0))
+def _icon_image(state: str, size: int = 64):
+    """A filled circle in the bot's state colour with a bold white S, readable at the clock's 16 pixels."""
+    from PIL import Image, ImageDraw, ImageFont  # noqa: PLC0415
+    img = Image.new("RGBA", (size, size), (0, 0, 0, 0))
     d = ImageDraw.Draw(img)
-    d.ellipse((4, 4, 60, 60), fill=COLOURS.get(state, "#7A7A7A"))
-    d.text((22, 18), "SW", fill="white")
+    d.ellipse((1, 1, size - 2, size - 2), fill=COLOURS.get(state, "#7A7A7A"), outline="white", width=max(2, size // 22))
+    font = None
+    for name in ("segoeuib.ttf", "arialbd.ttf"):   # Windows' bold faces; a plain default elsewhere
+        try:
+            font = ImageFont.truetype(name, int(size * 0.72))
+            break
+        except OSError:
+            continue
+    font = font or ImageFont.load_default(size=int(size * 0.72))
+    x0, y0, x1, y1 = d.textbbox((0, 0), "S", font=font)
+    d.text(((size - (x1 - x0)) / 2 - x0, (size - (y1 - y0)) / 2 - y0), "S", fill="white", font=font)
     return img
 
 
