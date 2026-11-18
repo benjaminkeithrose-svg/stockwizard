@@ -188,3 +188,14 @@ Follows on from the one-tap option structures above.
   members listed; chart tabs, pages and favourites stay per person. Only one
   PC may trade the account (one TWS login), so the other install shows and
   approves but doesn't trade.
+
+## Bar replay (19 Nov 2026)
+
+- Like TradingView's bar replay: pick a day on the chart, everything after it
+  is hidden, then step forward one candle at a time (or play at a chosen
+  speed) and practise reading the chart and placing trades as if it were
+  live.
+- Indicators only see the candles shown so far (they're causal and
+  truncation-tested already, so nothing peeks ahead).
+- Practice trades during a replay are scored at the replayed prices, kept
+  apart from paper trading.

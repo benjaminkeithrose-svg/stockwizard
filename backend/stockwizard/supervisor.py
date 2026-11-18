@@ -318,10 +318,23 @@ def run_desktop(sup: Supervisor, settings_path: Path, log_dir: Path, lock: socke
     import pystray  # noqa: PLC0415
     import webview  # noqa: PLC0415
 
+    from stockwizard.appicon import claim_taskbar, icon_path, set_window_icons  # noqa: PLC0415
     from stockwizard.pc_settings import PAGE, SettingsApi, parse_screens  # noqa: PLC0415
     from stockwizard.updates import Updater  # noqa: PLC0415
 
     state: dict = {"quitting": False, "settings": None, "screens": {}}
+    claim_taskbar()   # Stock Wizard's windows group under its own icon, not Python's
+    try:
+        ico = icon_path()
+    except Exception:  # noqa: BLE001 - only the windows' icon
+        ico = None
+
+    def iconise():
+        if ico:
+            try:
+                set_window_icons(ico)
+            except Exception:  # noqa: BLE001
+                pass
     updater = Updater(None, settings_path.parent / "updates")
     if updater.current:
         sup.version = updater.current   # the installed release, in the app's PC status line
@@ -333,6 +346,22 @@ def run_desktop(sup: Supervisor, settings_path: Path, log_dir: Path, lock: socke
 
         def monitors(self):
             return [{"index": i, "width": s.width, "height": s.height, "x": s.x, "y": s.y} for i, s in enumerate(webview.screens)]
+
+        def updates(self):
+            return updater.summary()
+
+        def check_updates(self):
+            updater.check_now()
+            return updater.summary()
+
+        def install_update(self):
+            """Update from the app (What's new): the same as Update on the icon by the clock."""
+            if not updater.can_apply():
+                return {"error": "No update to install now" if updater.available is None else "Updates wait until after the US close, so trading isn't cut off."}
+            if state.get("icon") is None:
+                return {"error": "Not ready yet: try again in a moment"}
+            update(state["icon"], None)
+            return {"ok": True}
 
         def set_screens(self, screens):
             r = super().set_screens(screens)
@@ -366,9 +395,11 @@ def run_desktop(sup: Supervisor, settings_path: Path, log_dir: Path, lock: socke
                 continue
             w = webview.create_window(f"Stock Wizard: {SCREEN_TITLES[job]}", f"{APP_URL}?view={job}", x=s.x, y=s.y,
                                       width=s.width, height=s.height, js_api=Bridge(settings_path, lambda v: saved(v)))
-            w.events.shown += lambda w=w: w.maximize()
+            w.events.shown += lambda w=w: (w.maximize(), iconise())
             w.events.closed += lambda job=job: state["screens"].pop(job, None)
             state["screens"][job] = w
+
+    main.events.shown += iconise
 
     def on_closing():
         if state["quitting"]:
@@ -407,6 +438,7 @@ def run_desktop(sup: Supervisor, settings_path: Path, log_dir: Path, lock: socke
                 pass
         w = webview.create_window("Stock Wizard settings", html=PAGE, js_api=Api(settings_path, saved), width=600, height=780)
         w.events.closed += lambda: state.update(settings=None)
+        w.events.shown += iconise
         state["settings"] = w
 
     def quit_(icon, _item):
@@ -502,6 +534,7 @@ def run_desktop(sup: Supervisor, settings_path: Path, log_dir: Path, lock: socke
             time.sleep(1)
 
     def started():
+        state["icon"] = icon
         icon.run_detached()
         threading.Thread(target=requests, daemon=True).start()
         threading.Thread(target=loop, daemon=True).start()

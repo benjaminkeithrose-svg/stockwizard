@@ -5,6 +5,8 @@ on GitHub (#number). Kept up when Ben asks for a documentation refresh.
 
 ## 19 November 2026
 
+- #62 Stock Wizard's own icon on Windows (the phone's); What's new with Check for updates and Update; an Updated note after a new build
+
 - #61 On the PC the menu drops down from its button, and symbol and help search open as panels; full screen stays on the phone
 
 - #59 Setup inside the app: the installer asks nothing; connect the PC in one tap, check TWS, prices and alerts, a window per monitor
