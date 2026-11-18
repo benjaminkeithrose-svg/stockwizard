@@ -37,7 +37,7 @@ function StudyNote({ s, run }: { s: StrategyDef; run: BacktestRun }) {
           A signal study: the {s.config.trade_symbol} index itself can't be traded, so there are no costs. Option prices come later.
         </div>
       )}
-      {run.source === "yahoo-unofficial" && <div className="msg warn">Free, unofficial data: nothing here counts as validated.</div>}
+      {run.source?.includes("yahoo") && <div className="msg warn">Free, unofficial data: nothing here counts as validated.</div>}
       {run.held_back_burned && (
         <div className="msg warn">The held-back years were already seen with other settings, so their result is no longer a fair test.</div>
       )}

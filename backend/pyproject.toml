@@ -14,7 +14,6 @@ dependencies = [
 
 [project.optional-dependencies]
 # The free, unofficial development data source. Swapped out once IBKR or a paid source is in place.
-yahoo = ["yfinance>=0.2.40"]
 test = ["pytest>=8"]
 # Interactive Brokers through IB Gateway; only on the PC that runs the bot.
 ibkr = ["ib_async>=2.0"]

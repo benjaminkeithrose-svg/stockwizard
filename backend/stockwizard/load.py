@@ -1,24 +1,20 @@
-"""Load candles for a symbol list into Supabase.
+"""The symbol list, and loading a list's candles from a source into Supabase.
 
-    python -m stockwizard.load --symbols data/test_symbols.csv --timeframe 1d --start 2006-01-01
-    python -m stockwizard.load --symbols data/test_symbols.csv --timeframe 5m --days 7   # top-up
-
-The symbol list is a CSV with columns symbol, market, instrument_type,
+The free Yahoo source and this loader's command line were removed (Ben, 18 Nov 2026): the
+data program on the PC (run_data.py) fetches from IBKR. The symbol list is a CSV with columns symbol, market, instrument_type,
 tradable, name. Symbols are added or updated first, then each symbol's
 candles. One failed symbol is reported and the rest carry on.
 """
 
 from __future__ import annotations
 
-import argparse
 import csv
 import sys
-from datetime import date, timedelta
+from datetime import date
 from pathlib import Path
 
 from stockwizard.candles import check_timeframe
 from stockwizard.data.store import SupabaseStore
-from stockwizard.data.yahoo import YahooSource
 
 
 def read_symbols(path: Path) -> list[dict]:
@@ -38,9 +34,8 @@ def read_symbols(path: Path) -> list[dict]:
     return out
 
 
-def run(symbols_csv: Path, timeframe: str, start: date | None, end: date | None, source=None, store=None) -> int:
+def run(symbols_csv: Path, timeframe: str, start: date | None, end: date | None, source, store=None) -> int:
     check_timeframe(timeframe)
-    source = source or YahooSource()
     store = store or SupabaseStore()
     symbols = read_symbols(symbols_csv)
     store.upsert_symbols(symbols)
@@ -55,22 +50,3 @@ def run(symbols_csv: Path, timeframe: str, start: date | None, end: date | None,
             print(f"{s['symbol']}: FAILED - {e}", file=sys.stderr)
     return failed
 
-
-def main(argv: list[str] | None = None) -> int:
-    p = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    p.add_argument("--symbols", type=Path, required=True)
-    p.add_argument("--timeframe", default="1d")
-    p.add_argument("--start", type=date.fromisoformat)
-    p.add_argument("--end", type=date.fromisoformat)
-    p.add_argument("--days", type=int, help="Only the last N days: a top-up. Overlap is harmless; candles are upserted.")
-    a = p.parse_args(argv)
-    start = a.start
-    if a.days is not None:
-        if a.start:
-            p.error("Use --start or --days, not both")
-        start = date.today() - timedelta(days=a.days)
-    return 1 if run(a.symbols, a.timeframe, start, a.end) else 0
-
-
-if __name__ == "__main__":
-    sys.exit(main())

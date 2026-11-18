@@ -69,23 +69,34 @@ class MarketView(Protocol):
 
 
 class PretendMarket:
-    """Today's 5-minute candles from the free source and the model's quotes. Prices are made up; nothing here is real."""
+    """Today's 5-minute candles from Supabase (the PC's data program writes IBKR's finished ones every 5 minutes)
+    and the model's quotes. Prices are made up; nothing here is real."""
 
     bar_minutes = 5
 
-    def __init__(self, store, source=None, quotes=None):
-        from stockwizard.data.yahoo import YahooSource  # noqa: PLC0415
-        self.store, self.source, self.quotes = store, source or YahooSource(), quotes or ModelQuotes()
+    def __init__(self, store, quotes=None):
+        self.store, self.quotes = store, quotes or ModelQuotes()
         self._bars: dict[tuple[str, date], pd.DataFrame] = {}
+
+    def _today_5m(self, sym: str, day: date) -> pd.DataFrame:
+        lo = datetime.combine(day, time(0), NY).astimezone(ZoneInfo("UTC"))
+        rows = select_preferred(self.store, "candles", {"select": "ts,open,high,low,close,volume", "symbol": f"eq.{sym}", "timeframe": "eq.5m",
+                                                         "and": f"(ts.gte.{lo.isoformat()},ts.lt.{(lo + timedelta(days=1)).isoformat()})",
+                                                         "order": "ts.asc"})
+        return pd.DataFrame([{k: float(r[k] or 0) for k in ("open", "high", "low", "close", "volume")} for r in rows],
+                            index=pd.DatetimeIndex([pd.Timestamp(r["ts"]).tz_convert("UTC") for r in rows], name="ts"),
+                            columns=["open", "high", "low", "close", "volume"])
 
     def bars_today(self, instrument, now):
         sym = UNDERLYING[instrument]
         day = now.astimezone(NY).date()
         key = (sym, day)
         try:
-            df = self.source.fetch(sym, "5m", start=day, end=day + timedelta(days=1))
+            df = self._today_5m(sym, day)
         except Exception:  # noqa: BLE001 - no bars is a reason not to trade, recorded by the caller
             return None
+        if df.empty:
+            return None   # none yet today (the data program not running, or before the first bar)
         df = df.copy()
         df.index = df.index.tz_convert(NY)
         df[["open", "high", "low", "close"]] *= INSTRUMENTS[instrument].scale
@@ -97,7 +108,7 @@ class PretendMarket:
 
     def _vol(self, now):
         try:
-            v = self.source.fetch("^VIX1D", "5m", start=now.astimezone(NY).date(), end=now.astimezone(NY).date() + timedelta(days=1))
+            v = self._today_5m("^VIX1D", now.astimezone(NY).date())
             if len(v):
                 return float(v["close"].iloc[-1]) / 100
         except Exception:  # noqa: BLE001

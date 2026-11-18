@@ -97,7 +97,7 @@ export default function ScannerScreen(props: { store: Store; onOpen: (symbol: st
                 <div className="hint" style={{ marginTop: tab === "spy" ? 0 : 4 }}>
                   Run {new Date(run.ran_at).toLocaleString(undefined, { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" })}
                   {" · "}{run.symbols.length} symbol{run.symbols.length === 1 ? "" : "s"}
-                  {run.source === "yahoo-unofficial" && <> · <span className="badge est">Free data source</span></>}
+                  {run.source?.includes("yahoo") && <> · <span className="badge est">Free data source</span></>}
                 </div>
                 {run.notes && <div className="msg warn">{run.notes}</div>}
                 {!run.results.length && <p className="empty">Nothing matched.</p>}

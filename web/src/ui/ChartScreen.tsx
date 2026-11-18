@@ -126,7 +126,7 @@ export default function ChartScreen(props: {
 
   const sourceBadge = useMemo(() => {
     if (candles.source === "made-up") return <span className="badge est">Made-up candles</span>;
-    if (candles.source === "yahoo-unofficial") return <span className="badge est" title="Free, unofficial source. Nothing on it counts as validated.">Free data source</span>;
+    if (candles.source?.includes("yahoo")) return <span className="badge est" title="Free, unofficial source. Nothing on it counts as validated.">Free data source</span>;
     if (live.length) return anyDelayed(live)
       ? <span className="badge est" title="Interactive Brokers is sending prices about 15 minutes behind: there's no real-time data subscription on the account.">Delayed</span>
       : <span className="badge ok" title="Updating from Interactive Brokers every few seconds.">Live</span>;

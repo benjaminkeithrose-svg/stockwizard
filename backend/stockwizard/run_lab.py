@@ -24,6 +24,7 @@ from stockwizard import __version__
 from stockwizard.backtest import fingerprint
 from stockwizard.data.store import SupabaseStore
 from stockwizard.lab import Settings, study
+from stockwizard.data.archive_store import backtest_store
 from stockwizard.run_backtests import WARM_UP, read_range
 from stockwizard.scan import candles_fingerprint
 
@@ -94,7 +95,7 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--min-episodes", type=int, default=20)
     p.add_argument("--rerun", type=int)
     a = p.parse_args(argv)
-    store = SupabaseStore()
+    store = backtest_store()
     if a.rerun:
         old = store.select("pattern_runs", {"select": "*", "id": f"eq.{a.rerun}"})
         if not old:
