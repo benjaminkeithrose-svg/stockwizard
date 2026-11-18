@@ -1,88 +1,60 @@
-# Running the paper bot on your PC
+# Ben's PC: trading, market data and backtests
 
-The bot runs on your PC next to IB Gateway, Interactive Brokers' small
-program that keeps you logged in. US markets are open overnight in Sydney
-(about 1:30 am to 8 am in summer), so the PC stays on through the night on
-market days.
+Every PC runs the same installed Stock Wizard (setting it up:
+[SETUP-BOT.md](SETUP-BOT.md)). Ben's PC does three more things, because its
+settings hold the Supabase **secret key** instead of a bot key:
 
-It only ever trades your **paper** account. It refuses live ports and any
-account whose number doesn't start with "DU" (paper account numbers do).
+- **Market data** for everyone: candles for the symbol list from Interactive
+  Brokers, live bars in US hours, and the scans after each close.
+- **The archive**: every candle ever fetched, in
+  `%LOCALAPPDATA%\StockWizard\archive.sqlite`, backed up to
+  `OneDrive\StockWizard` after each close.
+- **Backtests**: right-click the icon by the clock, **Run backtests**.
 
-You do steps 1 to 6 once. After that it's step 7, plus approving IB
-Gateway's login on your phone when it asks.
+It only ever trades the **paper** account. It refuses live ports (7496, 4001)
+and any account whose number doesn't start with "DU".
 
-## One-time set-up
+## The settings on Ben's PC
 
-### 1. Install Python
-1. Open https://www.python.org/downloads/ in your browser.
-2. Click **Download Python** (the yellow button).
-3. Open the downloaded file.
-4. Tick **Add python.exe to PATH** at the bottom of the first screen.
-5. Click **Install Now**, then **Close** when it finishes.
+Right-click the icon by the clock, then **Settings**:
 
-### 2. Install IB Gateway
-1. Open https://www.interactivebrokers.com.au/ and search the site for **IB Gateway**.
-2. Download **IB Gateway Stable** for Windows.
-3. Open the downloaded file and click through the installer.
+- **Interactive Brokers**: TWS (port 7497).
+- **Delayed prices**: ticked while the paper account has no real-time options
+  data.
+- **Phone notifications**: the ntfy topic.
+- **Market data (this PC only)**: ticked.
 
-### 3. Log in to IB Gateway (paper)
-1. Open **IB Gateway** from the Start menu.
-2. Choose **IB API** at the top (not FIX CTCI).
-3. Choose **Paper Trading**.
-4. Type your paper username and password, then click **Log In**.
-5. Approve the login in the **IBKR Mobile** app on your phone if it asks.
+The secret key is stored encrypted with Windows' own protection, readable
+only by Ben's Windows account. The settings file is
+`%LOCALAPPDATA%\StockWizard\stockwizard.env`.
 
-### 4. Turn on the API in IB Gateway
-1. In IB Gateway, click **Configure**, then **Settings**.
-2. Click **API**, then **Settings**.
-3. Tick **Enable ActiveX and Socket Clients**.
-4. Untick **Read-Only API**.
-5. Check **Socket port** says **4002**. Type 4002 if it doesn't.
-6. Under **Trusted IPs**, check **127.0.0.1** is listed. If not, click **Create** and type 127.0.0.1.
-7. Click **OK**.
+## Running backtests
 
-### 5. Get the Stock Wizard folder and its key
-1. On the repository's GitHub page, click the green **Code** button, then **Download ZIP**.
-2. Right-click the downloaded ZIP, click **Extract All**, and extract it to `C:\StockWizard`.
-3. Open `C:\StockWizard\stockwizard-main\pc` in File Explorer.
-4. Right-click an empty spot, click **New**, then **Text Document**, and name it `stockwizard.env`. Click **Yes** when Windows asks about changing the extension.
-5. Open it in Notepad and type these two lines, replacing the second part of the second line with your secret key (Supabase, Project Settings, API Keys, the `sb_secret_` key, the same one you put in GitHub):
+1. Right-click the **S** icon by the clock.
+2. Click **Run backtests**.
+3. A notice pops up when they're done (several minutes). The results are in
+   the app under **Backtests**.
 
-   ```
-   SUPABASE_URL=https://cxpspihahmztfydvdwpd.supabase.co
-   SUPABASE_SECRET_KEY=sb_secret_your-key-here
-   ```
+They run the stock backtests, the option backtests and the pattern lab on the
+archive. The full output is in `logs\backtests.log` (icon, **Logs**).
 
-6. For phone notifications, add a third line with your ntfy topic name (the same one you put in GitHub as `NTFY_TOPIC`):
+## Keeping the PC ready
 
-   ```
-   NTFY_TOPIC=your-topic-name
-   ```
-
-7. Save and close Notepad.
-
-This file stays on your PC. It isn't in the repository and never should be.
-
-### 6. Keep the PC awake overnight
-1. Click **Start**, type **Power, sleep and battery**, and open it.
-2. Under **Screen and sleep**, set **When plugged in, put my device to sleep after** to **Never**.
-3. Leave the screen-off setting as it is; a dark screen is fine.
-
-## Each time you want the bot running
-
-### 7. Start it
-1. Open IB Gateway and log in to **Paper Trading** (step 3).
-2. Double-click `start-bot.bat` in the `pc` folder.
-3. The first time, it sets itself up for a few minutes. Then it says **Connected to Interactive Brokers, paper account DU…**.
-4. Leave the window open. Orders, approvals and the kill switch work from the app's **Safety and orders** screen as before.
-
-To stop the bot, close its window. The kill switch in the app also stops all trading straight away.
+- TWS open and logged in to **Paper Trading**, with its API on (port 7497).
+- The PC awake through the US session: Start, **Power & sleep settings**,
+  **When plugged in, PC goes to sleep after**: **Never**.
+- While the PC or TWS is off, the market data stops for everyone. The next
+  start fills the gap.
 
 ## Good to know
 
-- **Phone notifications** come through the free **ntfy** app: an order waiting for you, filled, closed or stopped, and the daily limit reached. They need the `NTFY_TOPIC` line in step 5. The messages pass through ntfy's server: they say the symbol, strikes, prices and profit or loss, nothing else.
-
-- **IB Gateway restarts once a day** and sometimes asks you to log in again, with the confirmation on your phone. While it's down, the bot stops trading. When it's back, the bot checks its orders and positions against Interactive Brokers before doing anything else. If they don't match, it stays stopped and says why.
-- **Market data:** quotes need an options data subscription. Without one, add `--delayed` to the line in `start-bot.bat`. Delayed quotes count as 15 minutes old, so the stale-data limit refuses every order until you subscribe. That's on purpose.
-- **Updating:** download the ZIP again (step 5) into a new folder and copy your `stockwizard.env` across.
-- Once this runs reliably, I'll turn off the GitHub schedule that runs the pretend-broker bot.
+- **Phone notifications** pass through ntfy's server: they say the symbol,
+  strikes, prices and profit or loss, nothing else.
+- **TWS restarts once a day** and sometimes asks you to log in again. While
+  it's down, nothing trades. When it's back, the bot checks its orders and
+  positions against Interactive Brokers before doing anything else.
+- **Delayed prices** count as 15 minutes old, so a tight stale-data limit
+  refuses orders until real-time data is shared with the paper account.
+- **Starting Stock Wizard yourself**: Start menu, **Stock Wizard**. Claude
+  shouldn't start it from a Claude session: the Claude app keeps a private copy
+  of AppData, so a copy started there uses different settings.

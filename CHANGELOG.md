@@ -3,8 +3,27 @@
 What changed, newest first, by the date it was merged (Sydney time). Each line is one pull request
 on GitHub (#number). Kept up when Ben asks for a documentation refresh.
 
+## 19 November 2026
+
+- #54 Help and the guides refreshed: Menu, the installed program, live bars, bot keys, backtests on the PC
+- #53 Backtests on the PC from the 20-year archive (Run backtests on the icon); bad IBKR prices repaired as read; Yahoo removed
+- #52 A clearer icon by the clock: an S in a circle, coloured by state
+
 ## 18 November 2026
 
+- #51 Getting around and dark mode, from Financial Vault: the full-screen menu, the path bar, one header everywhere
+- #50 Stock Wizard updates itself from the icon by the clock (checked against GitHub's fingerprint)
+- #49 Your PC runs the installed program: settings, archive and logs in AppData, the key encrypted by Windows
+- #48 The app in its own window on the PC, the icon by the clock, and the Settings window
+- #47 One program on the PC: it runs and restarts the bot and the market data; the PC status line in the app
+- #46 Stock Wizard as a Windows installer, and the setup guide for invited people
+- #45 Several people: shared market data, a bot key each, invitations; Claude for Ben only
+- #44 Live bars on the charts in US hours, marked Live or Delayed
+- #43 Real prices for chart orders; closes booked when they fill
+- #42 Market data from Interactive Brokers, kept in an archive on the PC
+- #41 The bot exits when TWS disconnects, so it reconnects cleanly
+- #40 The bot can use delayed market data
+- #39 The bot connects to TWS as well as IB Gateway; option chain fix
 - #38 Help rebuilt as a guide (getting started, the bot and safety, troubleshooting, search); the user guide, how it runs, and this changelog
 - #37 Bots made from backtests: Make a bot, only tested settings run, paper results against the backtest, bot trades on the chart
 - #36 Indicators in one pop-up; the chip row keeps favourite structures, shared or per symbol
