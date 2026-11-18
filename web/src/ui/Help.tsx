@@ -1,8 +1,44 @@
-// Help (⋯ menu): each screen and the main terms, in plain English. Each topic
-// is folded so the page stays short. Keep this in step with the app: a change
-// to a screen changes its entry here in the same pull request.
+// Help (⋯ menu): a guide in plain English. Getting started first, then each
+// screen, the bot and its safety, what to do when something looks wrong, and
+// the terms. Each topic is folded so the page stays short; the search icon
+// opens a full-screen search over every topic. Baseline of 18 Nov 2026: Ben
+// asks for a refresh when he wants one (it isn't redone with every change).
 
-const SCREENS: [string, string[]][] = [
+import { useState } from "react";
+import { Search } from "./icons";
+import { Sheet } from "./parts";
+
+type Topic = [string, string[]];
+
+const START: Topic[] = [
+  ["1. Sign in and get the latest version", [
+    "Sign in with your email and password. Everything you set up is saved to your account and follows you between the phone and the PC.",
+    "⋯, then Get latest version, reloads the newest build. Do it after each change I tell you about. The build number is at the bottom of the ⋯ menu.",
+  ]],
+  ["2. Set up a chart", [
+    "The symbol button (top left of the toolbar) picks the symbol; the joined buttons pick the timeframe (5m to 1d).",
+    "Indicators adds moving averages, Bollinger bands, the squeeze, RSI and the rest. Star the ones you use: they wait under Favourites for one tap next time.",
+    "The + at the end of the tabs adds another chart. Chart pages (the grid icon) shows several at once.",
+  ]],
+  ["3. Look at a trade before making it", [
+    "Options places a structure (an iron condor, a credit spread…) around the current price. Drag its lines to move the strikes.",
+    "Tap its chip above the chart for the analysis: profit or loss at every price, time decay, the Greeks and the chance of profit. All theoretical prices for now.",
+  ]],
+  ["4. Check what the history says", [
+    "Backtests (the flask icon) shows how rules and option structures did over 20 years. Read the held-back column: the years the rule never saw while it was being made.",
+    "Each test also shows what $5,000 would have become, risking 2% a trade.",
+  ]],
+  ["5. Make a bot and let it trade on paper", [
+    "On an option backtest or a 0DTE survivor you like, tap Make a bot, then Done. It's saved switched off.",
+    "Set your limits first: ⋯, Safety and orders, Change limits. With no daily loss limit, every order is refused.",
+    "Switch the bot on under Bots. At its entry time each trading day it proposes the trade; you approve it in Safety and orders (or let it run in Automatic mode, paper only). Your phone tells you when there's something to do.",
+  ]],
+  ["6. Each morning", [
+    "Today (top of the chart screen) shows whether the US market is open, the market numbers, what each bot did, and today's result against your limit.",
+  ]],
+];
+
+const SCREENS: Topic[] = [
   ["The chart", [
     "Tabs along the top: each is a symbol and timeframe you've set up. The + adds one; ⋯ on a tab renames, duplicates or deletes it.",
     "Indicators (with how many are on the chart) opens the list: tap one for its settings, the bin takes it off, the star keeps it as a favourite. Favourites sit under that list for one-tap adding, and the full list is below.",
@@ -23,31 +59,57 @@ const SCREENS: [string, string[]][] = [
     "All prices here are theoretical (Black-Scholes) until Interactive Brokers supplies real ones.",
   ]],
   ["Today", [
-    "Today (top of the chart screen) is the morning checklist: whether the US market is open and when it opens in Sydney time, the latest SPY price, VIX, VIX1D, expected move to the close, opening range, VWAP and direction.",
-    "Under it, each strategy that's switched on and what it did today, the orders waiting for you, today's profit or loss and how much of the daily limit is used.",
+    "The morning checklist: whether the US market is open and when it opens in Sydney time, the latest SPY price, VIX, VIX1D, expected move to the close, opening range, VWAP and direction.",
+    "Under it, each bot that's switched on and what it did today, the orders waiting for you, today's profit or loss and how much of the daily limit is used. A Fed day or an expiration Friday is flagged at the top.",
     "The bot saves the market numbers every cycle during the US session; between sessions you see the last session's.",
   ]],
   ["Chart pages", ["Up to 10 charts as cards on a page. On the PC, drag a card to move it and its corner to resize it; Tidy closes the gaps. Tap a card to open it full screen."]],
-  ["Scanner", ["The latest run of each scan, in tabs. Scans run every US trading day after the close. Tap a result to open it on the chart."]],
+  ["Scanner", ["The latest run of each scan, in tabs: squeeze on, squeeze fired, breakout, trend break, drawdown and RSI divergence. Scans run every US trading day after the close. Tap a result to open it on the chart."]],
   ["Backtests", [
-    "Strategies: each rule's build years (2006–2021) and held-back years (the last 5) side by side. Only the held-back column stands for what to expect.",
-    "Options: iron condors and flies, and monthly credit spreads, debit spreads, iron condors and call and put condors, tested with modelled prices. The chips at the top pick a group. Monthly ones run about a month, every day with no direction rule, each managed one way: held to expiry, take 50%, close at 21 days left, or a stop at twice the credit.",
-    "0DTE: the same-day research. It shows how many strategies were tried, how many survived the false-discovery check, and whether they held up on data they weren't chosen on. Prices are modelled until real quotes are bought or recorded.",
+    "Strategies: each stock rule's build years (2006–2021) and held-back years (the last 5) side by side. Only the held-back column stands for what to expect.",
+    "Options: option structures on SPY with modelled prices. The chips at the top pick a group: condors and flies, $1 wings, 0DTE methods, and monthly (credit and debit spreads, iron condors, call and put condors, each managed one way: held to expiry, take 50%, close at 21 days left, or a stop at twice the credit).",
+    "0DTE: the same-day research. It shows how many strategies were tried, how many survived the false-discovery check, and whether they held up on data they weren't chosen on. Tap a dot or a card for the detail.",
     "Pattern lab: conditions that came before VIX spikes, every pattern counted and checked against luck.",
-    "Make a bot, at the top of an option backtest or a 0DTE survivor, sets up a bot with exactly the tested settings. Stock strategies and the pattern lab are stock signals, which the bot can't trade yet.",
     "Each backtest also shows what $5,000 would have become, with every trade risking 2% of the balance. Trades too big for 2% at one contract are skipped and counted.",
   ]],
-  ["Safety and orders", [
-    "The kill switch stops all trading: it drops waiting orders, and the bot cancels anything working.",
-    "Waiting: orders the bot has proposed. Tap one to approve or reject it. Approving doesn't send it straight away: the bot checks every limit again first.",
-    "Bots: each one proposes its trade by itself at its entry time each trading day, if the setup is there. Make one from a backtest: open it in Backtests and tap Make a bot. Only a tested bot (its settings unchanged since the backtest) can be switched on. Each card shows its paper results against what its backtest expected.",
-    "A strategy can expire the same day, in 3 or 9 trading days, or in about a month. Multi-day ones hold one position at a time overnight, take profit or stop whenever the bot checks, and settle at the expiry's close. The 3-day and 9-day condor presets are the ones in Backtests, Options.",
-    "Limits: the most a trade or a day may lose, positions at once, capital at risk, and how old prices may be. While the daily limit is empty, every order is refused.",
-    "Paper trading only. Live trading can't be turned on from the app.",
+  ["Watchlists", ["Lists of symbols (⋯, Watchlists). Tap a list, then a symbol, to open it on the chart."]],
+  ["Claude", ["The spark icon. Ask in plain words: run a test, explain a result, put an indicator on the chart. Claude can't place orders or change limits, and everything it does is recorded. Up to 100 questions a day."]],
+];
+
+const BOT: Topic[] = [
+  ["Make a bot", [
+    "At the top of each option backtest page and in each 0DTE survivor. It fills in the bot with exactly the tested settings: structure, expiry, strikes, wings, how it's managed, and any VIX filter or signal. Its card shows the held-back result.",
+    "Only tested settings can run. Change a setting and the bot is marked Untested and switched off; Put them back restores them. A bot set up by hand is untested.",
+    "Can't be bots yet, and say why: stock strategies and the pattern lab (stock signals; the bot trades options), the same-day methods tested on hourly candles, and call or put condors.",
   ]],
-  ["Phone notifications", ["The bot tells your phone, through the free ntfy app, when an order is waiting for you, filled, closed or stopped, and when the daily loss limit is reached. Each is told once. Tap one, then open Stock Wizard's Safety and orders to act on it."]],
-  ["Claude", ["Ask in plain words: run a test, explain a result, put an indicator on the chart. Claude can't place orders or change limits, and everything it does is recorded. Up to 100 questions a day."]],
-  ["Getting the latest version", ["⋯, then Get latest version, reloads the newest build. The build number is at the bottom of the ⋯ menu."]],
+  ["What a bot does each day", [
+    "In the 15 minutes after its entry time (New York) it reads the market, checks its setup (VIX range, signal, direction), picks the strikes and proposes the trade at the price you can count on getting.",
+    "Every order then goes through the safety rails. In Approve mode it waits for you; in Automatic mode (paper only) it's sent straight away if every rail passes.",
+    "While a trade is open, the bot checks its exits every cycle: profit target, stop, days left, time of day. Anything still open settles at its expiry's close.",
+    "Same-day bots trade once a day. Multi-day bots (3 days, 9 days, about a month) hold one position at a time, overnight.",
+    "A day with no setup is recorded with the reason; Today shows it.",
+  ]],
+  ["The safety rails", [
+    "Every order must pass all of them, when proposed and again when approved: defined risk only (no naked options), the most a trade may lose, the most a day may lose, positions open at once, capital at risk, prices no older than your limit, limit orders only, and the kill switch off.",
+    "While the daily loss limit is empty, every order is refused.",
+    "The kill switch (Safety and orders) stops all trading at once: it drops waiting orders and the bot cancels anything working.",
+    "Paper trading only. Live trading can't be turned on from the app, and the bot refuses live ports and accounts.",
+  ]],
+  ["Safety and orders", [
+    "Waiting: orders the bot has proposed. Tap one to approve or reject it. Approving doesn't send it straight away: the bot gets a fresh price and checks every limit again first.",
+    "Bots: switch one on (it asks first) or off. Each card shows Tested or Untested, its paper results so far, and what its backtest expected.",
+    "Limits: the most a trade or a day may lose, positions at once, capital at risk, how old prices may be, and Approve or Automatic.",
+  ]],
+  ["Phone notifications", ["Through the free ntfy app: an order waiting for you, filled, closed or stopped, and the daily loss limit reached. Each is told once. Open Stock Wizard's Safety and orders to act on it."]],
+  ["Where the bot runs", ["On your home PC, next to Interactive Brokers' IB Gateway (docs/PC-BOT.md has the set-up). Until that's running, a pretend broker runs every 10 minutes in US hours from GitHub, with made-up prices."]],
+];
+
+const TROUBLE: Topic[] = [
+  ["The app looks out of date", ["⋯, then Get latest version. If it still looks old, close the app fully and open it again."]],
+  ["Today says no snapshot, or the numbers are old", ["The bot saves them only during the US session. If the session is open and they're more than 10 minutes old, the bot isn't running: check the bot window on the PC (or, before the PC is set up, the Actions tab on GitHub)."]],
+  ["A bot didn't propose anything", ["Open Today: it shows the reason (outside its VIX range, no setup, a day it skips, a position still open). If it says the bot may not have run in time, the bot wasn't running at the entry time."]],
+  ["Every order is refused", ["Open the order in Safety and orders: it lists every rail it failed. Most often the daily loss limit is empty, the trade risks more than the per-trade limit, or the prices are too old."]],
+  ["Charts have no candles", ["Candles are topped up every US trading day, around 8 to 9 am Sydney time. A new symbol needs loading first; ask me."]],
 ];
 
 const TERMS: [string, string][] = [
@@ -60,7 +122,8 @@ const TERMS: [string, string][] = [
   ["Call / put condor", "Four strikes all of one type, bought for a debit: profits if the price ends between the two middle strikes. The same shape as an iron condor, paid for up front instead of received."],
   ["Iron fly", "A condor with both short strikes at the current price. A bigger credit, but it needs the price to stay close."],
   ["Wing", "The option bought further out that caps the loss."],
-  ["0DTE", "Zero days to expiry: opened and finished the same day."],
+  ["0DTE / DTE", "Days to expiry. 0DTE: opened and finished the same day."],
+  ["Daily range (ATR)", "How far the price typically moves in a day, averaged over 14 days. Strikes placed 'one daily range out' sit that far from the price."],
   ["Delta", "How much the position gains or loses for a $1 move. A short strike's delta is roughly its chance of finishing in the money: 15 delta ≈ 15%."],
   ["Theta", "What time decay earns or costs each day."],
   ["Vega", "What a 1-point rise in volatility does to the position."],
@@ -68,30 +131,65 @@ const TERMS: [string, string][] = [
   ["VIX / VIX1D", "The market's expected volatility: the VIX over 30 days, VIX1D over one day. Around 12–15 is calm; 25 and above is fear."],
   ["VWAP", "The day's average price weighted by volume. Above it and rising is bullish."],
   ["Opening range", "The high and low of the first 30 minutes."],
+  ["Squeeze", "Bollinger bands inside the Keltner channel: the price is coiling. 'Fired' is when it breaks out of it."],
   ["Natural price", "Selling at the bid and buying at the ask, the price you can count on getting. The mid is halfway between."],
   ["Slippage", "Getting a worse price than expected, especially on fast moves."],
-  ["Held-back years", "Years a rule never saw while it was being made. Only results there stand for what to expect, and they can only be used once."],
+  ["Profit target / stop", "Close early when the trade has made a set share of the most it can make (take 50%), or lost a set amount (a stop at 2× the credit)."],
+  ["Build years / held-back years", "Build years are where a rule was made. Held-back years are years it never saw while it was being made. Only results there stand for what to expect, and they can only be used once."],
   ["False-discovery check", "When hundreds of rules are tried, some look good by luck. This check (Benjamini-Hochberg) only passes those too strong to be luck."],
+  ["Modelled prices", "Option prices worked out with Black-Scholes and the VIX, not real quotes. Real fills, especially on the wings, usually cost more."],
+  ["The $5,000 kitty", "What $5,000 would have become, trade by trade, risking 2% of the balance on each."],
+  ["Tested / untested bot", "A tested bot runs exactly the settings a backtest tested. Change any of them and it's untested until backtested again."],
+  ["Kill switch", "Stops all trading at once: waiting orders dropped, working orders cancelled, nothing new until you turn trading back on."],
   ["Paper trading", "Practice orders with pretend money at Interactive Brokers. Nothing real is at stake."],
 ];
 
+const SECTIONS: [string, Topic[]][] = [
+  ["Getting started", START],
+  ["The screens", SCREENS],
+  ["The bot and safety", BOT],
+  ["When something looks wrong", TROUBLE],
+  ["Terms", TERMS.map(([t, w]) => [t, [w]] as Topic)],
+];
+
+function TopicCard({ topic, open }: { topic: Topic; open?: boolean }) {
+  const [title, lines] = topic;
+  return (
+    <details className="helpitem" open={open}>
+      <summary>{title}</summary>
+      {lines.length === 1 ? <p>{lines[0]}</p> : <ul>{lines.map((l) => <li key={l}>{l}</li>)}</ul>}
+    </details>
+  );
+}
+
+function HelpSearch({ onClose }: { onClose: () => void }) {
+  const [q, setQ] = useState("");
+  const words = q.toLowerCase().split(/\s+/).filter(Boolean);
+  const hits = words.length
+    ? SECTIONS.flatMap(([, topics]) => topics).filter(([t, lines]) => words.every((w) => (t + " " + lines.join(" ")).toLowerCase().includes(w)))
+    : [];
+  return (
+    <Sheet title="Search help" full onClose={onClose}>
+      <input autoFocus placeholder="e.g. kill switch, delta, refused" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Search help" />
+      {words.length > 0 && !hits.length && <p className="empty">Nothing matches.</p>}
+      <div style={{ marginTop: 10 }}>{hits.map((t) => <TopicCard key={t[0]} topic={t} open />)}</div>
+    </Sheet>
+  );
+}
+
 export default function HelpScreen() {
+  const [searching, setSearching] = useState(false);
   return (
     <div className="list help">
-      <h2>The screens</h2>
-      {SCREENS.map(([title, lines]) => (
-        <details key={title} className="helpitem">
-          <summary>{title}</summary>
-          <ul>{lines.map((l) => <li key={l}>{l}</li>)}</ul>
-        </details>
+      <button className="ghost" onClick={() => setSearching(true)} aria-label="Search help"><Search /> Search help</button>
+      {SECTIONS.map(([name, topics]) => (
+        <section key={name}>
+          <h2>{name}</h2>
+          {topics.map((t) => <TopicCard key={t[0]} topic={t} />)}
+        </section>
       ))}
-      <h2>Terms</h2>
-      {TERMS.map(([term, what]) => (
-        <details key={term} className="helpitem">
-          <summary>{term}</summary>
-          <p>{what}</p>
-        </details>
-      ))}
+      <p className="hint">A fuller guide and how everything runs: docs/GUIDE.md and docs/OPERATIONS.md in the repository on GitHub.</p>
+      {searching && <HelpSearch onClose={() => setSearching(false)} />}
     </div>
   );
 }

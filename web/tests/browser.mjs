@@ -471,8 +471,16 @@ try {
   await page.getByRole("button", { name: "More", exact: true }).click();
   await page.getByRole("menuitem", { name: "Help" }).click();
   check(await page.getByRole("heading", { name: "Help" }).isVisible(), "Help opens from the menu");
+  const sections = await page.locator(".help h2").allTextContents();
+  check(sections[0] === "Getting started" && sections.includes("The bot and safety") && sections.includes("When something looks wrong") && sections.at(-1) === "Terms",
+    `Help starts with Getting started, then the screens, the bot, troubleshooting and terms (${sections.join(", ")})`);
   await page.getByText("Iron condor", { exact: true }).click();
   check(await page.getByText(/profits if the price stays inside a range/).isVisible(), "a term opens to its plain-English meaning");
+  await page.getByRole("button", { name: "Search help" }).click();
+  await page.getByRole("textbox", { name: "Search help" }).fill("kill switch");
+  const found = await page.getByRole("dialog", { name: "Search help" }).locator(".helpitem summary").allTextContents();
+  check(found.includes("Kill switch") && found.includes("The safety rails"), `search finds every topic that mentions it (${found.join(", ")})`);
+  await page.getByRole("dialog", { name: "Search help" }).getByRole("button", { name: "Close" }).click();
   await page.getByRole("button", { name: "Back", exact: true }).click();
 
   // Watchlists: back goes up a level, picking a symbol opens it in the tab
