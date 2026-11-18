@@ -17,7 +17,7 @@ const START: Topic[] = [
     "Menu (top right), then Get latest version, reloads the newest build. Do it after each change I tell you about. The build number is at the bottom of the menu. Menu → Light or dark switches the look.",
   ]],
   ["2. Set up a chart", [
-    "The symbol button (top left of the toolbar) picks the symbol; the joined buttons pick the timeframe (5m to 1d).",
+    "Tap the open tab (it has a ▾) to change its symbol; the joined buttons pick the timeframe (5m to 1d).",
     "Indicators adds moving averages, Bollinger bands, the squeeze, RSI and the rest. Star the ones you use: they wait under Favourites for one tap next time.",
     "The + at the end of the tabs adds another chart. Chart pages (the grid icon) shows several at once.",
   ]],
@@ -65,7 +65,8 @@ const SCREENS: Topic[] = [
     "Under it, each automated strategy that's switched on and what it did today, the orders waiting for you, today's profit or loss and how much of the daily limit is used. A Fed day or an expiration Friday is flagged at the top.",
     "Your PC saves the market numbers every 30 seconds during the US session; between sessions you see the last session's.",
   ]],
-  ["Chart pages", ["Up to 10 charts as cards on a page. On the PC, drag a card to move it and its corner to resize it; Tidy closes the gaps. Tap a card to open it full screen."]],
+  ["Chart pages", ["Up to 10 charts as cards on a page. Tap a card to select it (outlined): the toolbar at the top then changes that chart. The expand button on a card (or a double-click) opens it full screen. On the PC, drag a card's title to move it and its corner to resize it; Tidy closes the gaps."]],
+  ["The toolbar", ["The grip at the toolbar's start (⋮⋮) puts it along the top, down the side, floating in front of the charts (drag it by ⠿), or hidden behind a Tools button. Remembered on each device."]],
   ["Scanner", ["The latest run of each scan, in tabs: squeeze on, squeeze fired, breakout, trend break, drawdown and RSI divergence. Scans run on Ben's PC after each US close (about 8 to 9 am Sydney). Tap a result to open it on the chart."]],
   ["Backtests", [
     "Strategies: each stock rule's build years (2006–2021) and held-back years (the last 5) side by side. Only the held-back column stands for what to expect.",

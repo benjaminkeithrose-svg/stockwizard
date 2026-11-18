@@ -3,7 +3,7 @@
 // and the others make room. On the phone, one card per row. Tap a chart to
 // open it full screen.
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import Chart from "../chart/Chart";
 import { Candles, emptyCandles } from "../data/candles";
 import { addCard, Card, COLS, MAX_CARDS, moveCard, ordered, removeCard, resizeCard, rowsUsed, tidy } from "../data/grid";
@@ -12,7 +12,7 @@ import { cachedCandles, Store } from "../data/store";
 import type { useViews } from "../data/useViews";
 import type { OptionPosition } from "../data/options";
 import type { useWorkspaces } from "../data/useWorkspaces";
-import { Plus } from "./icons";
+import { Expand, Plus } from "./icons";
 import { AskText, ConfirmDelete, MoreMenu, Sheet } from "./parts";
 
 type Views = ReturnType<typeof useViews>;
@@ -56,7 +56,11 @@ function CardChart({ store, w, positions }: { store: Store; w: Workspace; positi
 
 type Drag = { id: string; kind: "move" | "size"; sx: number; sy: number; dx: number; dy: number };
 
-export default function PagesScreen(props: { store: Store; views: Views; ws: WS; positions: OptionPosition[]; onOpen: (workspaceId: string) => void }) {
+export default function PagesScreen(props: {
+  store: Store; views: Views; ws: WS; positions: OptionPosition[]; onOpen: (workspaceId: string) => void;
+  /** The chart toolbar, acting on the selected card, wrapped around the page (ChartScreen with `toolsOnly`). */
+  toolbar: (page: ReactNode) => ReactNode;
+}) {
   const { views, ws, store } = props;
   const v = views.active;
   const wide = useWide();
@@ -81,6 +85,11 @@ export default function PagesScreen(props: { store: Store; views: Views; ws: WS;
   const colW = (width + GAP) / COLS;
 
   const setCards = (next: Card[]) => v && views.update({ ...v, cards: next });
+  // The toolbar acts on the selected card: the open tab. Opening a page selects its first card if the open tab isn't on it.
+  const selected = cards.some((c) => c.workspace_id === ws.active?.id) ? ws.active?.id : undefined;
+  useEffect(() => {
+    if (!selected && cards.length) ws.setActiveId(ordered(cards)[0].workspace_id);
+  }, [v?.id, selected, cards.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Dragging: follow the pointer, then snap on release.
   useEffect(() => {
@@ -146,16 +155,19 @@ export default function PagesScreen(props: { store: Store; views: Views; ws: WS;
   const cardFrame = (c: Card, style: React.CSSProperties, phone: boolean) => {
     const w = byId.get(c.workspace_id)!;
     return (
-      <div key={c.id} className={`gcard${drag?.id === c.id ? " dragging" : ""}`} style={style} data-testid="page-card" data-card={c.id}>
+      <div key={c.id} className={`gcard${drag?.id === c.id ? " dragging" : ""}${w.id === selected ? " sel" : ""}`} style={style} data-testid="page-card" data-card={c.id}>
         <div className="gbar" onPointerDown={(e) => start(e, c.id, "move")} title={phone ? undefined : "Drag to move"}>
           <span className="gname">{w.name}</span>
+          <button className="icon gfull" aria-label={`Open ${w.name} full screen`} onPointerDown={(e) => e.stopPropagation()}
+            onClick={() => props.onOpen(w.id)}><Expand /></button>
           <MoreMenu className="icon" label={`More for ${w.name} on this page`} items={[
             { label: "Open full screen", onPick: () => props.onOpen(w.id) },
             { label: "Take off this page", onPick: () => setCards(removeCard(cards, c.id)) },
           ]} />
         </div>
-        <div className="gbody" role="button" tabIndex={0} aria-label={`Open ${w.name} full screen`}
-          onClick={() => !moved.current && props.onOpen(w.id)} onKeyDown={(e) => e.key === "Enter" && props.onOpen(w.id)}>
+        <div className="gbody" role="button" tabIndex={0} aria-pressed={w.id === selected} aria-label={`Select ${w.name}: the toolbar changes it`}
+          onClick={() => !moved.current && ws.setActiveId(w.id)} onDoubleClick={() => props.onOpen(w.id)}
+          onKeyDown={(e) => e.key === "Enter" && ws.setActiveId(w.id)}>
           <CardChart store={store} w={w} positions={props.positions.filter((p) => p.symbol === w.symbol)} />
         </div>
         {!phone && <div className="gsize" aria-hidden="true" onPointerDown={(e) => start(e, c.id, "size")} />}
@@ -166,6 +178,7 @@ export default function PagesScreen(props: { store: Store; views: Views; ws: WS;
   return (
     <div className="main">
       {pageTabs}
+      {(cards.length ? props.toolbar : (x: ReactNode) => x)(<>
       {v && (
         <div className="bar">
           <button className="tool" onClick={() => setAdding(true)} disabled={cards.length >= MAX_CARDS}><Plus /><span>Add chart</span></button>
@@ -174,6 +187,7 @@ export default function PagesScreen(props: { store: Store; views: Views; ws: WS;
           )}
           <span className="hint" style={{ margin: 0 }}>
             {cards.length >= MAX_CARDS ? `${MAX_CARDS} charts is the most on one page` : `${cards.length} of ${MAX_CARDS} charts`}
+            {cards.length ? " · tap a chart to change it with the toolbar" : ""}
             {wide && cards.length > 1 ? " · drag a title bar to move, a corner to resize" : ""}
           </span>
         </div>
@@ -208,6 +222,7 @@ export default function PagesScreen(props: { store: Store; views: Views; ws: WS;
           )}
         </div>
       )}
+      </>)}
 
       {adding && v && (
         <Sheet title="Add a chart to this page" onClose={() => setAdding(false)}>
@@ -217,7 +232,7 @@ export default function PagesScreen(props: { store: Store; views: Views; ws: WS;
             ))}
             <button className="chip" onClick={newChartTab}><Plus />New chart tab</button>
           </div>
-          <p className="hint">Each card is one of your chart tabs. Changing it full screen changes that tab everywhere.</p>
+          <p className="hint">Each card is one of your chart tabs. Changing it here or full screen changes that tab everywhere.</p>
         </Sheet>
       )}
       {naming && (

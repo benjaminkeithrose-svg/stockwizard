@@ -1,7 +1,10 @@
 // The chart workspace: tabs, then the toolbar, then the chart. Every control
-// sits above the chart, none below it.
+// sits above the chart, none below it. The open tab is the symbol control: tap it
+// to change the symbol (Ben, 19 Nov 2026). The toolbar can sit along the top, down
+// the side, float where it's dragged, or hide (data/toolbar.ts). Chart pages use
+// this screen's toolbar alone (`toolsOnly`), acting on the card that's selected.
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import Chart, { TapMode } from "../chart/Chart";
 import { Candles, emptyCandles, TIMEFRAMES, Timeframe } from "../data/candles";
 import { anyDelayed, LIVE_EVERY_MS, LiveBar, sessionOpen, todayStartIso, withLive } from "../data/live";
@@ -12,6 +15,7 @@ import type { useFavourites, usePositions } from "../data/usePositions";
 import { cachedCandles, Store } from "../data/store";
 import { Close, Indicators, Legs, Pencil, Plus, Star } from "./icons";
 import { AskText, ConfirmDelete, MoreMenu, Info } from "./parts";
+import { clampPlace, nextPlace, ToolbarMode, useToolbarPlace } from "../data/toolbar";
 import { DrawSheet, IndicatorSheet, SymbolSearch } from "./sheets";
 import { OptionsSheet, PositionSheet } from "./OptionSheets";
 
@@ -33,6 +37,9 @@ export default function ChartScreen(props: {
   onAnalyse?: (id: string) => void;
   /** Start by adjusting this structure (back from its analysis). */
   adjust?: string | null;
+  /** Chart pages: the toolbar alone, acting on the selected card; `children` (the page) goes where the chart would. */
+  toolsOnly?: boolean;
+  children?: ReactNode;
 }) {
   const { store, ws, pos, fav } = props;
   const w = ws.active;
@@ -62,6 +69,17 @@ export default function ChartScreen(props: {
   const [trendStart, setTrendStart] = useState<{ time: number; price: number } | null>(null);
   const [renaming, setRenaming] = useState<Workspace | null>(null);
   const [deleting, setDeleting] = useState<Workspace | null>(null);
+  const [tb, setTb] = useToolbarPlace();
+  const [floatDrag, setFloatDrag] = useState<{ sx: number; sy: number; x: number; y: number } | null>(null);
+  useEffect(() => {
+    if (!floatDrag) return;
+    const move = (e: PointerEvent) => setTb({ ...tb, ...clampPlace(floatDrag.x + e.clientX - floatDrag.sx, floatDrag.y + e.clientY - floatDrag.sy,
+      { w: window.innerWidth, h: window.innerHeight }) });
+    const up = () => setFloatDrag(null);
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up, { once: true });
+    return () => { window.removeEventListener("pointermove", move); window.removeEventListener("pointerup", up); };
+  }); // re-bound each render so `move` sees the current place
 
   // Never leave the screen without a tab.
   useEffect(() => {
@@ -166,11 +184,15 @@ export default function ChartScreen(props: {
   const nIndicators = w.indicators.length;
 
   return (
-    <div className="main">
-      {!props.single && <div className="tabs" role="tablist" aria-label="Workspace tabs">
+    <div className={props.toolsOnly ? "main embed" : "main"}>
+      {!props.single && !props.toolsOnly && <div className="tabs" role="tablist" aria-label="Workspace tabs">
         {ws.list.map((t) => (
           <div key={t.id} className={`tab${t.id === w.id ? " on" : ""}`}>
-            <button role="tab" aria-selected={t.id === w.id} className="tname" onClick={() => ws.setActiveId(t.id)}>{t.name}</button>
+            <button role="tab" aria-selected={t.id === w.id} className="tname"
+              aria-label={t.id === w.id ? `${t.name}: change the symbol` : t.name}
+              onClick={() => (t.id === w.id ? setSheet("symbol") : ws.setActiveId(t.id))}>
+              {t.name}{t.id === w.id && <span className="tchev" aria-hidden="true">▾</span>}
+            </button>
             <MoreMenu className="tmore" label={`More for ${t.name}`} items={[
               { label: "Rename", onPick: () => setRenaming(t) },
               { label: "Duplicate", onPick: () => setRenaming(ws.duplicate(t)) },
@@ -182,8 +204,24 @@ export default function ChartScreen(props: {
         <button className="tplus" aria-label="New tab" onClick={() => ws.add(w.symbol, w.timeframe)}><Plus /></button>
       </div>}
 
-      <div className="bar">
-        <button className="tool sym" aria-label={`Symbol ${w.symbol}, change`} onClick={() => setSheet("symbol")}>{w.symbol}</button>
+      <div className={`work tb-${tb.mode}`}>
+      {tb.mode === "hidden" ? (
+        <button className="tbshow" aria-label="Show the toolbar" onClick={() => setTb(nextPlace(tb, tb.back))}><Indicators /><span>Tools</span></button>
+      ) : (
+      <div className="bar" role="toolbar" aria-label="Chart tools"
+        style={tb.mode === "float" ? { left: tb.x, top: tb.y } : undefined}>
+        {tb.mode === "float" && (
+          <span className="tbdrag" aria-hidden="true" title="Drag to move the toolbar"
+            onPointerDown={(e) => { e.preventDefault(); setFloatDrag({ sx: e.clientX, sy: e.clientY, x: tb.x, y: tb.y }); }}>⠿</span>
+        )}
+        <MoreMenu className="tool tbgrip" label="Where the toolbar sits" items={([
+          ["top", "Toolbar along the top"], ["side", "Toolbar down the side"], ["float", "Floating toolbar (drag to move)"], ["hidden", "Hide the toolbar"],
+        ] as [ToolbarMode, string][]).map(([m, label]) => ({ label: (tb.mode === m ? "✓ " : "") + label, onPick: () => setTb(nextPlace(tb, m)) }))}>
+          <span aria-hidden="true">⋮⋮</span>
+        </MoreMenu>
+        {(props.single || props.toolsOnly) && (
+          <button className="tool sym" aria-label={`Symbol ${w.symbol}, change`} onClick={() => setSheet("symbol")}>{w.symbol}</button>
+        )}
         <div className="seg" role="group" aria-label="Timeframe">
           {TIMEFRAMES.map((tf) => (
             <button key={tf} className={tf === w.timeframe ? "on" : ""} aria-pressed={tf === w.timeframe} onClick={() => setTf(tf)}>{tf}</button>
@@ -195,6 +233,8 @@ export default function ChartScreen(props: {
         <button className={`tool${adjusting ? " on" : ""}`} aria-label="Options" onClick={() => setSheet("options")}><Legs /><span className="word">Options</span></button>
         <button className={`tool${tapMode === "level" || tapMode === "trend" ? " on" : ""}`} aria-label="Draw" onClick={() => setSheet("draw")}><Pencil /><span className="word">Draw</span></button>
       </div>
+      )}
+      <div className="workcol">
 
       <div className="chipbar" aria-label="On this chart">
         {positions.map((p) => {
@@ -214,6 +254,7 @@ export default function ChartScreen(props: {
         ))}
       </div>
 
+      {props.toolsOnly ? props.children : <>
       <div className="chartcard">
         <Chart candles={shown} timeframe={w.timeframe} indicators={w.indicators} drawings={w.drawings}
           viewKey={`${w.id}|${w.symbol}|${w.timeframe}`} onTap={onTap}
@@ -243,6 +284,9 @@ export default function ChartScreen(props: {
       </div>
       <div className="hint" style={{ margin: 0 }} aria-live="polite">
         {ws.sync === "saving" ? "Saving…" : ws.sync === "offline" ? "Offline: changes are kept on this device" : ws.sync === "error" ? "Couldn't save: will retry" : "Saved"}
+      </div>
+      </>}
+      </div>
       </div>
 
       {sheet === "symbol" && (

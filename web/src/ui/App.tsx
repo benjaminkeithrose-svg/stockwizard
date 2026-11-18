@@ -191,7 +191,9 @@ function SignedIn({ store, user }: { store: Store; user: User }) {
       {screen.name === "optbacktest" && <OptionBacktestScreen store={store} id={screen.id} />}
       {screen.name === "backtest" && <BacktestScreen store={store} id={screen.id} />}
       {screen.name === "pages" && (
-        <PagesScreen store={store} views={views} ws={ws} positions={pos.list} onOpen={(id) => { ws.setActiveId(id); setScreen({ name: "card" }); }} />
+        <PagesScreen store={store} views={views} ws={ws} positions={pos.list} onOpen={(id) => { ws.setActiveId(id); setScreen({ name: "card" }); }}
+          toolbar={(page) => <ChartScreen store={store} ws={ws} pos={pos} fav={fav} symbols={symbols} firstSymbol={firstSymbol} toolsOnly
+            onAnalyse={(id) => { setAdjust(null); setScreen({ name: "analysis", id }); }}>{page}</ChartScreen>} />
       )}
       {screen.name === "card" && <ChartScreen store={store} ws={ws} pos={pos} fav={fav} symbols={symbols} firstSymbol={firstSymbol} single
         onAnalyse={(id) => { setAdjust(null); setScreen({ name: "analysis", id }); }} adjust={adjust} />}

@@ -41,7 +41,7 @@ export interface MenuItem {
 
 /** A ⋯ button that opens a small menu. */
 export function MoreMenu(props: { items: MenuItem[]; label: string; className?: string; children?: ReactNode }) {
-  const [at, setAt] = useState<{ top: number; right: number } | null>(null);
+  const [at, setAt] = useState<{ top: number; right?: number; left?: number } | null>(null);
   const btn = useRef<HTMLButtonElement>(null);
   useEffect(() => {
     if (!at) return;
@@ -51,7 +51,8 @@ export function MoreMenu(props: { items: MenuItem[]; label: string; className?: 
   }, [at]);
   const open = () => {
     const r = btn.current!.getBoundingClientRect();
-    setAt({ top: r.bottom + 4, right: Math.max(8, window.innerWidth - r.right) });
+    // A button in the left half opens its menu to the right, so the menu stays on screen.
+    setAt(r.left < window.innerWidth / 2 ? { top: r.bottom + 4, left: Math.max(8, r.left) } : { top: r.bottom + 4, right: Math.max(8, window.innerWidth - r.right) });
   };
   return (
     <>
@@ -60,7 +61,7 @@ export function MoreMenu(props: { items: MenuItem[]; label: string; className?: 
       </button>
       {at && (
         <div className="scrim" style={{ background: "transparent" }} onClick={() => setAt(null)}>
-          <div className="menu" role="menu" style={{ top: at.top, right: at.right }}>
+          <div className="menu" role="menu" style={{ top: at.top, right: at.right, left: at.left }}>
             {props.items.map((it, i) =>
               it.label === "-" ? <hr key={i} /> : (
                 <button key={i} role="menuitem" className={it.danger ? "danger" : ""}
