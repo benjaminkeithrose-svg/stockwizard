@@ -157,8 +157,8 @@ def test_the_first_run_fetches_full_depth_and_sends_supabase_only_its_window(tmp
     src, store = FakeSource(), FakeStore()
     r = DataRunner(src, Archive(tmp_path / "a.sqlite"), store, SYMS, clock=lambda: NOW, log=lambda *_: None)
     assert r.catch_up() == 0
-    assert ("SPY", "1d", date(2006, 11, 23)) in src.asked                      # 20 years into the archive
-    assert r.archive.read("SPY", "1d", "ibkr").index[0].year == 2006
+    assert ("SPY", "1d", date(1990, 11, 27)) in src.asked                      # 36 years into the archive (as far as IBKR goes)
+    assert r.archive.read("SPY", "1d", "ibkr").index[0].year == 1990
     assert store.candles[("SPY", "1d")].index[0] >= NOW - pd.Timedelta(days=365 * 5)   # 5 years to Supabase
     assert store.candles[("SPY", "5m")].index[0] >= NOW - pd.Timedelta(days=60)
 

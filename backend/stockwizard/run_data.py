@@ -37,7 +37,7 @@ from stockwizard.load import read_symbols
 NY = ZoneInfo("America/New_York")
 UNIVERSE = Path(__file__).resolve().parents[1] / "data" / "universe.csv"
 TIMEFRAMES = ["1d", "1h", "5m"]
-DEPTH = {"1d": timedelta(days=365 * 20), "1h": timedelta(days=365 * 2), "5m": timedelta(days=60)}   # first fetch, into the archive
+DEPTH = {"1d": timedelta(days=365 * 36), "1h": timedelta(days=365 * 2), "5m": timedelta(days=60)}   # first fetch, into the archive
 WINDOW = {"1d": timedelta(days=365 * 5), "1h": timedelta(days=365 * 2), "5m": timedelta(days=60)}   # kept in Supabase
 OVERLAP = timedelta(days=5)
 AFTER_CLOSE = (16, 20)   # New York time the day's candles are fetched
@@ -75,6 +75,19 @@ class DataRunner:
         self.trim()
         return failed
 
+    def deepen(self) -> int:
+        """Daily history as far back as IBKR has it (SPY to 1993), into the archive only; Supabase keeps its window."""
+        failed = 0
+        for s in self.symbols:
+            try:
+                df = self.source.fetch(s["symbol"], "1d", date(1990, 1, 1), None)
+                self.archive.upsert_candles(s["symbol"], "1d", self.source.name, df)
+                self.log(f"{s['symbol']} 1d: {len(df):,} candles from {df.index[0].date()}")
+            except Exception as e:  # noqa: BLE001
+                failed += 1
+                self.log(f"{s['symbol']} 1d: FAILED - {e}")
+        return failed
+
     def trim(self) -> None:
         now = self.clock()
         for tf in TIMEFRAMES:
@@ -103,6 +116,7 @@ def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     p.add_argument("--port", type=int, default=7497, help="TWS paper 7497 or IB Gateway paper 4002")
     p.add_argument("--once", action="store_true", help="catch up once and stop")
+    p.add_argument("--deepen", action="store_true", help="fetch every daily candle IBKR has into the archive, then stop (beside a running data program)")
     p.add_argument("--symbols", type=Path, default=UNIVERSE)
     a = p.parse_args(argv)
     from stockwizard.data.ibkr import IBKRSource  # noqa: PLC0415 - needs ib_async, only on the PC
@@ -111,11 +125,15 @@ def main(argv: list[str] | None = None) -> int:
     if not store.is_service:
         raise SystemExit("The data program writes the market data everyone shares, so it runs only on Ben's PC, "
                          "with SUPABASE_SECRET_KEY in stockwizard.env. People's own PCs run only the bot.")
-    source = IBKRSource(port=a.port)
+    source = IBKRSource(port=a.port, client_id=31 if a.deepen else 30)
     print(f"Connected to Interactive Brokers for data (read-only, client {source.ib.client.clientId}).")
     archive = Archive()
     print(f"Archive: {archive.path} ({archive.count():,} candles)")
     runner = DataRunner(source, archive, store, read_symbols(a.symbols))
+    if a.deepen:
+        failed = runner.deepen()
+        print(f"Deepened{f'; {failed} failed' if failed else ''}.")
+        return 1 if failed else 0
     done = None if a.once else runner.after_close_due(None)
     if done:   # started after today's close: catch up, scan and back up in one go
         runner.after_close()

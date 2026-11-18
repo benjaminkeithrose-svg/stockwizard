@@ -49,7 +49,7 @@ class Archive:
         self.path = Path(path or os.environ.get("ARCHIVE_PATH") or DEFAULT_PATH)
         if str(self.path) != ":memory:":
             self.path.parent.mkdir(parents=True, exist_ok=True)
-        self.db = sqlite3.connect(str(self.path))
+        self.db = sqlite3.connect(str(self.path), timeout=30)   # the data program and a backtest can share it
         self.db.execute("pragma journal_mode=wal")
         self.db.executescript(SCHEMA)
 
@@ -79,6 +79,11 @@ class Archive:
 
     def last_ts(self, symbol: str, timeframe: str, source: str) -> pd.Timestamp | None:
         (v,) = self.db.execute("select max(ts) from candles where symbol=? and timeframe=? and source=?",
+                               (symbol, timeframe, source)).fetchone()
+        return None if v is None else pd.Timestamp(v, unit="s", tz="UTC")
+
+    def first_ts(self, symbol: str, timeframe: str, source: str) -> pd.Timestamp | None:
+        (v,) = self.db.execute("select min(ts) from candles where symbol=? and timeframe=? and source=?",
                                (symbol, timeframe, source)).fetchone()
         return None if v is None else pd.Timestamp(v, unit="s", tz="UTC")
 

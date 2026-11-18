@@ -24,13 +24,14 @@ import pandas as pd
 from stockwizard import __version__
 from stockwizard.backtest import Strategy, fingerprint, report, run
 from stockwizard.data.store import SupabaseStore
-from stockwizard.scan import SOURCES, candles_fingerprint
+from stockwizard.scan import candles_fingerprint
+from stockwizard.data.archive_store import BACKTEST_SOURCES, backtest_store
 
 WARM_UP = pd.Timedelta(days=500)  # candles before the start, so the signal's averages are ready on day one
 
 
 def read_range(store: SupabaseStore, symbol: str, after: pd.Timestamp, before: pd.Timestamp, source: str | None = None):
-    for src in [source] if source else SOURCES:
+    for src in [source] if source else BACKTEST_SOURCES:
         rows = store.select(
             "candles",
             {
@@ -158,7 +159,7 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--strategy", action="append")
     p.add_argument("--rerun", type=int)
     a = p.parse_args(argv)
-    bt = Backtester(SupabaseStore())
+    bt = Backtester(backtest_store())
     if a.rerun:
         v = bt.rerun(a.rerun)
         print(v)

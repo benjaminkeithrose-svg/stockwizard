@@ -22,17 +22,23 @@ from stockwizard.backtest import fingerprint
 from stockwizard.data.store import SupabaseStore
 from stockwizard import intraday_options
 from stockwizard.option_backtest import OptionStrategy, report, run
+from stockwizard.data.archive_store import BACKTEST_SOURCES, backtest_store
 from stockwizard.run_backtests import WARM_UP, read_range
 from stockwizard.scan import candles_fingerprint
 
 CODE = f"{__version__}+options3"   # trading-time pricing, mid-price stops
 
 
-def read_tf(store, symbol: str, timeframe: str, after: pd.Timestamp, before: pd.Timestamp, source: str = "yahoo-unofficial") -> pd.DataFrame:
-    rows = store.select("candles", {
-        "select": "ts,open,high,low,close,volume", "symbol": f"eq.{symbol}", "timeframe": f"eq.{timeframe}", "source": f"eq.{source}",
-        "and": f"(ts.gte.{after.isoformat()},ts.lt.{before.isoformat()})", "order": "ts.asc",
-    })
+def read_tf(store, symbol: str, timeframe: str, after: pd.Timestamp, before: pd.Timestamp, source: str | None = None) -> pd.DataFrame:
+    """One symbol's candles in a range, from the first of BACKTEST_SOURCES that has them (or the given source)."""
+    rows = []
+    for src in [source] if source else BACKTEST_SOURCES:
+        rows = store.select("candles", {
+            "select": "ts,open,high,low,close,volume", "symbol": f"eq.{symbol}", "timeframe": f"eq.{timeframe}", "source": f"eq.{src}",
+            "and": f"(ts.gte.{after.isoformat()},ts.lt.{before.isoformat()})", "order": "ts.asc",
+        })
+        if rows:
+            break
     if not rows:
         raise RuntimeError(f"No {timeframe} candles for {symbol}")
     df = pd.DataFrame(rows)
@@ -65,7 +71,7 @@ class OptionBacktester:
     def compute_intraday(self, cfg: dict, start, split, as_of: pd.Timestamp, source: str | None = None) -> dict:
         """Same-day trades on SPY's hourly candles (stockwizard.intraday_options)."""
         s = intraday_options.IntradayStrategy.from_config(cfg)
-        src = source or "yahoo-unofficial"
+        src = source or next((s for s in BACKTEST_SOURCES if self.store.select("candles", {"select": "ts", "symbol": "eq.SPY", "timeframe": "eq.1h", "source": f"eq.{s}", "limit": "1"})), BACKTEST_SOURCES[-1])
         start_ts = pd.Timestamp(start, tz="UTC")
         spy_1h = read_tf(self.store, "SPY", "1h", start_ts - pd.Timedelta(days=5), as_of, src)
         spy_1d = read_tf(self.store, "SPY", "1d", start_ts - pd.Timedelta(days=60), as_of, src)
@@ -134,7 +140,7 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--strategy", action="append")
     p.add_argument("--rerun", type=int)
     a = p.parse_args(argv)
-    bt = OptionBacktester(SupabaseStore())
+    bt = OptionBacktester(backtest_store())
     if a.rerun:
         v = bt.rerun(a.rerun)
         print(v)

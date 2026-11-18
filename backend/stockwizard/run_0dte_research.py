@@ -23,6 +23,7 @@ import pandas as pd
 
 from stockwizard.data.store import SupabaseStore
 from stockwizard.option_backtest import atr14
+from stockwizard.data.archive_store import backtest_store
 from stockwizard.run_option_backtests import read_tf
 from stockwizard.zerodte import matrix
 from stockwizard.zerodte.quotes import ModelQuotes
@@ -122,7 +123,7 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--q", type=float, default=0.10)
     ap.add_argument("--publish", metavar="JSON", help="save an existing run's results for the app, without running again")
     a = ap.parse_args(argv)
-    store = SupabaseStore()
+    store = backtest_store()
     if a.publish:
         publish(store, json.loads(Path(a.publish).read_text()), Path(a.publish).stem)
         print(f"Saved {a.publish} for the app.")

@@ -355,6 +355,32 @@ def run_desktop(sup: Supervisor, settings_path: Path, log_dir: Path, lock: socke
             quit_(icon, None)
         threading.Thread(target=run, daemon=True).start()
 
+    backtests = {"running": False}
+
+    def run_backtests(icon, _item):
+        """Ben's PC only (the secret key): the backtests, option backtests and pattern lab on the archive, one after another."""
+        if backtests["running"]:
+            return
+        backtests["running"] = True
+
+        def run():
+            env = {**os.environ, **sup.settings, "PYTHONUNBUFFERED": "1", "PYTHONIOENCODING": "utf-8"}
+            flags = getattr(subprocess, "CREATE_NO_WINDOW", 0)
+            failed = []
+            try:
+                with open(log_dir / "backtests.log", "a", encoding="utf-8") as log:
+                    for mod in ("stockwizard.run_backtests", "stockwizard.run_option_backtests", "stockwizard.run_lab"):
+                        log.write(f"\n--- {mod} started {time.strftime('%Y-%m-%d %H:%M:%S')} ---\n")
+                        log.flush()
+                        if subprocess.call([sup.python, "-u", "-m", mod], stdout=log, stderr=subprocess.STDOUT, env=env,
+                                           creationflags=flags) != 0:
+                            failed.append(mod.rsplit(".", 1)[1])
+                icon.notify("Backtests finished." if not failed else f"Backtests finished; failed: {', '.join(failed)} (see Logs).",
+                            "Stock Wizard")
+            finally:
+                backtests["running"] = False
+        threading.Thread(target=run, daemon=True).start()
+
     icon = pystray.Icon("stockwizard", _icon_image("starting"), "Stock Wizard", menu=pystray.Menu(
         pystray.MenuItem("Open Stock Wizard", lambda: show_main(), default=True),
         pystray.MenuItem(label("bot"), None, enabled=False),
@@ -362,6 +388,9 @@ def run_desktop(sup: Supervisor, settings_path: Path, log_dir: Path, lock: socke
         pystray.Menu.SEPARATOR,
         pystray.MenuItem("Settings", lambda: open_settings()),
         pystray.MenuItem("Logs", lambda: os.startfile(log_dir)),  # noqa: S606 - opens the logs folder
+        pystray.MenuItem(lambda _i: "Backtests running…" if backtests["running"] else "Run backtests", run_backtests,
+                         enabled=lambda _i: not backtests["running"],
+                         visible=lambda _i: bool(sup.settings.get("SUPABASE_SECRET_KEY"))),
         pystray.MenuItem(lambda _i: updater.label(), update, enabled=lambda _i: updater.can_apply()),
         pystray.Menu.SEPARATOR,
         pystray.MenuItem("Quit (stops the bot)", quit_),
