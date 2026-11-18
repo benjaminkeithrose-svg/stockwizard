@@ -107,11 +107,15 @@ def main(argv: list[str] | None = None) -> int:
     a = p.parse_args(argv)
     from stockwizard.data.ibkr import IBKRSource  # noqa: PLC0415 - needs ib_async, only on the PC
     from stockwizard.data.store import SupabaseStore  # noqa: PLC0415
+    store = SupabaseStore()
+    if not store.is_service:
+        raise SystemExit("The data program writes the market data everyone shares, so it runs only on Ben's PC, "
+                         "with SUPABASE_SECRET_KEY in stockwizard.env. People's own PCs run only the bot.")
     source = IBKRSource(port=a.port)
     print(f"Connected to Interactive Brokers for data (read-only, client {source.ib.client.clientId}).")
     archive = Archive()
     print(f"Archive: {archive.path} ({archive.count():,} candles)")
-    runner = DataRunner(source, archive, SupabaseStore(), read_symbols(a.symbols))
+    runner = DataRunner(source, archive, store, read_symbols(a.symbols))
     done = None if a.once else runner.after_close_due(None)
     if done:   # started after today's close: catch up, scan and back up in one go
         runner.after_close()

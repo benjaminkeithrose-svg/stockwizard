@@ -88,7 +88,8 @@ def test_store_raises_on_refusal():
 def test_store_needs_credentials(monkeypatch):
     monkeypatch.delenv("SUPABASE_URL", raising=False)
     monkeypatch.delenv("SUPABASE_SECRET_KEY", raising=False)
-    with pytest.raises(RuntimeError, match="SUPABASE_URL"):
+    monkeypatch.delenv("BOT_KEY", raising=False)
+    with pytest.raises(RuntimeError, match="BOT_KEY.*SUPABASE_SECRET_KEY"):   # the address has a default; a key doesn't
         SupabaseStore()
 
 

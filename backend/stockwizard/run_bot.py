@@ -53,7 +53,13 @@ OPEN_STATUSES = ("proposed", "approved", "sent", "filled")
 
 
 def find_owner(store: SupabaseStore) -> str:
-    """The one person the bot works for: whoever has saved limits or chart tabs."""
+    """The person the bot works for: its bot account's (a bot key), or on Ben's PC whoever has saved limits or chart tabs."""
+    bot = getattr(store, "bot", None)
+    if bot is not None:
+        rows = store.select("bot_accounts", {"select": "owner", "bot_user": f"eq.{bot.user_id}"})
+        if not rows:
+            raise SystemExit("This bot key isn't linked to anyone any more: make a new one in the app (⋯, Bot key)")
+        return rows[0]["owner"]
     owners = {r["owner"] for r in store.select("safety_limits", {"select": "owner"})}
     owners |= {r["owner"] for r in store.select("workspaces", {"select": "owner"})}
     if len(owners) != 1:
@@ -243,8 +249,8 @@ class BotRunner:
     # --- recording real quotes (our own option-price history) ---
     def record_quotes(self) -> list[str]:
         """Every 30 minutes through the US session, when the broker can give real quotes (Interactive Brokers only)."""
-        if not hasattr(self.broker, "chain_snapshot") or not self.broker.connected():
-            return []
+        if not hasattr(self.broker, "chain_snapshot") or not self.broker.connected() or not getattr(self.store, "is_service", True):
+            return []   # shared data: recorded only by Ben's bot (the secret key), not by people's own bots
         now = self.clock()
         ny = now.astimezone(NY)
         if ny.weekday() >= 5 or not (ny.replace(hour=9, minute=30, second=0, microsecond=0) <= ny <= ny.replace(hour=16, minute=0, second=0, microsecond=0)):
@@ -288,7 +294,8 @@ class BotRunner:
         if self.strategies is not None:
             now = self.clock()
             try:
-                said += self.strategies.snapshot(now)
+                if getattr(self.store, "is_service", True):   # the shared snapshot: Ben's bot only
+                    said += self.strategies.snapshot(now)
             except Exception as e:  # noqa: BLE001 - the snapshot is a display, never a reason to stop trading
                 said.append(f"Couldn't save the market snapshot: {e}")
             said += self.strategies.propose_due(now)

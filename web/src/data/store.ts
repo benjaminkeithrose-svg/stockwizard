@@ -11,6 +11,10 @@ import { analyse, historicalVol, positionAt } from "./pricing";
 import { BacktestRun, BacktestTrade, BotRequest, BotStrategy, MarketSnapshot, ResearchRun, OptionRun, OptionStrategyDef, OptionTradeRow, ChartView, DEFAULT_FAVOURITES, DEFAULT_LIMITS, PaperOrder, PatternRun, SafetyLimits, UserSettings, ScanDef, ScanResult, ScanRun, StrategyDef, SymbolInfo, Watchlist, Workspace } from "./model";
 import { SUPABASE_KEY, SUPABASE_URL } from "../config";
 
+/** How this page was opened: from an invitation or a password-reset email (Supabase puts it in the address), read before Supabase tidies the address. */
+export const ARRIVED_BY: "invite" | "recovery" | null =
+  typeof window !== "undefined" ? ((/[#&]type=(invite|recovery)/.exec(window.location.hash)?.[1] as "invite" | "recovery" | undefined) ?? null) : null;
+
 export interface User {
   id: string;
   email: string;
@@ -23,6 +27,16 @@ export interface Store {
   signIn(email: string, password: string): Promise<void>;
   signUp(email: string, password: string): Promise<"signed-in" | "check-email">;
   signOut(): Promise<void>;
+  /** Set or change the signed-in person's password (after an invitation or a reset email). */
+  setPassword(password: string): Promise<void>;
+  /** Email a link for choosing a new password. */
+  resetPassword(email: string): Promise<void>;
+  /** When the signed-in person's bot key was made, or null if they haven't one. */
+  botKeyMadeAt(): Promise<string | null>;
+  /** Make a new bot key (replacing any old one); returned once, never stored here. */
+  makeBotKey(): Promise<string>;
+  /** Whether Claude is switched on for the signed-in person (it costs Ben's Anthropic account). */
+  claudeAllowed(): Promise<boolean>;
 
   symbols(): Promise<SymbolInfo[]>;
   candles(symbol: string, tf: Timeframe): Promise<Candles>;
@@ -129,6 +143,36 @@ export class SupabaseStore implements Store {
   async signIn(email: string, password: string) {
     const { error } = await this.sb.auth.signInWithPassword({ email, password });
     if (error) throw new Error(error.message);
+  }
+
+  async setPassword(password: string) {
+    const { error } = await this.sb.auth.updateUser({ password });
+    if (error) throw new Error(error.message);
+  }
+
+  async resetPassword(email: string) {
+    const { error } = await this.sb.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin + window.location.pathname });
+    if (error) throw new Error(error.message);
+  }
+
+  async botKeyMadeAt() {
+    const me = (await this.sb.auth.getSession()).data.session?.user.id;
+    const rows = this.check(await this.sb.from("bot_accounts").select("created_at").eq("owner", me ?? "")) as { created_at: string }[];
+    return rows[0]?.created_at ?? null;
+  }
+
+  async makeBotKey() {
+    const { data, error } = await this.sb.functions.invoke("bot-key", { method: "POST" });
+    if (error) {
+      const detail = await (error as { context?: Response }).context?.json?.().catch(() => null);
+      throw new Error(detail?.error ?? error.message);
+    }
+    return (data as { key: string }).key;
+  }
+
+  async claudeAllowed() {
+    const rows = this.check(await this.sb.from("claude_access").select("user_id")) as unknown[];
+    return rows.length > 0;
   }
 
   async signUp(email: string, password: string) {
@@ -494,6 +538,11 @@ export class DemoStore implements Store {
   onUserChange(fn: (u: User | null) => void) { this.listeners.add(fn); return () => this.listeners.delete(fn); }
   async signIn() { this.user = { id: "demo", email: "demo" }; this.listeners.forEach((f) => f(this.user)); }
   async signUp() { await this.signIn(); return "signed-in" as const; }
+  async setPassword() { /* made-up account: nothing to set */ }
+  async resetPassword() { /* made-up account: no email */ }
+  async botKeyMadeAt() { return null; }
+  async makeBotKey() { return "swbot1.made-up-key-for-the-demo"; }
+  async claudeAllowed() { return true; }
   async signOut() { this.user = null; this.listeners.forEach((f) => f(null)); }
 
   async symbols(): Promise<SymbolInfo[]> {
