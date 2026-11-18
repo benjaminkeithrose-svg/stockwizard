@@ -46,16 +46,27 @@ Name: startup; Description: "Start the bot when I sign in to Windows"
 Source: "{#SourceDir}\*"; DestDir: "{app}"; Flags: recursesubdirs createallsubdirs ignoreversion
 
 [Icons]
-Name: "{group}\Stock Wizard Bot"; Filename: "{app}\run-bot.cmd"; WorkingDir: "{app}"
+Name: "{group}\Stock Wizard Bot"; Filename: "{app}\python\pythonw.exe"; Parameters: "-m stockwizard.supervisor"; WorkingDir: "{app}"
 Name: "{group}\Stock Wizard Bot settings"; Filename: "{win}\notepad.exe"; Parameters: """{localappdata}\StockWizard\stockwizard.env"""
 Name: "{group}\Stock Wizard Bot setup guide"; Filename: "https://github.com/benjaminkeithrose-svg/stockwizard/blob/main/docs/SETUP-BOT.md"
 Name: "{group}\Stock Wizard (the app)"; Filename: "https://benjaminkeithrose-svg.github.io/stockwizard/"
-Name: "{userstartup}\Stock Wizard Bot"; Filename: "{app}\run-bot.cmd"; WorkingDir: "{app}"; Flags: runminimized; Tasks: startup
+Name: "{userstartup}\Stock Wizard Bot"; Filename: "{app}\python\pythonw.exe"; Parameters: "-m stockwizard.supervisor"; WorkingDir: "{app}"; Tasks: startup
 
 [Run]
-Filename: "{app}\run-bot.cmd"; WorkingDir: "{app}"; Description: "Start the bot now"; Flags: postinstall nowait skipifsilent shellexec
+Filename: "{app}\python\pythonw.exe"; Parameters: "-m stockwizard.supervisor"; WorkingDir: "{app}"; Description: "Start the bot now"; Flags: postinstall nowait skipifsilent
 
 [Code]
+{ Updating: stop a running Stock Wizard (it keeps its files open) before replacing them. }
+function PrepareToInstall(var NeedsRestart: Boolean): String;
+var
+  Code: Integer;
+begin
+  Exec(ExpandConstant('{sys}\WindowsPowerShell\v1.0\powershell.exe'),
+    '-NoProfile -Command "Get-Process | Where-Object { $_.Path -like ''' + ExpandConstant('{app}') + '\*'' } | Stop-Process -Force"',
+    '', SW_HIDE, ewWaitUntilTerminated, Code);
+  Result := '';
+end;
+
 var
   KeyPage: TInputQueryWizardPage;
   ConnPage: TInputOptionWizardPage;

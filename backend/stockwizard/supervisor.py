@@ -1,0 +1,304 @@
+"""Stock Wizard on the PC (Ben, 18 Nov 2026: one installed program, stage 1).
+
+    pythonw -m stockwizard.supervisor --settings %LOCALAPPDATA%\\StockWizard\\stockwizard.env
+    python  -m stockwizard.supervisor --settings pc\\stockwizard.env --data      # Ben's PC: the data program too
+
+One program instead of separate windows. It runs the bot (and with --data, or
+RUN_DATA=1 in the settings, the data program) as background processes, keeps
+their output in logs, starts a stopped one again a minute later (as the start
+files did, so a TWS restart is ridden out), shows their state on an icon by the
+clock, and every 30 seconds writes a heartbeat to Supabase (`pc_status`) for the
+app's PC status line, on any device. Only one runs at a time on a PC: two bots
+on one TWS would clash. Quit from the icon stops everything.
+"""
+
+from __future__ import annotations
+
+import argparse
+import os
+import re
+import socket
+import subprocess
+import sys
+import threading
+import time
+from dataclasses import dataclass, field
+from pathlib import Path
+
+from stockwizard import __version__
+
+RESTART_AFTER = 60.0
+BEAT_EVERY = 30.0
+LOCK_PORT = 47917            # one supervisor per PC: the second can't take this port
+LOG_LIMIT = 5_000_000
+
+
+def read_settings(path: Path) -> dict[str, str]:
+    """KEY=VALUE lines, as the start files read them."""
+    out = {}
+    for line in path.read_text(encoding="utf-8-sig").splitlines():
+        k, sep, v = line.partition("=")
+        if sep and k.strip() and not k.strip().startswith("#"):
+            out[k.strip()] = v.strip()
+    return out
+
+
+def _account(line: str) -> str:
+    m = re.search(r"paper account (DU\w*)", line)
+    return f"paper account {m.group(1)[:2]}…{m.group(1)[-3:]}" if m else "paper account"
+
+
+def read_line(kind: str, line: str) -> tuple[str | None, str | None]:
+    """What one line of a program's output says: (new state or None, plain detail or None)."""
+    s = line.strip()
+    if not s or s.startswith(("File ", "Traceback", "~", "^", "await ", "return ", "raise ", "self.", "result =", "value =", "sock =")):
+        return None, None
+    if "API connection failed" in s or "ConnectionRefusedError" in s or "refused the network connection" in s:
+        return ("waiting" if kind == "bot" else "stopped"), "TWS isn't taking connections: is it running and logged in to Paper Trading?"
+    if "disconnected" in s and "Interactive Brokers" in s:
+        return ("waiting" if kind == "bot" else "stopped"), "TWS closed or restarted: reconnecting"
+    if "bot key was refused" in s:
+        return "stopped", "The bot key was refused: make a new one in the app (Bot key) and put it in the settings"
+    if "Set BOT_KEY" in s:
+        return "stopped", "No bot key in the settings"
+    if "isn't a paper account" in s:
+        return "stopped", "TWS is logged in to a live account: log in to Paper Trading"
+    if kind == "bot":
+        if s.startswith("Connected to Interactive Brokers"):
+            return "connected", f"Connected, {_account(s)}"
+        if s.startswith(("Order ", "Request ")):
+            return None, s[:160]
+        return None, None
+    if s.startswith("Connected to Interactive Brokers for data"):
+        return "catching up", "Catching up on candles"
+    if s.startswith("Caught up"):
+        return "idle", s.rstrip(".")
+    if s.startswith("Streaming"):
+        return "streaming", s.rstrip(".")
+    if s.startswith("Stopped streaming"):
+        return "idle", "Session over: waiting for the after-close update"
+    if s.startswith("Archive:") and "backed up" in s:
+        return "idle", "After-close update done: " + s[:120]
+    if s.startswith("The data program writes"):
+        return "stopped", "Needs the secret key: the data program runs only on Ben's PC"
+    return None, None
+
+
+@dataclass
+class Child:
+    kind: str                      # "bot" or "data"
+    args: list[str]
+    log: Path
+    state: str = "starting"
+    detail: str | None = None
+    proc: object = None
+    restart_at: float | None = None
+    lines: list[str] = field(default_factory=list)
+
+    def take(self, line: str) -> None:
+        state, detail = read_line(self.kind, line)
+        if state:
+            self.state = state
+        if detail:
+            self.detail = detail
+        self.lines = (self.lines + [line.rstrip()])[-200:]
+
+
+class Supervisor:
+    def __init__(self, python: str, settings: dict[str, str], run_data: bool, log_dir: Path,
+                 popen=subprocess.Popen, clock=time.monotonic, port_open=None, beat=None):
+        self.settings, self.clock, self.popen, self.beat_fn = settings, clock, popen, beat
+        self.port = int(settings.get("IB_PORT") or 7497)
+        self.port_open = port_open or (lambda: _port_open(self.port))
+        log_dir.mkdir(parents=True, exist_ok=True)
+        delayed = ["--delayed"] if settings.get("IB_DELAYED", "").lower() in ("1", "yes", "true") else []
+        self.children = [Child("bot", [python, "-u", "-m", "stockwizard.run_bot", "--broker", "ibkr", "--port", str(self.port), *delayed, "--loop", "30"],
+                               log_dir / "bot.log")]
+        if run_data:
+            self.children.append(Child("data", [python, "-u", "-m", "stockwizard.run_data", "--port", str(self.port)], log_dir / "data.log"))
+        self.last_beat: float | None = None
+        self.stopping = False
+
+    def child(self, kind: str) -> Child | None:
+        return next((c for c in self.children if c.kind == kind), None)
+
+    def start(self, c: Child) -> None:
+        if c.log.exists() and c.log.stat().st_size > LOG_LIMIT:
+            c.log.replace(c.log.with_suffix(".old.log"))
+        env = {**os.environ, **self.settings, "PYTHONUNBUFFERED": "1", "PYTHONIOENCODING": "utf-8"}
+        flags = getattr(subprocess, "CREATE_NO_WINDOW", 0)
+        c.proc = self.popen(c.args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, env=env, creationflags=flags,
+                            text=True, encoding="utf-8", errors="replace")
+        c.state, c.restart_at = "starting", None
+        threading.Thread(target=self._read, args=(c, c.proc), daemon=True).start()
+
+    def _read(self, c: Child, proc) -> None:
+        with open(c.log, "a", encoding="utf-8") as log:
+            log.write(f"\n--- started {time.strftime('%Y-%m-%d %H:%M:%S')} ---\n")
+            for line in proc.stdout:
+                log.write(line)
+                log.flush()
+                c.take(line)
+
+    def poll(self) -> None:
+        """Start what isn't running; note what stopped and start it again a minute later."""
+        now = self.clock()
+        for c in self.children:
+            if self.stopping:
+                return
+            if c.proc is None:
+                self.start(c)
+            elif c.proc.poll() is not None and c.restart_at is None:
+                if c.state not in ("stopped",):
+                    c.state = "waiting" if c.kind == "bot" else "stopped"
+                c.restart_at = now + RESTART_AFTER
+            elif c.restart_at is not None and now >= c.restart_at:
+                self.start(c)
+        if self.beat_fn and (self.last_beat is None or now - self.last_beat >= BEAT_EVERY):
+            self.last_beat = now
+            try:
+                self.beat_fn(self.status())
+            except Exception:  # noqa: BLE001 - the status line is a display; never stop the bots over it
+                pass
+
+    def status(self) -> dict:
+        bot, data = self.child("bot"), self.child("data")
+        connected = any(c.state in ("connected", "catching up", "idle", "streaming") for c in self.children)
+        return {
+            "host": socket.gethostname(), "version": __version__,
+            "bot_state": bot.state, "bot_detail": bot.detail,
+            "data_state": data.state if data else "off", "data_detail": data.detail if data else None,
+            "tws_open": connected or bool(self.port_open()),
+        }
+
+    def stop(self) -> None:
+        self.stopping = True
+        for c in self.children:
+            if c.proc is not None and c.proc.poll() is None:
+                c.proc.terminate()
+                try:
+                    c.proc.wait(timeout=10)
+                except Exception:  # noqa: BLE001
+                    c.proc.kill()
+            c.state = "off" if c.kind == "data" else "stopped"
+            c.detail = "Stock Wizard was closed on the PC"
+        if self.beat_fn:
+            try:
+                self.beat_fn(self.status())
+            except Exception:  # noqa: BLE001
+                pass
+
+
+def _port_open(port: int) -> bool:
+    try:
+        with socket.create_connection(("127.0.0.1", port), timeout=1):
+            return True
+    except OSError:
+        return False
+
+
+def heartbeat(store, owner: str):
+    def beat(s: dict) -> None:
+        store.upsert("pc_status", "owner", [{"owner": owner, "updated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), **s}])
+    return beat
+
+
+# --- the icon by the clock ---
+
+COLOURS = {"connected": "#237F35", "waiting": "#C77700", "starting": "#C77700", "stopped": "#B2232F"}
+
+
+def _icon_image(state: str):
+    from PIL import Image, ImageDraw  # noqa: PLC0415
+    img = Image.new("RGBA", (64, 64), (0, 0, 0, 0))
+    d = ImageDraw.Draw(img)
+    d.ellipse((4, 4, 60, 60), fill=COLOURS.get(state, "#7A7A7A"))
+    d.text((22, 18), "SW", fill="white")
+    return img
+
+
+def run_tray(sup: Supervisor, settings_path: Path, log_dir: Path) -> None:
+    import webbrowser  # noqa: PLC0415
+
+    import pystray  # noqa: PLC0415
+
+    def label(kind: str):
+        def text(_item) -> str:
+            c = sup.child(kind)
+            if c is None:
+                return "Data program: off (Ben's PC only)"
+            return f"{'Bot' if kind == 'bot' else 'Data'}: {c.state}" + (f" · {c.detail[:70]}" if c.detail else "")
+        return text
+
+    def quit_(icon, _item):
+        sup.stop()
+        icon.stop()
+
+    icon = pystray.Icon("stockwizard", _icon_image("starting"), "Stock Wizard", menu=pystray.Menu(
+        pystray.MenuItem(label("bot"), None, enabled=False),
+        pystray.MenuItem(label("data"), None, enabled=False),
+        pystray.Menu.SEPARATOR,
+        pystray.MenuItem("Open Stock Wizard", lambda: webbrowser.open("https://benjaminkeithrose-svg.github.io/stockwizard/"), default=True),
+        pystray.MenuItem("Settings", lambda: os.startfile(settings_path)),  # noqa: S606 - opens the settings in Notepad
+        pystray.MenuItem("Logs", lambda: os.startfile(log_dir)),  # noqa: S606
+        pystray.Menu.SEPARATOR,
+        pystray.MenuItem("Quit (stops the bot)", quit_),
+    ))
+
+    def loop(icon):
+        icon.visible = True
+        while not sup.stopping:
+            sup.poll()
+            bot = sup.child("bot")
+            icon.icon = _icon_image(bot.state)
+            icon.title = f"Stock Wizard: bot {bot.state}" + (f", data {sup.child('data').state}" if sup.child("data") else "")
+            icon.update_menu()
+            time.sleep(1)
+
+    icon.run(setup=loop)
+
+
+def main(argv: list[str] | None = None) -> int:
+    p = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    default = Path(os.environ.get("LOCALAPPDATA", ".")) / "StockWizard" / "stockwizard.env"
+    p.add_argument("--settings", type=Path, default=default)
+    p.add_argument("--data", action="store_true", help="also run the data program (Ben's PC)")
+    p.add_argument("--no-tray", action="store_true", help="no icon: run until stopped (for testing)")
+    a = p.parse_args(argv)
+    try:
+        lock = socket.socket()
+        lock.bind(("127.0.0.1", LOCK_PORT))   # held while this runs
+    except OSError:
+        print("Stock Wizard is already running on this PC (look for its icon by the clock).")
+        return 1
+    if not a.settings.exists():
+        print(f"No settings at {a.settings}: run the installer again and paste your bot key.")
+        return 1
+    settings = read_settings(a.settings)
+    os.environ.update(settings)
+    python = sys.executable.replace("pythonw.exe", "python.exe")
+    log_dir = a.settings.parent / "logs"
+    beat = None
+    try:
+        from stockwizard.data.store import SupabaseStore  # noqa: PLC0415
+        from stockwizard.run_bot import find_owner  # noqa: PLC0415
+        store = SupabaseStore()
+        beat = heartbeat(store, find_owner(store))
+    except BaseException as e:  # noqa: BLE001 - the bots still run; the status line just won't show
+        print(f"No PC status line: {e}")
+    sup = Supervisor(python, settings, a.data or settings.get("RUN_DATA", "") in ("1", "yes", "true"), log_dir, beat=beat)
+    if a.no_tray:
+        try:
+            while True:
+                sup.poll()
+                time.sleep(1)
+        except KeyboardInterrupt:
+            sup.stop()
+        return 0
+    run_tray(sup, a.settings, log_dir)
+    lock.close()
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

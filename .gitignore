@@ -9,3 +9,4 @@ pc/.venv/
 pc/data/
 pc/installer/build/
 /dist/
+pc/logs/

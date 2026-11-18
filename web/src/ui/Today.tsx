@@ -8,6 +8,7 @@ import { useEffect, useState } from "react";
 import type { BotStrategy, MarketSnapshot, PaperOrder, SafetyLimits } from "../data/model";
 import type { Store } from "../data/store";
 import { describeStrategy } from "./Strategies";
+import PcStatusLine from "./PcStatusLine";
 
 const NY = "America/New_York", SYD = "Australia/Sydney";
 // The Federal Reserve's published announcement days (as in backend/stockwizard/zerodte/calendar.py).
@@ -72,6 +73,7 @@ export default function TodayScreen({ store, onSafety }: { store: Store; onSafet
   return (
     <div className="list today">
       <div className={`msg ${s.open ? "ok" : "info"}`}>{s.text}</div>
+      <PcStatusLine store={store} />
       {error && <div className="msg err">{error}</div>}
       {tags.length > 0 && <div className="msg warn">Today is a {tags.join(" and ")}: expect bigger moves.</div>}
 
