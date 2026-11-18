@@ -39,7 +39,7 @@ import site
 # 2. The bot's packages (the same as backend/pyproject.toml's, plus Windows' time zones)
 & $Python -m pip install --quiet --target "$build\python\Lib\site-packages" --platform win_amd64 `
   --python-version ($PythonVersion -replace '^(\d+\.\d+).*', '$1') --implementation cp --only-binary=:all: `
-  "numpy>=1.26" "pandas>=2.1" "ib_async>=2.0" tzdata "pystray>=0.19" "Pillow>=10"
+  "numpy>=1.26" "pandas>=2.1" "ib_async>=2.0" tzdata "pystray>=0.19" "Pillow>=10" "pywebview>=5"
 if ($LASTEXITCODE) { throw "pip couldn't fetch the bot's packages" }
 
 # 3. The bot and its launcher
@@ -48,7 +48,7 @@ Get-ChildItem "$build\app" -Recurse -Directory -Filter __pycache__ | Remove-Item
 Copy-Item "$here\run-bot.cmd" $build
 
 # Check the bundled Python starts the bot's code before packing it.
-& "$build\python\python.exe" -c "import stockwizard.run_bot, stockwizard.broker.ibkr, stockwizard.supervisor, ib_async, pandas, pystray, PIL, zoneinfo; zoneinfo.ZoneInfo('America/New_York'); print('bundle ok')"
+& "$build\python\python.exe" -c "import stockwizard.run_bot, stockwizard.broker.ibkr, stockwizard.supervisor, stockwizard.pc_settings, ib_async, pandas, pystray, PIL, webview, zoneinfo; zoneinfo.ZoneInfo('America/New_York'); print('bundle ok')"
 if ($LASTEXITCODE) { throw "The bundled Python can't load the bot" }
 
 # 4. The installer

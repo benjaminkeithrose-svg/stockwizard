@@ -1,9 +1,10 @@
 @echo off
-rem Stock Wizard on Ben's PC: the bot and the data program under one supervisor, with an
-rem icon by the clock (stockwizard.supervisor). Replaces start-bot.bat and start-data.bat:
-rem don't run those as well, or two bots would share one TWS. Quit from the icon.
-rem Settings: stockwizard.env next to this file (STOCKWIZARD_OWNER is needed now that
-rem others have accounts). Logs: the logs folder next to this file.
+rem Stock Wizard on Ben's PC: the app in its own window, with the bot and the data program
+rem running behind its icon by the clock (stockwizard.supervisor). Replaces start-bot.bat
+rem and start-data.bat: don't run those as well, or two bots would share one TWS. Already
+rem running? This just brings its window forward. Quit from the icon stops everything.
+rem Settings: the icon's Settings (stockwizard.env next to this file; RUN_DATA=1 runs the
+rem data program, STOCKWIZARD_OWNER is your user id). Logs: the logs folder next to this file.
 
 setlocal
 cd /d "%~dp0"
@@ -18,4 +19,4 @@ if not exist .venv (
   .venv\Scripts\python -m pip install --quiet --upgrade pip
 )
 .venv\Scripts\python -m pip install --quiet -e "..\backend[ibkr,pc]" || (echo Couldn't install the packages. & pause & exit /b 1)
-start "" .venv\Scripts\pythonw.exe -m stockwizard.supervisor --settings "%~dp0stockwizard.env" --data
+start "" .venv\Scripts\pythonw.exe -m stockwizard.supervisor --settings "%~dp0stockwizard.env" --show

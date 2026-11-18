@@ -123,3 +123,72 @@ def test_quitting_stops_the_programs_and_says_so(tmp_path):
     assert beats[-1]["bot_state"] == "stopped" and "closed on the PC" in beats[-1]["bot_detail"]
     s.poll()
     assert len(launch.started) == 1, "nothing starts again after quitting"
+
+
+# --- stage 2: the Settings screen and restarting with new settings ---
+
+from stockwizard.pc_settings import SettingsApi  # noqa: E402
+
+
+def settings_file(tmp_path, text):
+    f = tmp_path / "stockwizard.env"
+    f.write_text(text, encoding="utf-8")
+    return f
+
+
+def test_the_settings_screen_shows_the_settings_but_never_the_key(tmp_path):
+    f = settings_file(tmp_path, "BOT_KEY=swbot1.secret\nIB_PORT=4002\nIB_DELAYED=1\nNTFY_TOPIC=sw-abc\n")
+    s = SettingsApi(f).load()
+    assert s == {"bot_key_set": True, "uses_secret_key": False, "connection": "gateway", "delayed": True, "ntfy_topic": "sw-abc", "run_data": None}
+    assert "swbot1.secret" not in str(s)
+
+
+def test_saving_keeps_the_key_and_other_lines_and_restarts_the_bot(tmp_path):
+    f = settings_file(tmp_path, "BOT_KEY=swbot1.old\nIB_PORT=7497\nSOMETHING=kept\n")
+    restarted = []
+    r = SettingsApi(f, on_saved=restarted.append).save({"bot_key": "", "connection": "gateway", "delayed": True, "ntfy_topic": "sw-1"})
+    assert r == {"ok": True}
+    v = read_settings(f)
+    assert v == {"BOT_KEY": "swbot1.old", "SOMETHING": "kept", "IB_PORT": "4002", "IB_DELAYED": "1", "NTFY_TOPIC": "sw-1"}
+    assert restarted and restarted[0]["IB_PORT"] == "4002"
+
+
+def test_a_new_key_replaces_the_old_and_a_wrong_one_is_refused(tmp_path):
+    f = settings_file(tmp_path, "BOT_KEY=swbot1.old\n")
+    api = SettingsApi(f)
+    assert "isn't a bot key" in api.save({"bot_key": "sb_secret_xyz", "connection": "tws"})["error"]
+    assert read_settings(f)["BOT_KEY"] == "swbot1.old", "nothing written when it's refused"
+    api.save({"bot_key": " swbot1.new ", "connection": "tws"})
+    assert read_settings(f)["BOT_KEY"] == "swbot1.new"
+
+
+def test_no_key_at_all_asks_for_one(tmp_path):
+    f = settings_file(tmp_path, "")
+    assert "Paste your bot key" in SettingsApi(f).save({"bot_key": "", "connection": "tws"})["error"]
+
+
+def test_the_data_program_switch_is_only_for_the_pc_with_the_secret_key(tmp_path):
+    ben = settings_file(tmp_path, "SUPABASE_SECRET_KEY=sb_secret_x\nRUN_DATA=1\n")
+    assert SettingsApi(ben).load()["run_data"] is True
+    SettingsApi(ben).save({"connection": "tws", "run_data": False})
+    assert read_settings(ben)["RUN_DATA"] == "0"
+    (tmp_path / "other").mkdir()
+    other = settings_file(tmp_path / "other", "BOT_KEY=swbot1.k\n")
+    SettingsApi(other).save({"connection": "tws", "run_data": True})
+    assert "RUN_DATA" not in read_settings(other), "only the secret-key PC runs the data program"
+
+
+def test_an_odd_ntfy_topic_is_refused(tmp_path):
+    f = settings_file(tmp_path, "BOT_KEY=swbot1.k\n")
+    assert "ntfy topic" in SettingsApi(f).save({"connection": "tws", "ntfy_topic": "has spaces!"})["error"]
+
+
+def test_new_settings_restart_the_programs_with_them(tmp_path):
+    s, launch, _ = sup(tmp_path, {"IB_PORT": "7497"})
+    s.poll()
+    first = launch.started[0][2]
+    s.reload({"IB_PORT": "4002", "IB_DELAYED": "1"}, run_data=False)
+    assert first.terminated
+    s.poll()
+    args = launch.started[-1][0]
+    assert "--port" in args and args[args.index("--port") + 1] == "4002" and "--delayed" in args
