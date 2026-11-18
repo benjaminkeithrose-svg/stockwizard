@@ -126,6 +126,16 @@ class Updater:
         self.available = new
         return new if found else None
 
+    def check_now(self) -> Release | None:
+        """Ask GitHub straight away (the app opening, or Check for updates in What's new)."""
+        self.last_check = None
+        return self.maybe_check()
+
+    def summary(self) -> dict:
+        """What the app's What's new screen shows about the PC program."""
+        return {"current": self.current, "available": self.available.version if self.available else None,
+                "can_apply": self.can_apply(), "label": self.label(), "error": self.error}
+
     def label(self) -> str:
         if not self.enabled:
             return "Updates: not for a copy run from the repository"

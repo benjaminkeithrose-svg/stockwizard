@@ -27,6 +27,9 @@ export interface PcState {
   data_state: string;
 }
 
+/** The PC program's version and any update waiting (stockwizard.updates.Updater.summary). */
+export interface PcUpdates { current: string | null; available: string | null; can_apply: boolean; label: string; error: string | null }
+
 export interface Monitor { index: number; width: number; height: number; x: number; y: number }
 
 type Result = { ok?: true; error?: string };
@@ -38,6 +41,9 @@ interface Bridge {
   set_screens(screens: Record<string, Job>): Promise<Result>;
   status(): Promise<PcState>;
   monitors(): Promise<Monitor[]>;
+  updates(): Promise<PcUpdates>;
+  check_updates(): Promise<PcUpdates>;
+  install_update(): Promise<Result>;
 }
 
 declare global {

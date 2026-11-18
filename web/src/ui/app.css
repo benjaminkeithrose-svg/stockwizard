@@ -472,3 +472,6 @@ button.info:hover, button.info:focus-visible { background-color: var(--cyan-dk);
 .setupnav .ghost { flex: 1; }
 .setupnav .ghost:first-child { flex: 2; }
 ul.steps { margin: 6px 0 0; padding-left: 22px; line-height: 1.6; }
+/* A note under the path bar: updated, or a Stock Wizard update is ready (dismissable). */
+.msg.notice { display: flex; align-items: center; gap: 10px; margin: 6px 12px 0; padding: 4px 4px 4px 12px; }
+.msg.notice span { flex: 1; }

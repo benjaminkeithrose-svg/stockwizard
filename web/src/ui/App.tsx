@@ -8,6 +8,8 @@ import { ARRIVED_BY, DemoStore, Store, SupabaseStore, User } from "../data/store
 import type { SymbolInfo, Watchlist } from "../data/model";
 import { useWorkspaces } from "../data/useWorkspaces";
 import ChartScreen from "./ChartScreen";
+import WhatsNewScreen from "./WhatsNew";
+import { justUpdated, SEEN_BUILD } from "../data/whatsnew";
 import SetupScreen from "./Setup";
 import { pcBridge, SETUP_SEEN, viewFromUrl } from "../data/pc";
 import TradingScreen from "./Trading";
@@ -17,7 +19,7 @@ import TodayScreen from "./Today";
 import AnalysisScreen from "./Analysis";
 import { OptionBacktestScreen } from "./OptionBacktests";
 import { structureLabel } from "../data/options";
-import { Back, Home, MenuIcon, Spark } from "./icons";
+import { Back, Close, Home, MenuIcon, Spark } from "./icons";
 import { Crumb, FullMenu, MenuGroup, PathBar } from "./Navigation";
 import ClaudePanel from "./ClaudePanel";
 import { indicator } from "../data/model";
@@ -33,7 +35,7 @@ import BotKeyScreen from "./BotKey";
 import { useWatchlists, WatchlistScreen, WatchlistsScreen } from "./Watchlists";
 import { APP_BUILD } from "../config";
 
-type Screen = { name: "chart" } | { name: "scanner" } | { name: "pages" } | { name: "card" } | { name: "backtests" } | { name: "backtest"; id: string } | { name: "watchlists" } | { name: "safety" } | { name: "trading" } | { name: "setup" } | { name: "botkey" } | { name: "help" } | { name: "today" } | { name: "analysis"; id: string } | { name: "optbacktest"; id: string } | { name: "watchlist"; list: Watchlist };
+type Screen = { name: "chart" } | { name: "scanner" } | { name: "pages" } | { name: "card" } | { name: "backtests" } | { name: "backtest"; id: string } | { name: "watchlists" } | { name: "safety" } | { name: "trading" } | { name: "setup" } | { name: "whatsnew" } | { name: "botkey" } | { name: "help" } | { name: "today" } | { name: "analysis"; id: string } | { name: "optbacktest"; id: string } | { name: "watchlist"; list: Watchlist };
 
 /** One screen's identity, for the path and the menu: its name, and which backtest, structure or list. */
 function screenKey(s: Screen): string {
@@ -132,6 +134,17 @@ function SignedIn({ store, user }: { store: Store; user: User }) {
     if (cameBackFresh()) setToast(`Up to date: build ${APP_BUILD}`);
     checkForUpdate();
   }, []);
+  // After an update: say so once, with a link to What's new. On the PC, also when a Stock Wizard update is ready.
+  const [notice, setNotice] = useState<{ text: string; action?: string } | null>(null);
+  useEffect(() => {
+    let seen: string | null = null;
+    try { seen = localStorage.getItem(SEEN_BUILD); localStorage.setItem(SEEN_BUILD, APP_BUILD); } catch { /* fine */ }
+    if (justUpdated(seen, APP_BUILD)) setNotice({ text: `Updated to build ${APP_BUILD}.`, action: "See what's new" });
+    if (store.demo) return;
+    pcBridge().then((pc) => pc?.check_updates()).then((u) => {
+      if (u?.available) setNotice({ text: `Stock Wizard ${u.available} is ready${u.can_apply ? "." : " (it installs after the US close)."}`, action: u.can_apply ? "Update" : "See what's new" });
+    }).catch(() => {});
+  }, [store]);
   useEffect(() => {
     if (!toast) return;
     const t = setTimeout(() => setToast(null), 3500);
@@ -147,7 +160,7 @@ function SignedIn({ store, user }: { store: Store; user: User }) {
   const titleOf = (s: Screen): string => s.name === "chart" ? "Stock Wizard" : s.name === "scanner" ? "Scanner"
     : s.name === "pages" ? "Chart pages" : s.name === "backtests" ? "Backtests"
     : s.name === "backtest" ? (strategyLabels[s.id] ?? "Backtest") : s.name === "card" ? (ws.active?.name ?? "Chart")
-    : s.name === "watchlists" ? "Watchlists" : s.name === "optbacktest" ? "Option backtest" : s.name === "safety" ? "Safety and orders" : s.name === "trading" ? "Trading" : s.name === "setup" ? "Setup" : s.name === "botkey" ? "Access key" : s.name === "help" ? "Help" : s.name === "today" ? "Today"
+    : s.name === "watchlists" ? "Watchlists" : s.name === "optbacktest" ? "Option backtest" : s.name === "safety" ? "Safety and orders" : s.name === "trading" ? "Trading" : s.name === "setup" ? "Setup" : s.name === "whatsnew" ? "What's new" : s.name === "botkey" ? "Access key" : s.name === "help" ? "Help" : s.name === "today" ? "Today"
     : s.name === "analysis" ? (() => { const p = pos.list.find((x) => x.id === s.id); return p ? `${structureLabel(p.structure)} · ${p.symbol}` : "Analysis"; })()
     : s.list.name;
   const title = titleOf(screen);
@@ -175,6 +188,7 @@ function SignedIn({ store, user }: { store: Store; user: User }) {
     { label: "Trading", entries: [entry({ name: "trading" }), entry({ name: "safety" }), entry({ name: "botkey" })] },
     { label: "Settings and help", entries: [
       entry({ name: "setup" }),
+      entry({ name: "whatsnew" }),
       entry({ name: "help" }),
       { key: "update", label: "Get latest version", onPick: () => { setToast("Getting the latest version…"); getLatestVersion(); } },
       { key: "signout", label: `Sign out of ${store.demo ? "demo" : user.email}`, onPick: () => store.signOut() },
@@ -187,6 +201,13 @@ function SignedIn({ store, user }: { store: Store; user: User }) {
         onToday={screen.name === "today" ? undefined : () => go({ name: "today" }, true)}
         onClaude={claudeOk ? () => setClaudeOpen(!claudeOpen) : undefined} onMenu={() => setMenuOpen(true)} />
       <PathBar crumbs={crumbs} />
+      {notice && (
+        <div className="msg info notice" role="status">
+          <span>{notice.text}</span>
+          {notice.action && <button className="link" onClick={() => { setNotice(null); go({ name: "whatsnew" }); }}>{notice.action}</button>}
+          <button className="icon" aria-label="Dismiss" onClick={() => setNotice(null)}><Close /></button>
+        </div>
+      )}
       {menuOpen && <FullMenu groups={groups} current={screenKey(screen)} onClose={() => setMenuOpen(false)}
         foot={<p className="hint" style={{ marginTop: 18 }}>Build {APP_BUILD}</p>} />}
       {claudeOpen && claudeOk && (
@@ -216,6 +237,7 @@ function SignedIn({ store, user }: { store: Store; user: User }) {
       {screen.name === "chart" && <ChartScreen store={store} ws={ws} pos={pos} fav={fav} symbols={symbols} firstSymbol={firstSymbol}
         onAnalyse={(id) => { setAdjust(null); setScreen({ name: "analysis", id }); }} adjust={adjust} />}
       {screen.name === "safety" && <SafetyScreen store={store} />}
+      {screen.name === "whatsnew" && <WhatsNewScreen />}
       {screen.name === "setup" && <SetupScreen store={store} onAccessKey={() => go({ name: "botkey" })} onFinish={() => go({ name: "chart" })} />}
       {screen.name === "trading" && <TradingScreen store={store} onSafety={() => go({ name: "safety" })} />}
       {screen.name === "botkey" && <BotKeyScreen store={store} />}

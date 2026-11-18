@@ -37,6 +37,8 @@ Compression=lzma2/max
 SolidCompression=yes
 WizardStyle=modern
 UninstallDisplayName={#AppName}
+SetupIconFile={#SourceDir}\stockwizard.ico
+UninstallDisplayIcon={app}\stockwizard.ico
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 CloseApplications=no
@@ -57,10 +59,10 @@ Type: files; Name: "{userstartup}\Stock Wizard Bot.lnk"
 Type: filesandordirs; Name: "{userprograms}\Stock Wizard Bot"
 
 [Icons]
-Name: "{group}\Stock Wizard"; Filename: "{app}\python\pythonw.exe"; Parameters: "-m stockwizard.supervisor --show"; WorkingDir: "{app}"
-Name: "{group}\Stock Wizard settings"; Filename: "{app}\python\pythonw.exe"; Parameters: "-m stockwizard.supervisor --open-settings"; WorkingDir: "{app}"
+Name: "{group}\Stock Wizard"; Filename: "{app}\python\pythonw.exe"; Parameters: "-m stockwizard.supervisor --show"; WorkingDir: "{app}"; IconFilename: "{app}\stockwizard.ico"; AppUserModelID: "StockWizard.App"
+Name: "{group}\Stock Wizard settings"; Filename: "{app}\python\pythonw.exe"; Parameters: "-m stockwizard.supervisor --open-settings"; WorkingDir: "{app}"; IconFilename: "{app}\stockwizard.ico"
 Name: "{group}\Stock Wizard setup guide"; Filename: "https://github.com/benjaminkeithrose-svg/stockwizard/blob/main/docs/SETUP.md"
-Name: "{userstartup}\Stock Wizard"; Filename: "{app}\python\pythonw.exe"; Parameters: "-m stockwizard.supervisor"; WorkingDir: "{app}"; Tasks: startup
+Name: "{userstartup}\Stock Wizard"; Filename: "{app}\python\pythonw.exe"; Parameters: "-m stockwizard.supervisor"; WorkingDir: "{app}"; IconFilename: "{app}\stockwizard.ico"; AppUserModelID: "StockWizard.App"; Tasks: startup
 
 [Run]
 Filename: "{app}\python\pythonw.exe"; Parameters: "-m stockwizard.supervisor --show"; WorkingDir: "{app}"; Description: "Open Stock Wizard now"; Flags: postinstall nowait skipifsilent

@@ -108,3 +108,21 @@ def test_offline_is_tried_again_next_time(tmp_path):
         raise OSError("no internet")
     u, _, _ = updater(tmp_path, get=down)
     assert u.maybe_check() is None and u.error == "no internet" and u.label() == "Version 0.1.10: up to date"
+
+
+def test_the_app_can_ask_straight_away_and_see_a_summary(tmp_path):
+    u, _clock, _launched = updater(tmp_path)
+    u.maybe_check()
+    assert u.maybe_check() is None, "not again for 6 hours on its own"
+    assert u.check_now() is None and u.available.version == "0.1.12", "asked again now: the same release, already known"
+    s = u.summary()
+    assert s == {"current": "0.1.10", "available": "0.1.12", "can_apply": True, "label": "Update to 0.1.12", "error": None}
+
+
+def test_the_icon_is_the_phones_at_every_size(tmp_path):
+    from PIL import Image
+
+    from stockwizard.appicon import PHONE_ICON, SIZES, write_ico
+    assert PHONE_ICON.exists(), "web/public/icon-512.png"
+    ico = Image.open(write_ico(tmp_path / "stockwizard.ico"))
+    assert sorted(ico.info["sizes"]) == [(s, s) for s in SIZES]

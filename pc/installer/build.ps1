@@ -58,6 +58,9 @@ Set-Content -Encoding ascii "$build\app\stockwizard\_release.py" "RELEASE = `"$A
 # Check the bundled Python starts the bot's code before packing it.
 & "$build\python\python.exe" -c "import stockwizard.run_bot, stockwizard.broker.ibkr, stockwizard.supervisor, stockwizard.pc_settings, ib_async, pandas, pystray, PIL, webview, zoneinfo; zoneinfo.ZoneInfo('America/New_York'); print('bundle ok')"
 if ($LASTEXITCODE) { throw "The bundled Python can't load the bot" }
+# Stock Wizard's icon for Windows (the Start menu, the taskbar, the installer): the phone's icon, as an .ico.
+& "$build\python\python.exe" -m stockwizard.appicon "$build\stockwizard.ico" "$root\web\public\icon-512.png"
+if ($LASTEXITCODE) { throw "Couldn't make the icon" }
 
 # 4. The installer
 & $Iscc "/DSourceDir=$build" "/DAppVersion=$AppVersion" "$here\StockWizard.iss"
