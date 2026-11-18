@@ -71,7 +71,11 @@ class OptionBacktester:
     def compute_intraday(self, cfg: dict, start, split, as_of: pd.Timestamp, source: str | None = None) -> dict:
         """Same-day trades on SPY's hourly candles (stockwizard.intraday_options)."""
         s = intraday_options.IntradayStrategy.from_config(cfg)
-        src = source or next((s for s in BACKTEST_SOURCES if self.store.select("candles", {"select": "ts", "symbol": "eq.SPY", "timeframe": "eq.1h", "source": f"eq.{s}", "limit": "1"})), BACKTEST_SOURCES[-1])
+        # The hourly logic expects bars on the half hour (09:30, 10:30 ... 15:30), as Yahoo's were; IBKR's are on the hour
+        # (09:30-10:00, then 10:00 ... 15:00). Until Ben decides how the same-day strategies should use IBKR's hours, they
+        # read the Yahoo candles kept in the archive (to 17 Nov 2026): the data they were built on.
+        order = ["yahoo-unofficial", *BACKTEST_SOURCES]
+        src = source or next((s for s in order if self.store.select("candles", {"select": "ts", "symbol": "eq.SPY", "timeframe": "eq.1h", "source": f"eq.{s}", "limit": "1"})), BACKTEST_SOURCES[-1])
         start_ts = pd.Timestamp(start, tz="UTC")
         spy_1h = read_tf(self.store, "SPY", "1h", start_ts - pd.Timedelta(days=5), as_of, src)
         spy_1d = read_tf(self.store, "SPY", "1d", start_ts - pd.Timedelta(days=60), as_of, src)
@@ -80,7 +84,7 @@ class OptionBacktester:
         res = intraday_options.run(s, spy_1h, spy_1d, vix_1d, vix1d, pd.Timestamp(start).date())
         rep = report(res, pd.Timestamp(split).date())
         rep["warnings"].append("Same-day results from hourly candles: stops are checked at each hour's high and low, priced at the hour's end; volatility is held at its entry value.")
-        rep["warnings"].append("Only about 2 years of free hourly candles: the held-back period is the last year, so ranges are wide.")
+        rep["warnings"].append("Only about 2 years of free hourly candles (Yahoo's, kept on the PC, ending 17 Nov 2026): the held-back period is the last year, so ranges are wide.")
         trades = [t.row() for t in res["trades"]]
         frames = {"SPY_1h": spy_1h, "SPY_1d": spy_1d, "VIX_1d": vix_1d, **({"VIX1D_1h": vix1d} if vix1d is not None else {})}
         return {
