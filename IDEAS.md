@@ -75,3 +75,13 @@ Follows on from the one-tap option structures above.
 - Comparison is the main use: the same structure over different expiry
   dates (12 days against 9; 0DTE against 3 days), or a different structure
   altogether, to see which pays best for the trade.
+
+## One installed program on the PC (18 Nov 2026)
+
+- Package the PC side as an installed program, alongside the app and the
+  web interface, so the bot, the data program and the Interactive Brokers
+  connections live inside the project rather than as separate windows
+  started by hand each time.
+- Why: Ben doesn't want to start these things over and over. It should
+  start with Windows, keep the bot and the data program running, restart
+  them when TWS restarts, and show their state in one place.

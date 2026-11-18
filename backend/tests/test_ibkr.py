@@ -183,10 +183,34 @@ def test_a_debit_is_a_positive_price():
 def test_closing_reverses_the_legs_and_pays_for_a_credit_structure():
     b, ib = broker()
     bid = b.place(req())
-    b.close(bid, 1.2)
+    cid = b.close(bid, 1.2)
     t = ib.placed[1]
     assert [l.action for l in t.contract.comboLegs] == ["SELL", "BUY", "BUY", "SELL"]
     assert t.order.lmtPrice == 1.2
+    assert cid == "IB-102"
+
+
+def test_a_close_is_its_own_order_its_fill_is_reported_and_it_isnt_a_new_position():
+    b, ib = broker()
+    bid = b.place(req())
+    ib.fill(ib.placed[0], -4.55)
+    cid = b.close(bid, 1.2)
+    assert b.status(cid).status == "working"
+    assert cid not in [o.broker_id for o in b.open_orders()], "the kill switch leaves a close working"
+    ib.fill(ib.placed[1], 1.15)
+    o = b.status(cid)
+    assert o.status == "filled" and o.fill_price == 1.15
+    assert cid not in [o.broker_id for o in b.positions()]
+
+
+def test_closing_is_quoted_on_the_tick_towards_a_fill():
+    b, ib = broker()
+    ib.mids = {(589.0, "P"): 0.80, (594.0, "P"): 1.55, (606.0, "C"): 1.40, (611.0, "C"): 0.62}
+    assert b.close_quote(req()) == 1.55                            # buying back a 1.53 credit: pay up to the tick
+    one_call = req(structure="call", legs=(Leg("C", "buy", 606),), price_kind="debit")
+    assert b.close_quote(one_call) == 1.40                         # selling a 1.40 call: exactly on the tick
+    ib.mids[(606.0, "C")] = 1.43
+    assert b.close_quote(one_call) == 1.40                         # 1.43: collect down to the tick
 
 
 def test_status_follows_the_broker():

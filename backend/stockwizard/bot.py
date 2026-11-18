@@ -35,6 +35,9 @@ class Proposal:
     pnl: float | None = None
     reason: str | None = None        # why the bot proposed it, in plain words
     fill_price: float | None = None
+    close_id: str | None = None      # the close order at the broker while it works; the position stays 'filled' until it fills
+    close_price: float | None = None # its limit price per share, in the same credit/debit sense as the opening
+    close_why: str | None = None
 
 
 def _describe(req: OrderRequest) -> dict:
@@ -164,23 +167,47 @@ class Bot:
         self._changed(p)
         self.audit("bot", "position_closed", {"order": p.id, "pnl": pnl, "realised_loss_today": self.realised_loss_today})
 
-    def close(self, order_id: int, price: float, by: str = "ben") -> Proposal:
-        """Close a filled position at `price` per share (the same credit/debit sense as when it opened).
+    def close(self, order_id: int, price: float, by: str = "ben", why: str | None = None) -> Proposal:
+        """Send a close for a filled position: one limit order at `price` per share (the same credit/debit sense as when it opened).
 
-        Closing only reduces risk, so it isn't held for approval and isn't stopped by
-        the kill switch; it still needs a connected broker and is recorded.
+        The position stays open (status 'filled') until the broker fills the close; `close_filled`
+        then books the profit or loss at the actual fill price. Closing only reduces risk, so it
+        isn't held for approval and isn't stopped by the kill switch; it still needs a connected
+        broker and is recorded.
         """
         p = self.orders[order_id]
         if p.status != "filled":
             raise ValueError(f"Order {order_id} is {p.status}, not an open position")
+        if p.close_id:
+            raise ValueError(f"Order {order_id} is already being closed (at ${p.close_price:.2f}); wait for it to fill or expire")
         if not self.broker.connected():
             raise ConnectionError("The broker is disconnected: can't close until it reconnects.")
-        self.broker.close(p.broker_id, price)
+        p.close_id = self.broker.close(p.broker_id, price)
+        p.close_price, p.close_why = price, why or ("by you" if by == "ben" else "by the bot")
+        self._changed(p)
+        self.audit(by, "close_sent", {"order": p.id, "price": price, "close_id": p.close_id, "why": p.close_why})
+        return p
+
+    def pnl_at(self, p: Proposal, price: float) -> float:
+        """Dollars made closing `p` at `price` per share."""
         opened = p.fill_price if p.fill_price is not None else p.request.limit_price
         per_share = (opened - price) if p.request.price_kind == "credit" else (price - opened)
-        pnl = round(per_share * 100 * p.request.quantity, 2)
-        self.audit(by, "close_sent", {"order": p.id, "price": price})
-        self.record_close(p.id, pnl)
+        return round(per_share * 100 * p.request.quantity, 2)
+
+    def close_filled(self, order_id: int, price: float) -> Proposal:
+        """The broker filled the close at `price`: the position is closed with its real profit or loss."""
+        p = self.orders[order_id]
+        self.audit("bot", "close_filled", {"order": p.id, "price": price, "close_id": p.close_id})
+        p.close_price = price
+        self.record_close(p.id, self.pnl_at(p, price))
+        return p
+
+    def close_cancelled(self, order_id: int) -> Proposal:
+        """The close was cancelled unfilled (the day ended, or the broker refused it): the position is still open."""
+        p = self.orders[order_id]
+        self.audit("bot", "close_cancelled", {"order": p.id, "close_id": p.close_id, "price": p.close_price})
+        p.close_id = p.close_price = None
+        self._changed(p)
         return p
 
     def new_day(self) -> None:
@@ -222,17 +249,24 @@ class Bot:
         if not self.broker.connected():
             return ["The broker is still disconnected."]
         ours = {p.broker_id: p for p in self.orders.values() if p.broker_id}
+        closes = {p.close_id for p in self.orders.values() if p.close_id}
         problems: list[str] = []
         for o in self.broker.open_orders() + self.broker.positions():
             p = ours.get(o.broker_id)
             if p is None:
-                problems.append(f"The broker has {o.status} order {o.broker_id} that the bot didn't send.")
+                if o.broker_id not in closes:
+                    problems.append(f"The broker has {o.status} order {o.broker_id} that the bot didn't send.")
             elif o.status == "filled" and p.status == "sent":
                 p.status, p.fill_price = "filled", o.fill_price  # filled while we were away: take the broker's word
                 self._changed(p)
         known = {o.broker_id for o in self.broker.open_orders() + self.broker.positions()}
         for bid, p in ours.items():
-            if p.status in ("sent", "filled") and bid not in known:
+            if p.status == "filled" and p.close_id and bid not in known:
+                # Its close filled while we were away: the position is gone. A limit order fills at its price or better,
+                # so booking it at the limit is the worst case.
+                self.audit("bot", "closed_while_away", {"order": p.id, "close_id": p.close_id, "price": p.close_price})
+                self.record_close(p.id, self.pnl_at(p, p.close_price))
+            elif p.status in ("sent", "filled") and bid not in known:
                 problems.append(f"Order {p.id} ({bid}) is {p.status} here but unknown at the broker.")
         self.reconciled = not problems
         self.audit("bot", "reconciled" if not problems else "reconcile_mismatch", {"problems": problems})

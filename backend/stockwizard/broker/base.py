@@ -42,8 +42,17 @@ class Broker(ABC):
     def open_orders(self) -> list[BrokerOrder]: ...
 
     @abstractmethod
-    def close(self, broker_id: str, price: float) -> None:
-        """Close a filled structure with one combo limit order at `price` per share."""
+    def close(self, broker_id: str, price: float) -> str:
+        """Send one combo limit order closing a filled structure at `price` per share; return the close order's id.
+
+        `status(close_id)` then says when it fills (and at what price) or is cancelled."""
+
+    #: True when `quote` and `close_quote` ask a real market; False for made-up prices.
+    real_quotes: bool = False
+
+    def close_quote(self, order: OrderRequest) -> float:
+        """What closing this structure costs (or brings in) per share now, in the opening's credit/debit sense."""
+        raise NotImplementedError("This broker has no market to quote")
 
     @abstractmethod
     def status(self, broker_id: str) -> BrokerOrder | None:
@@ -55,6 +64,9 @@ class Broker(ABC):
 
     def remember(self, orders: list[BrokerOrder]) -> None:
         """Orders sent or filled before a restart, from the database."""
+
+    def remember_close(self, close_id: str, broker_id: str, price: float) -> None:
+        """A close that was working before a restart, from the database."""
 
     def settle(self, broker_id: str) -> None:
         """A position settled at expiry (cash-settled options need no order)."""

@@ -13,17 +13,18 @@ Each cycle:
 3. Acts on Ben's decisions in paper_orders: an approval gets a fresh quote and
    every rail checked again before it is sent; a rejection is closed.
 4. Acts on Ben's requests from the app (bot_requests): a structure from the
-   chart is priced and proposed (it then waits for his approval like any
-   other); a close request closes a filled position at the current price.
-5. Records fills from the broker.
+   chart is priced and proposed (in approval mode it then waits for him); a
+   close request sends a close for a filled position. With Interactive
+   Brokers both are priced from the legs' real bid/ask midpoints; with the
+   pretend broker, from Black-Scholes (made up).
+5. Records fills from the broker, opening orders and closes alike. A position
+   stays open until its close fills; its profit or loss is booked at the
+   close's actual fill price. A close cancelled unfilled leaves it open.
 
 Every order the bot makes or changes is written to paper_orders, and every
-step to the audit log. On start it takes back its open orders from the
-database and reconciles them with the broker before doing anything else.
-
-Only the pretend broker exists so far (Interactive Brokers comes later), so
-every price here is made up and nothing reaches a market. Needs SUPABASE_URL
-and SUPABASE_SECRET_KEY, like the loaders.
+step to the audit log. On start it takes back its open orders (and any close
+still working) from the database and reconciles them with the broker before
+doing anything else. Needs SUPABASE_URL and SUPABASE_SECRET_KEY, like the loaders.
 """
 
 from __future__ import annotations
@@ -77,8 +78,13 @@ class BotRunner:
         self.broker.remember(remembered)
         self.bot = Bot(self.broker, self.limits, self.audit, clock=clock, on_change=self.save, requote=self.broker.quote)
         for r in rows:
+            num = lambda v: None if v is None else float(v)  # noqa: E731
             p = Proposal(0, request_from_dict(r), "proposed" if r["status"] == "approved" else r["status"],
-                         None if r.get("max_loss") is None else float(r["max_loss"]), broker_id=r.get("broker_id"), reason=r.get("reason"))
+                         num(r.get("max_loss")), broker_id=r.get("broker_id"), reason=r.get("reason"),
+                         fill_price=num(r.get("fill_price")), close_id=r.get("close_broker_id"),
+                         close_price=num(r.get("close_price")), close_why=r.get("close_reason"))
+            if p.close_id:
+                self.broker.remember_close(p.close_id, p.broker_id, p.close_price)
             self.bot.adopt(p)
             self.db_ids[p.id] = r["id"]
             self.last_status[r["id"]] = r["status"]
@@ -113,7 +119,8 @@ class BotRunner:
     def save(self, p: Proposal) -> None:
         req = request_to_dict(p.request)
         row = {**req, "max_loss": p.max_loss, "status": p.status, "refusals": [asdict(r) for r in p.refusals],
-               "reason": p.reason, "broker_id": p.broker_id, "fill_price": p.fill_price, "pnl": p.pnl}
+               "reason": p.reason, "broker_id": p.broker_id, "fill_price": p.fill_price, "pnl": p.pnl,
+               "close_broker_id": p.close_id, "close_price": p.close_price, "close_reason": p.close_why}
         if p.id in self.db_ids:
             self.store.update("paper_orders", {"id": f"eq.{self.db_ids[p.id]}"}, row)
         else:
@@ -179,13 +186,23 @@ class BotRunner:
         pos = rows[0]
         legs = tuple(Leg(l["right"], l["side"], float(l["strike"]), int(l.get("qty", 1))) for l in pos["legs"])
         expiry = datetime.fromisoformat(str(pos["expiry"])[:10]).date()
-        spot, when, vol, source = self.market(pos["symbol"])
-        price, kind = limit_price(legs, spot, years_left(expiry, self.clock()), vol)
-        req = OrderRequest(symbol=pos["symbol"], structure=pos["structure"], expiry=expiry, legs=legs, quantity=int(q["quantity"]),
-                           limit_price=round(price, 2), price_kind=kind, prices_as_of=self.clock())
-        p = self.bot.propose(req, reason=(f"From your {pos['structure'].replace('_', ' ')} on the chart. Theoretical {kind} of ${price:.2f} "
-                                          f"(Black-Scholes from {pos['symbol']} {spot:.2f} at {when[:16]} UTC, volatility {vol * 100:.0f}% from {source}); "
-                                          f"the pretend broker treats it as a quote."))
+        name = pos["structure"].replace("_", " ")
+        if self.broker.real_quotes:
+            # The market's price: the legs' bid/ask midpoints. No quote (market shut, data not subscribed) fails the
+            # request with the reason; a model price is never sent to a real market.
+            req = self.broker.quote(OrderRequest(symbol=pos["symbol"], structure=pos["structure"], expiry=expiry, legs=legs,
+                                                 quantity=int(q["quantity"]), limit_price=None, price_kind="debit", prices_as_of=self.clock()))
+            reason = (f"From your {name} on the chart. {req.price_kind.title()} of ${req.limit_price:.2f} from the legs' bid/ask "
+                      f"midpoints at {req.prices_as_of:%H:%M} UTC.")
+        else:
+            spot, when, vol, source = self.market(pos["symbol"])
+            price, kind = limit_price(legs, spot, years_left(expiry, self.clock()), vol)
+            req = OrderRequest(symbol=pos["symbol"], structure=pos["structure"], expiry=expiry, legs=legs, quantity=int(q["quantity"]),
+                               limit_price=round(price, 2), price_kind=kind, prices_as_of=self.clock())
+            reason = (f"From your {name} on the chart. Theoretical {kind} of ${price:.2f} "
+                      f"(Black-Scholes from {pos['symbol']} {spot:.2f} at {when[:16]} UTC, volatility {vol * 100:.0f}% from {source}); "
+                      f"the pretend broker treats it as a quote.")
+        p = self.bot.propose(req, reason=reason)
         if p.status == "refused":
             return f"order {self.db_ids[p.id]} refused: " + "; ".join(r.why for r in p.refusals)
         return f"order {self.db_ids[p.id]} {'sent (automatic mode)' if p.status in ('sent', 'filled') else 'waiting for your approval'}"
@@ -196,12 +213,32 @@ class BotRunner:
         if bid is None or self.bot.orders[bid].status != "filled":
             raise ValueError(f"order {q['order_id']} isn't an open position")
         p = self.bot.orders[bid]
-        spot, when, vol, source = self.market(p.request.symbol)
-        v = net_value(p.request.legs, spot, years_left(p.request.expiry, self.clock()), vol)
-        price = round(round(abs(v) / 0.05) * 0.05, 2)
+        if self.broker.real_quotes:
+            price, how = self.broker.close_quote(p.request), "from the legs' bid/ask midpoints"
+        else:
+            spot, when, vol, source = self.market(p.request.symbol)
+            v = net_value(p.request.legs, spot, years_left(p.request.expiry, self.clock()), vol)
+            price, how = round(round(abs(v) / 0.05) * 0.05, 2), "at a theoretical price"
         self.close_why[bid] = "by you"
-        self.bot.close(bid, price)
-        return f"order {q['order_id']} closed at a theoretical ${price:.2f} for ${p.pnl:+,.2f}"
+        self.bot.close(bid, price, why="by you")
+        return f"order {q['order_id']}: close sent at ${price:.2f} {how}; the result is booked when it fills"
+
+    def check_closes(self) -> list[str]:
+        """Closes working at the broker: a fill books the real result; a cancellation leaves the position open."""
+        said = []
+        for p in [p for p in self.bot.orders.values() if p.status == "filled" and p.close_id]:
+            o = self.broker.status(p.close_id)
+            if o is None:
+                continue
+            if o.status == "filled":
+                self.close_why[p.id] = p.close_why or self.close_why.get(p.id) or "closed"
+                self.bot.close_filled(p.id, o.fill_price)
+                said.append(f"Order {self.db_ids[p.id]}: close filled at ${o.fill_price:.2f}, {p.pnl:+,.2f}")
+            elif o.status == "cancelled":
+                price = p.close_price
+                self.bot.close_cancelled(p.id)
+                said.append(f"Order {self.db_ids[p.id]}: the close at ${price:.2f} wasn't filled and was cancelled; the position is still open")
+        return said
 
     # --- recording real quotes (our own option-price history) ---
     def record_quotes(self) -> list[str]:
@@ -270,8 +307,12 @@ class BotRunner:
                 self.save(p)
                 self.audit("bot", "order_cancelled_at_broker", {"order": p.id, "broker_id": p.broker_id})
                 said.append(f"Order {self.db_ids[p.id]}: cancelled at the broker (rejected, or the day ended unfilled)")
+        said += self.check_closes()
         if self.strategies is not None:
             said += self.strategies.manage(self.clock())
+            if isinstance(self.broker, PretendBroker):
+                self.broker.step()   # the pretend market fills the closes just sent
+            said += self.check_closes()
             said += self.strategies.settle(self.clock())
         said += self.notify(lost_before)
         return said
