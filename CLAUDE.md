@@ -85,7 +85,7 @@ inputs listed under "Still needed from Ben" (Supabase project first).
 | `web/src/indicators/` | The browser's copy of the indicators. Change it with the Python library, regenerate `golden.json`, and both test suites must pass |
 | `web/src/data/` | Candles, the saved shapes (`model.ts`), the Supabase and made-up data stores, workspace saving |
 | `web/src/chart/Chart.tsx` | The chart: candles, overlays, indicator panes, drawings, taps |
-| `web/src/ui/` | Screens, sheets and styles. The look is Field CRM's (`benjaminkeithrose-svg/CRM`, `index.html`), without its logo |
+| `web/src/ui/` | Screens, sheets and styles. The look is Field CRM's (`benjaminkeithrose-svg/CRM`, `index.html`), without its logo, with Financial Vault's ways of getting around (18 Nov 2026): `Navigation.tsx` (the full-screen menu and the path bar), one header on every screen (`App.tsx`), and dark mode (`web/src/theme.ts`, `[data-mode="dark"]` in `app.css`; the chart reads the colours through `cssVar`) |
 | `web/public/sw.js` | Service worker. `CACHE` must equal `stockwizard-` + `APP_BUILD` in `web/src/config.ts`; bump both on every change to the app |
 | `supabase/migrations/` | Database changes, one file per change, applied in order |
 | `.github/workflows/` | `pages.yml` publishes the app on each merge (the daily candle top-up and the scans moved to the PC data program, 18 Nov 2026); `keepalive.yml` pings Supabase twice a week so the free project isn't paused; `backtests.yml` runs the backtests, the option backtests and the pattern lab by hand from the Actions tab; `bot.yml` runs a paper-bot cycle with the pretend broker every 10 minutes through the US session on weekdays, and by hand (turn the schedule off once the bot runs on Ben's PC) |

@@ -8,6 +8,9 @@ export const Back = () => (
 export const Home = () => (
   <svg className="ic" viewBox="0 0 24 24" aria-hidden="true"><path {...P} d="M3 11l9-7 9 7M5 10v10h5v-6h4v6h5V10" /></svg>
 );
+export const MenuIcon = () => (
+  <svg className="ic" viewBox="0 0 24 24" aria-hidden="true"><path {...P} d="M4 6h16M4 12h16M4 18h16" /></svg>
+);
 export const Dots = () => (
   <svg className="ic" viewBox="0 0 24 24" aria-hidden="true"><g fill="currentColor"><circle cx="5" cy="12" r="2" /><circle cx="12" cy="12" r="2" /><circle cx="19" cy="12" r="2" /></g></svg>
 );

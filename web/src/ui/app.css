@@ -360,3 +360,62 @@ details.notes summary { cursor: pointer; font-weight: 700; min-height: 32px; }
 /* Numbered how-to steps (Bot key) */
 ol.steps { margin: 6px 0 0; padding-left: 22px; line-height: 1.6; }
 ol.steps li { margin-bottom: 4px; }
+
+/* ---------- dark (Ben, 18 Nov 2026: Light, Dark or match the device; theme.ts) ---------- */
+[data-mode="dark"] {
+  --ink: #E6EAEE;
+  --ink-2: #C3CAD1;
+  --ink-3: #8D97A1;
+  --ground: #0F151A;
+  --surface: #182128;
+  --sunk: #121A20;
+  --line: #34404A;
+  --line-2: #26313A;
+  --edge: #3B4B57;
+  --cyan: #5BB4D3;
+  --cyan-dk: #7CC7E2;
+  --cyan-md: #2D5B6C;
+  --cyan-lt: #16323D;
+  --orange-lt: #3A2A12;
+  --orange-dk: #F08A2E;
+  --ok: #4CB063;
+  --ok-lt: #15291A;
+  --warn: #E0525E;
+  --act: #4A7BE0;
+  --act-dk: #3563C9;
+  --act-lt: #1B2A47;
+  --lift: 0 1px 2px rgba(0, 0, 0, .4), 0 2px 6px rgba(0, 0, 0, .35);
+  --lift-2: 0 2px 4px rgba(0, 0, 0, .45), 0 6px 16px rgba(0, 0, 0, .45);
+}
+[data-mode="dark"] .badge.est, [data-mode="dark"] .msg.warn { color: #F2B86B; }
+[data-mode="dark"] .msg.err { background: #3A1A1E; }
+[data-mode="dark"] .badge.ok { background: #16291B; color: #6BC47F; }
+[data-mode="dark"] .scrim { background: rgba(0, 0, 0, .55); }
+[data-mode="dark"] .xchip.opt, [data-mode="dark"] .symfav.on { background: #2E2238; border-color: #B48AD6; color: #C9A5E6; }
+[data-mode="dark"] .xchip.opt.bought, [data-mode="dark"] button.toggle.on { background: #16291B; border-color: #4CB063; color: #6BC47F; }
+[data-mode="dark"] .chipbar .chip.fav.opt { color: #C9A5E6; }
+[data-mode="dark"] .card.opt { border-left-color: #B48AD6; }
+[data-mode="dark"] .card.opt.bought, [data-mode="dark"] .card.order.sent, [data-mode="dark"] .card.order.filled, [data-mode="dark"] .legtip.bought { border-left-color: #4CB063; }
+[data-mode="dark"] .legtip { background: var(--surface); border-left-color: #B48AD6; }
+[data-mode="dark"] .symfav { background: var(--surface); color: var(--ink-3); border-color: #4A5560; }
+[data-mode="dark"] b.up { color: #4CB063; }
+[data-mode="dark"] b.down { color: #E0525E; }
+
+/* ---------- getting around (Ben, 18 Nov 2026: cues from Financial Vault; Navigation.tsx) ---------- */
+.navmenu { max-width: 560px; margin: 0 auto; padding-bottom: 12px; }
+.navmenu section { margin-top: 14px; }
+.navmenu section:first-child { margin-top: 2px; }
+.navmenu h2 { font-size: 11.5px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); margin: 0 0 6px 2px; }
+.navlink { display: block; width: 100%; text-align: left; min-height: 44px; padding: 0 14px; margin-bottom: 6px;
+  background: var(--surface); border: 1px solid var(--line-2); border-left: 3px solid var(--edge); border-radius: var(--r-sm);
+  font-size: 15px; color: var(--ink); cursor: pointer; box-shadow: var(--lift); }
+.navlink:active { background: var(--sunk); }
+.navlink.on { border-left-color: var(--act); font-weight: 700; color: var(--act); }
+.pathbar { flex: none; background: var(--surface); border-bottom: 1px solid var(--line-2); padding: 4px 12px; overflow-x: auto; }
+.pathbar ol { list-style: none; margin: 0; padding: 0; display: flex; align-items: center; gap: 2px; white-space: nowrap; font-size: 13px; }
+.pathbar li { display: flex; align-items: center; color: var(--ink-2); }
+.pathbar li + li::before { content: "›"; color: var(--ink-3); margin: 0 6px; }
+.pathbar li[aria-current] { font-weight: 700; color: var(--ink); }
+.pathbar button { background: none; border: 0; padding: 6px 2px; min-height: 32px; color: var(--act); cursor: pointer; font-size: 13px; }
+@media (max-width: 420px) { header .back { min-width: 42px; padding: 0 4px 0 8px; } }
+[data-mode="dark"] .seg button.on, [data-mode="dark"] .tab.on { background: var(--act); color: #fff; }

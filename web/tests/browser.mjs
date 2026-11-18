@@ -12,6 +12,9 @@ const server = spawn("npx", ["vite", "preview", "--port", String(port), "--stric
 const base = `http://localhost:${port}/?demo`;
 let failed = 0;
 const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if (!ok) failed++; };
+// Every screen is in the full-screen Menu (18 Nov 2026: cues from Financial Vault).
+const menuItem = (page, name) => page.getByRole("navigation", { name: "Screens" }).getByRole("button", { name, exact: true });
+const openFromMenu = async (page, name) => { await page.getByRole("button", { name: "Menu", exact: true }).click(); await menuItem(page, name).click(); };
 
 try {
   await wait(2500);
@@ -224,8 +227,8 @@ try {
   check(!(await page.locator(".xchip.opt").count()), "structure deleted");
 
   // Scanner: tabs, nothing-matched shown plainly, a result opens its chart
-  await page.getByRole("button", { name: "Scanner" }).click();
-  check(await page.getByRole("heading", { name: "Scanner" }).isVisible(), "scanner opens from the header");
+  await openFromMenu(page, "Scanner");
+  check(await page.getByRole("heading", { name: "Scanner" }).isVisible(), "scanner opens from the menu");
   check(await page.getByText("On for 6 candles · momentum +0.42").isVisible(), "squeeze result described in one line");
   await page.getByRole("button", { name: "1h", exact: true }).click();
   check(await page.getByText("Nothing matched.").isVisible(), "no matches said plainly");
@@ -238,8 +241,8 @@ try {
   check(await page.getByRole("button", { name: "1d", exact: true }).getAttribute("aria-pressed") === "true", "at the scan's timeframe");
 
   // Chart pages: new page, add cards, drag to swap, reload keeps it, tap opens full screen
-  await page.getByRole("button", { name: "Chart pages" }).click();
-  check(await page.getByRole("heading", { name: "Chart pages" }).isVisible(), "chart pages open from the header");
+  await openFromMenu(page, "Chart pages");
+  check(await page.getByRole("heading", { name: "Chart pages" }).isVisible(), "chart pages open from the menu");
   await page.getByRole("button", { name: "New page" }).click();
   await page.getByRole("textbox", { name: "Name" }).fill("Morning scan");
   await page.getByRole("button", { name: "Done" }).click();
@@ -291,7 +294,7 @@ try {
 
   await page.waitForTimeout(900);
   await page.reload();
-  await page.getByRole("button", { name: "Chart pages" }).click();
+  await openFromMenu(page, "Chart pages");
   await page.waitForTimeout(500);
   const keptCards = await page.getByTestId("page-card").evaluateAll((els) => els
     .map((el) => ({ id: el.dataset.card, y: el.getBoundingClientRect().y, w: el.getBoundingClientRect().width }))
@@ -310,9 +313,9 @@ try {
   check(await page.getByRole("heading", { name: "Chart pages" }).isVisible(), "Back returns to the page");
 
   // Get latest version sits in the ⋯ menu
-  await page.getByRole("button", { name: "More", exact: true }).click();
-  check(await page.getByRole("menuitem", { name: "Get latest version" }).isVisible(), "Get latest version is in the menu");
-  await page.getByRole("menuitem", { name: "Get latest version" }).click();
+  await page.getByRole("button", { name: "Menu", exact: true }).click();
+  check(await menuItem(page, "Get latest version").isVisible(), "Get latest version is in the menu");
+  await menuItem(page, "Get latest version").click();
   await page.waitForURL(/fresh=/, { timeout: 2000 }).catch(() => {});
   await page.waitForSelector("header");
   await page.waitForTimeout(600);
@@ -321,8 +324,8 @@ try {
   await page.getByRole("button", { name: "Home" }).click().catch(() => {});
 
   // Backtests: list shows build and held back side by side; detail has the table, windows and trades
-  await page.getByRole("button", { name: "Backtests" }).click();
-  check(await page.getByRole("heading", { name: "Backtests" }).isVisible(), "backtests open from the header");
+  await openFromMenu(page, "Backtests");
+  check(await page.getByRole("heading", { name: "Backtests" }).isVisible(), "backtests open from the menu");
   check(await page.getByText("Build 2006–2021").first().isVisible() && await page.getByText("Held back 2021–now").first().isVisible(),
     "build and held-back periods side by side");
   await page.getByRole("button", { name: /Made-up signal → \+40%/ }).click();
@@ -397,8 +400,7 @@ try {
   await page.getByRole("button", { name: "Home" }).click().catch(() => {});
 
   // Safety: the daily limit starts empty, approving records a decision, the kill switch drops what's waiting
-  await page.getByRole("button", { name: "More", exact: true }).click();
-  await page.getByRole("menuitem", { name: "Safety and orders" }).click();
+  await openFromMenu(page, "Safety and orders");
   check(await page.getByRole("heading", { name: "Safety" }).isVisible(), "Safety opens from the menu");
   check(await page.getByText(/daily loss limit isn't set, so the bot refuses every order/).isVisible(), "an empty daily limit is flagged");
   check(await page.getByText(/Live trading is disabled and can't be turned on/).isVisible(), "says live trading can't be turned on");
@@ -468,8 +470,7 @@ try {
   await page.getByRole("button", { name: "Back", exact: true }).click();
 
   // Help: in the menu, each topic folded, terms explained
-  await page.getByRole("button", { name: "More", exact: true }).click();
-  await page.getByRole("menuitem", { name: "Help" }).click();
+  await openFromMenu(page, "Help");
   check(await page.getByRole("heading", { name: "Help" }).isVisible(), "Help opens from the menu");
   const sections = await page.locator(".help h2").allTextContents();
   check(sections[0] === "Getting started" && sections.includes("The bot and safety") && sections.includes("When something looks wrong") && sections.at(-1) === "Terms",
@@ -484,8 +485,7 @@ try {
   await page.getByRole("button", { name: "Back", exact: true }).click();
 
   // Watchlists: back goes up a level, picking a symbol opens it in the tab
-  await page.getByRole("button", { name: "More", exact: true }).click();
-  await page.getByRole("menuitem", { name: "Watchlists" }).click();
+  await openFromMenu(page, "Watchlists");
   await page.getByRole("button", { name: /^Made-up list/ }).click();
   check(await page.getByRole("heading", { name: "Made-up list" }).isVisible(), "watchlist opens");
   await page.getByRole("button", { name: "Back", exact: true }).click();
@@ -496,7 +496,7 @@ try {
   check(await page.getByRole("button", { name: /Symbol TEST/ }).isVisible(), "picking a symbol opens it on the chart");
 
   await page.screenshot({ path: "/tmp/sw-desktop.png" });
-  await page.getByRole("button", { name: "Chart pages" }).click();
+  await openFromMenu(page, "Chart pages");
   await page.waitForTimeout(800);
   await page.screenshot({ path: "/tmp/sw-pages.png" });
   await page.getByRole("button", { name: "Back", exact: true }).click();

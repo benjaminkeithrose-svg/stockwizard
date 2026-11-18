@@ -1,5 +1,7 @@
-// The app shell: header (back, title, home, ⋯ menu), sign-in, and the screens.
-// Back goes up one level: a watchlist → Watchlists → Chart.
+// The app shell: sign-in, the header and the screens. The header is the same on every
+// screen (Ben, 18 Nov 2026, cues from Financial Vault): home, back, the title, Today,
+// Claude and Menu. Menu is one full-screen list of every screen (Navigation.tsx); the path
+// bar under the header shows the screens you came through, and back goes up that path.
 
 import { useEffect, useMemo, useState } from "react";
 import { ARRIVED_BY, DemoStore, Store, SupabaseStore, User } from "../data/store";
@@ -12,7 +14,8 @@ import TodayScreen from "./Today";
 import AnalysisScreen from "./Analysis";
 import { OptionBacktestScreen } from "./OptionBacktests";
 import { structureLabel } from "../data/options";
-import { Back, Flask, Grid, Home, List, Radar, Spark } from "./icons";
+import { Back, Home, MenuIcon, Spark } from "./icons";
+import { Crumb, FullMenu, MenuGroup, PathBar } from "./Navigation";
 import ClaudePanel from "./ClaudePanel";
 import { indicator } from "../data/model";
 import { BacktestScreen, BacktestsScreen } from "./Backtests";
@@ -22,13 +25,17 @@ import { useFavourites, usePositions } from "../data/usePositions";
 import { cameBackFresh, checkForUpdate, getLatestVersion } from "../update";
 import ScannerScreen from "./Scanner";
 import type { Timeframe } from "../data/candles";
-import { MoreMenu } from "./parts";
 import SignIn, { SetPassword } from "./SignIn";
 import BotKeyScreen from "./BotKey";
 import { useWatchlists, WatchlistScreen, WatchlistsScreen } from "./Watchlists";
 import { APP_BUILD } from "../config";
 
 type Screen = { name: "chart" } | { name: "scanner" } | { name: "pages" } | { name: "card" } | { name: "backtests" } | { name: "backtest"; id: string } | { name: "watchlists" } | { name: "safety" } | { name: "botkey" } | { name: "help" } | { name: "today" } | { name: "analysis"; id: string } | { name: "optbacktest"; id: string } | { name: "watchlist"; list: Watchlist };
+
+/** One screen's identity, for the path and the menu: its name, and which backtest, structure or list. */
+function screenKey(s: Screen): string {
+  return "id" in s ? `${s.name}:${s.id}` : s.name === "watchlist" ? `watchlist:${s.list.id}` : s.name;
+}
 
 export function makeStore(): Store {
   return new URLSearchParams(location.search).has("demo") ? new DemoStore() : new SupabaseStore();
@@ -49,23 +56,21 @@ export default function App({ store }: { store: Store }) {
   return <SignedIn store={store} user={user} key={user.id} />;
 }
 
-function Header(props: { title: string; sub?: string; onBack?: () => void; onHome?: () => void; onScanner?: () => void; onPages?: () => void; onBacktests?: () => void; onClaude?: () => void; onToday?: () => void; menu?: React.ReactNode }) {
+/** The same header on every screen: home and back on the left, then the title, then Today, Claude and Menu. */
+function Header(props: { title: string; sub?: string; onBack?: () => void; onHome?: () => void; onClaude?: () => void; onToday?: () => void; onMenu?: () => void }) {
   return (
     <header>
+      {props.onHome && <button className="back" aria-label="Home" onClick={props.onHome}><Home /></button>}
       {props.onBack
         ? <button className="back" aria-label="Back" onClick={props.onBack}><Back /></button>
-        : <span className="back blank" />}
+        : !props.onHome && <span className="back blank" />}
       <div className="hdt">
         <h1>{props.title}</h1>
         {props.sub && <div className="sub">{props.sub}</div>}
       </div>
       {props.onToday && <button className="menubtn word" onClick={props.onToday}>Today</button>}
       {props.onClaude && <button className="menubtn" aria-label="Claude" onClick={props.onClaude}><Spark /></button>}
-      {props.onPages && <button className="menubtn" aria-label="Chart pages" onClick={props.onPages}><Grid /></button>}
-      {props.onScanner && <button className="menubtn" aria-label="Scanner" onClick={props.onScanner}><Radar /></button>}
-      {props.onBacktests && <button className="menubtn" aria-label="Backtests" onClick={props.onBacktests}><Flask /></button>}
-      {props.onHome && <button className="menubtn" aria-label="Home" onClick={props.onHome}><Home /></button>}
-      {props.menu}
+      {props.onMenu && <button className="menubtn" aria-label="Menu" onClick={props.onMenu}><MenuIcon /></button>}
     </header>
   );
 }
@@ -84,7 +89,19 @@ function SignedIn({ store, user }: { store: Store; user: User }) {
   const fav = useFavourites(store, user.id);
   const [strategyLabels, setStrategyLabels] = useState<Record<string, string>>({});
   useEffect(() => { store.strategies().then((s) => setStrategyLabels(Object.fromEntries(s.map((x) => [x.id, x.label])))).catch(() => {}); }, [store]);
-  const [screen, setScreen] = useState<Screen>({ name: "chart" });
+  const [screen, setScreenNow] = useState<Screen>({ name: "chart" });
+  // The path you came down from the chart (the home screen), for the path bar and for back.
+  const [trail, setTrail] = useState<Screen[]>([]);
+  const go = (next: Screen, fresh = false) => {
+    if (next.name === "chart") setTrail([]);
+    else if (fresh) setTrail([next]);   // the menu starts a new path
+    else setTrail((t) => {
+      const i = t.findIndex((s) => screenKey(s) === screenKey(next));
+      return i >= 0 ? t.slice(0, i + 1) : [...t, next];   // going back to a screen on the path cuts it there
+    });
+    setScreenNow(next);
+  };
+  const setScreen = (s: Screen) => go(s);
   const [adjust, setAdjust] = useState<string | null>(null);
   // "Adjust on the chart" is read once, when the chart opens; forget it after that.
   useEffect(() => {
@@ -108,15 +125,20 @@ function SignedIn({ store, user }: { store: Store; user: User }) {
     return () => clearTimeout(t);
   }, [toast]);
 
-  const back = screen.name === "watchlist" ? () => setScreen({ name: "watchlists" })
-    : screen.name === "card" ? () => setScreen({ name: "pages" })
-    : screen.name === "backtest" || screen.name === "optbacktest" ? () => setScreen({ name: "backtests" })
-    : screen.name === "backtests" ? () => setScreen({ name: "chart" })
-    : screen.name === "watchlists" || screen.name === "scanner" || screen.name === "pages" || screen.name === "safety" || screen.name === "botkey" || screen.name === "analysis" || screen.name === "help" || screen.name === "today" ? () => setScreen({ name: "chart" }) : undefined;
-  const title = screen.name === "chart" ? "Stock Wizard" : screen.name === "scanner" ? "Scanner"
-    : screen.name === "pages" ? "Chart pages" : screen.name === "backtests" ? "Backtests"
-    : screen.name === "backtest" ? (strategyLabels[screen.id] ?? "Backtest") : screen.name === "card" ? (ws.active?.name ?? "Chart")
-    : screen.name === "watchlists" ? "Watchlists" : screen.name === "optbacktest" ? "Option backtest" : screen.name === "safety" ? "Safety" : screen.name === "botkey" ? "Bot key" : screen.name === "help" ? "Help" : screen.name === "today" ? "Today" : screen.name === "analysis" ? (analysing ? `${structureLabel(analysing.structure)} · ${analysing.symbol}` : "Analysis") : screen.list.name;
+  // Back goes up the path you came down; with no path (opened from somewhere unusual), up the app's structure.
+  const structuralParent = (s: Screen): Screen | null => s.name === "chart" ? null
+    : s.name === "watchlist" ? { name: "watchlists" } : s.name === "card" ? { name: "pages" }
+    : s.name === "backtest" || s.name === "optbacktest" ? { name: "backtests" } : { name: "chart" };
+  const parent = trail.length >= 2 ? trail[trail.length - 2] : structuralParent(screen);
+  const back = parent ? () => go(parent) : undefined;
+  const titleOf = (s: Screen): string => s.name === "chart" ? "Stock Wizard" : s.name === "scanner" ? "Scanner"
+    : s.name === "pages" ? "Chart pages" : s.name === "backtests" ? "Backtests"
+    : s.name === "backtest" ? (strategyLabels[s.id] ?? "Backtest") : s.name === "card" ? (ws.active?.name ?? "Chart")
+    : s.name === "watchlists" ? "Watchlists" : s.name === "optbacktest" ? "Option backtest" : s.name === "safety" ? "Safety and orders" : s.name === "botkey" ? "Bot key" : s.name === "help" ? "Help" : s.name === "today" ? "Today"
+    : s.name === "analysis" ? (() => { const p = pos.list.find((x) => x.id === s.id); return p ? `${structureLabel(p.structure)} · ${p.symbol}` : "Analysis"; })()
+    : s.list.name;
+  const title = titleOf(screen);
+  const crumbs: Crumb[] = [{ name: "chart" } as Screen, ...trail].map((s) => ({ key: screenKey(s), title: titleOf(s), onPick: () => go(s) }));
   // Open a symbol and timeframe in the current tab; a tab still on its automatic name follows.
   const openOnChart = (s: string, tf?: Timeframe) => {
     const w = ws.active;
@@ -131,27 +153,28 @@ function SignedIn({ store, user }: { store: Store; user: User }) {
     : screen.name === "watchlist" ? `${screen.list.symbols.length} symbols`
     : screen.name === "card" ? views.active?.name : undefined;
 
-  const menu = (
-    <MoreMenu label="More" items={[
-      { label: "Watchlists", icon: <List />, onPick: () => setScreen({ name: "watchlists" }) },
-      { label: "Safety and orders", onPick: () => setScreen({ name: "safety" }) },
-      { label: "Bot key", onPick: () => setScreen({ name: "botkey" }) },
-      { label: "Help", onPick: () => setScreen({ name: "help" }) },
-      { label: "-", onPick: () => {} },
-      { label: "Get latest version", onPick: () => { setToast("Getting the latest version…"); getLatestVersion(); } },
-      { label: `Sign out of ${store.demo ? "demo" : user.email}`, onPick: () => store.signOut() },
-      { label: `Build ${APP_BUILD}`, onPick: () => {} },
-    ]} />
-  );
+  // Every screen, grouped, in the full-screen menu (picks there start a new path).
+  const [menuOpen, setMenuOpen] = useState(false);
+  const entry = (s: Screen, label = titleOf(s)) => ({ key: screenKey(s), label, onPick: () => go(s, true) });
+  const groups: MenuGroup[] = [
+    { label: "Charts", entries: [entry({ name: "chart" }, "Chart"), entry({ name: "today" }), entry({ name: "pages" })] },
+    { label: "Research", entries: [entry({ name: "scanner" }), entry({ name: "backtests" }), entry({ name: "watchlists" })] },
+    { label: "Trading", entries: [entry({ name: "safety" }), entry({ name: "botkey" })] },
+    { label: "Settings and help", entries: [
+      entry({ name: "help" }),
+      { key: "update", label: "Get latest version", onPick: () => { setToast("Getting the latest version…"); getLatestVersion(); } },
+      { key: "signout", label: `Sign out of ${store.demo ? "demo" : user.email}`, onPick: () => store.signOut() },
+    ] },
+  ];
 
   return (
     <div className="app">
-      <Header title={title} sub={sub} onBack={back} onHome={screen.name === "chart" ? undefined : () => setScreen({ name: "chart" })}
-        onScanner={screen.name === "chart" ? () => setScreen({ name: "scanner" }) : undefined}
-        onPages={screen.name === "chart" ? () => setScreen({ name: "pages" }) : undefined}
-        onBacktests={screen.name === "chart" ? () => setScreen({ name: "backtests" }) : undefined}
-        onToday={screen.name === "chart" ? () => setScreen({ name: "today" }) : undefined}
-        onClaude={claudeOk ? () => setClaudeOpen(!claudeOpen) : undefined} menu={menu} />
+      <Header title={title} sub={sub} onBack={back} onHome={screen.name === "chart" ? undefined : () => go({ name: "chart" })}
+        onToday={screen.name === "today" ? undefined : () => go({ name: "today" }, true)}
+        onClaude={claudeOk ? () => setClaudeOpen(!claudeOpen) : undefined} onMenu={() => setMenuOpen(true)} />
+      <PathBar crumbs={crumbs} />
+      {menuOpen && <FullMenu groups={groups} current={screenKey(screen)} onClose={() => setMenuOpen(false)}
+        foot={<p className="hint" style={{ marginTop: 18 }}>Build {APP_BUILD}</p>} />}
       {claudeOpen && claudeOk && (
         <ClaudePanel store={store} userId={user.id} onClose={() => setClaudeOpen(false)}
           onOpenBacktest={(id) => { setScreen({ name: "backtest", id }); if (window.innerWidth < 720) setClaudeOpen(false); }}
