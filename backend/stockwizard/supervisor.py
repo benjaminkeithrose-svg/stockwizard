@@ -171,9 +171,12 @@ class Supervisor:
             c.log.replace(c.log.with_suffix(".old.log"))
         env = {**os.environ, **self.settings, "PYTHONUNBUFFERED": "1", "PYTHONIOENCODING": "utf-8"}
         flags = getattr(subprocess, "CREATE_NO_WINDOW", 0)
+        first = c.proc is None
         c.proc = self.popen(c.args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, env=env, creationflags=flags,
                             text=True, encoding="utf-8", errors="replace")
-        c.state, c.restart_at = "starting", None
+        c.restart_at = None
+        if first:
+            c.state = "starting"   # a restart keeps "stopped" or "waiting", and why, until the program says otherwise
         threading.Thread(target=self._read, args=(c, c.proc), daemon=True).start()
 
     def _read(self, c: Child, proc) -> None:
@@ -195,6 +198,9 @@ class Supervisor:
             elif c.proc.poll() is not None and c.restart_at is None:
                 if c.state not in ("stopped",):
                     c.state = "waiting" if c.kind == "bot" else "stopped"
+                err = next((ln for ln in reversed(c.lines) if re.match(r"^\w+(Error|Exception|Exit)\b", ln.strip())), None)
+                if err and (c.detail is None or c.state == "stopped" and not c.detail.startswith(("TWS", "The bot key", "No bot key", "Needs"))):
+                    c.detail = "Stopped: " + err.strip()[:150]
                 c.restart_at = now + RESTART_AFTER
             elif c.restart_at is not None and now >= c.restart_at:
                 self.start(c)
@@ -283,7 +289,7 @@ def run_desktop(sup: Supervisor, settings_path: Path, log_dir: Path, lock: socke
     from stockwizard.updates import Updater  # noqa: PLC0415
 
     state: dict = {"quitting": False, "settings": None}
-    updater = Updater(Path(sys.executable).resolve().parent.parent, settings_path.parent / "updates")
+    updater = Updater(None, settings_path.parent / "updates")
     if updater.current:
         sup.version = updater.current   # the installed release, in the app's PC status line
     main = webview.create_window("Stock Wizard", APP_URL, width=1280, height=860, min_size=(380, 600), hidden=not show)

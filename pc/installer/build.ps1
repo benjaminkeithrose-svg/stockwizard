@@ -49,8 +49,11 @@ if ($LASTEXITCODE) { throw "pip couldn't fetch the bot's packages" }
 # 3. The bot, the data program and the supervisor
 Copy-Item -Recurse "$root\backend\stockwizard" "$build\app\stockwizard"
 Get-ChildItem "$build\app" -Recurse -Directory -Filter __pycache__ | Remove-Item -Recurse -Force
-# The release number, for checking for updates from inside Stock Wizard (stockwizard.updates).
-Set-Content -Encoding ascii -NoNewline "$build\VERSION" $AppVersion
+# The symbol list the data program fetches (run_data reads backend\data\universe.csv, here app\data).
+New-Item -ItemType Directory -Force "$build\app\data" | Out-Null
+Copy-Item "$root\backend\data\universe.csv" "$build\app\data\universe.csv"
+# The release number, inside the program's own folder, for updates from inside Stock Wizard (stockwizard.updates).
+Set-Content -Encoding ascii "$build\app\stockwizard\_release.py" "RELEASE = `"$AppVersion`"  # written by pc/installer/build.ps1"
 
 # Check the bundled Python starts the bot's code before packing it.
 & "$build\python\python.exe" -c "import stockwizard.run_bot, stockwizard.broker.ibkr, stockwizard.supervisor, stockwizard.pc_settings, ib_async, pandas, pystray, PIL, webview, zoneinfo; zoneinfo.ZoneInfo('America/New_York'); print('bundle ok')"

@@ -7,7 +7,7 @@ GitHub publishes for it, starts it to update in place (settings are kept) and cl
 Stock Wizard; the installer opens Stock Wizard again when it's done.
 
 Not during the US session: updating stops the bot for about a minute, so the offer
-waits for the close. A copy run from the repository (no VERSION file) never updates.
+waits for the close. A copy run from the repository (no _release.py) never updates.
 """
 
 from __future__ import annotations
@@ -35,9 +35,17 @@ def version_tuple(v: str | None) -> tuple[int, ...] | None:
     return tuple(int(x) for x in m.group(1).split(".")) if m else None
 
 
-def installed_version(app_dir: Path) -> str | None:
-    f = app_dir / "VERSION"
-    return f.read_text(encoding="utf-8").strip() if f.exists() else None
+def installed_version(app_dir: Path | None = None) -> str | None:
+    """The installed release: written into the program (stockwizard/_release.py) by the installer's build.
+    `app_dir` is for tests: a VERSION file there. A copy run from the repository has neither: None."""
+    if app_dir is not None:
+        f = app_dir / "VERSION"
+        return f.read_text(encoding="utf-8").strip() if f.exists() else None
+    try:
+        from stockwizard._release import RELEASE  # noqa: PLC0415
+    except ImportError:
+        return None
+    return RELEASE
 
 
 def in_us_session(now: pd.Timestamp) -> bool:
@@ -89,7 +97,7 @@ def install_command(installer: Path) -> list[str]:
 
 
 class Updater:
-    def __init__(self, app_dir: Path, download_dir: Path, get=_get, clock=time.monotonic, now=lambda: pd.Timestamp.now(tz="UTC"),
+    def __init__(self, app_dir: Path | None, download_dir: Path, get=_get, clock=time.monotonic, now=lambda: pd.Timestamp.now(tz="UTC"),
                  launch=None):
         self.current = installed_version(app_dir)
         self.download_dir, self.get, self.clock, self.now = download_dir, get, clock, now
