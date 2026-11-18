@@ -1,0 +1,50 @@
+# Builds the Stock Wizard Bot installer (pc/installer): the bot with its own Python, for any
+# Windows PC (Ben, 18 Nov 2026: multi-user). On a pull request it's built and kept as a
+# download on the run (Actions tab) for testing; after a merge to main, or run by hand, it's
+# published as a release: https://github.com/benjaminkeithrose-svg/stockwizard/releases/latest
+# (the setup guide, docs/SETUP-BOT.md, links there).
+name: Bot installer
+
+on:
+  push:
+    branches: [main]
+    paths: ["backend/stockwizard/**", "backend/pyproject.toml", "pc/installer/**", ".github/workflows/installer.yml"]
+  pull_request:
+    paths: ["backend/stockwizard/**", "backend/pyproject.toml", "pc/installer/**", ".github/workflows/installer.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: installer-${{ github.ref }}
+
+jobs:
+  build:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Inno Setup
+        shell: pwsh
+        run: |
+          if (-not (Test-Path "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe")) { choco install innosetup -y --no-progress }
+      - name: Build the installer
+        shell: pwsh
+        run: pc/installer/build.ps1 -AppVersion "0.1.${{ github.run_number }}"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: StockWizardBotSetup
+          path: dist/StockWizardBotSetup.exe
+      - name: Publish the release
+        if: github.event_name != 'pull_request'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "bot-v0.1.${{ github.run_number }}" dist/StockWizardBotSetup.exe --latest `
+            --title "Stock Wizard Bot 0.1.${{ github.run_number }}" `
+            --notes "The bot for your own PC. Download StockWizardBotSetup.exe and follow the setup guide: https://github.com/benjaminkeithrose-svg/stockwizard/blob/main/docs/SETUP-BOT.md"
