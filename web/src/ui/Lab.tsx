@@ -3,6 +3,7 @@
 // the patterns that came closest. Discovery numbers saw the future: they are
 // never shown as win rates (SPEC.md, Pattern lab).
 
+import { Info } from "./parts";
 import { useEffect, useState } from "react";
 import type { PatternCandidate, PatternRun } from "../data/model";
 import type { Store } from "../data/store";
@@ -59,7 +60,7 @@ export default function LabView({ store }: { store: Store }) {
           </div>
         </div>
       </div>
-      {run.source?.includes("yahoo") && <div className="msg warn">Free, unofficial data: nothing here counts as validated.</div>}
+      {run.source?.includes("yahoo") && <div className="msg warn">Free, unofficial data: nothing here counts as validated. <Info term="freedata" /></div>}
       {run.sealed_burned && <div className="msg warn">The sealed years were already used with other settings, so the sealed results below are no longer a fair test.</div>}
       <div className="msg info">Discovery numbers saw the future: they show where to look, never what to expect. Only the sealed-years result is a test.</div>
 

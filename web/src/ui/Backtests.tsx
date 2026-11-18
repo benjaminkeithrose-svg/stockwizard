@@ -2,6 +2,7 @@
 // held-back period side by side. Only held-back and walk-forward results stand
 // for expected performance; the build period is where the rules were made.
 
+import { Info } from "./parts";
 import MakeBot from "./MakeBot";
 import { useEffect, useState } from "react";
 import type { BacktestRun, BacktestTrade, Metrics, StrategyDef } from "../data/model";
@@ -37,9 +38,9 @@ function StudyNote({ s, run }: { s: StrategyDef; run: BacktestRun }) {
           A signal study: the {s.config.trade_symbol} index itself can't be traded, so there are no costs. Option prices come later.
         </div>
       )}
-      {run.source?.includes("yahoo") && <div className="msg warn">Free, unofficial data: nothing here counts as validated.</div>}
+      {run.source?.includes("yahoo") && <div className="msg warn">Free, unofficial data: nothing here counts as validated. <Info term="freedata" /></div>}
       {run.held_back_burned && (
-        <div className="msg warn">The held-back years were already seen with other settings, so their result is no longer a fair test.</div>
+        <div className="msg warn">The held-back years were already seen with other settings, so their result is no longer a fair test. <Info term="burned" /></div>
       )}
       {run.warnings.map((w) => <div key={w} className="msg warn">{w}</div>)}
     </>
@@ -159,7 +160,7 @@ export function BacktestScreen(props: { store: Store; id: string }) {
       {s.notes && <p className="hint" style={{ marginTop: 0 }}>{s.notes}. Signal on {s.config.signal_symbol}, entered at the next day's open.</p>}
       <StudyNote s={s} run={run} />
 
-      <h2>Results</h2>
+      <h2>Results <Info term="heldback" /></h2>
       <table className="bt">
         <thead>
           <tr><th /><th>Build<br /><span>{year(run.start_date)}–{year(run.split_date)}</span></th><th>Held back<br /><span>{year(run.split_date)}–now</span></th></tr>

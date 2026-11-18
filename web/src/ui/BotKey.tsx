@@ -5,7 +5,7 @@
 
 import { useEffect, useState } from "react";
 import type { Store } from "../data/store";
-import { Sheet } from "./parts";
+import { Sheet, Info } from "./parts";
 
 const GUIDE = "https://github.com/benjaminkeithrose-svg/stockwizard/blob/main/docs/SETUP.md";
 
@@ -68,7 +68,7 @@ export default function BotKeyScreen({ store }: { store: Store }) {
         </p>
       )}
 
-      <h2>What the key does</h2>
+      <h2>What the key does <Info term="accesskey" /></h2>
       <p className="hint">
         Your bot runs on your own PC, next to Interactive Brokers' TWS or IB Gateway, and trades only your paper account.
         With this key it signs in to Stock Wizard as your bot: it can read your limits and bots and place and update your

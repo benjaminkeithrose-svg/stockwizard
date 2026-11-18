@@ -4,6 +4,7 @@
 // profit or loss, and every trade. Only the held-back years stand for what to
 // expect, and every price here is modelled until real option fills exist.
 
+import { Info } from "./parts";
 import { useEffect, useMemo, useState } from "react";
 import type { OptionMetrics, OptionRun, OptionStrategyDef, OptionTradeRow } from "../data/model";
 import type { Store } from "../data/store";
@@ -35,8 +36,8 @@ function Notes({ run }: { run: OptionRun }) {
   return (
     <>
       <div className="msg info">Modelled option prices (Black-Scholes, the VIX as volatility), with $0.65 a leg commission and 5c a leg slippage each way.</div>
-      {run.source?.includes("yahoo") && <div className="msg warn">Free, unofficial data: nothing here counts as validated.</div>}
-      {run.held_back_burned && <div className="msg warn">The held-back years were already seen with other settings, so their result is no longer a fair test.</div>}
+      {run.source?.includes("yahoo") && <div className="msg warn">Free, unofficial data: nothing here counts as validated. <Info term="freedata" /></div>}
+      {run.held_back_burned && <div className="msg warn">The held-back years were already seen with other settings, so their result is no longer a fair test. <Info term="burned" /></div>}
       {run.report.warnings.filter((w) => !w.startsWith("Modelled")).map((w) => <div key={w} className="msg warn">{w}</div>)}
     </>
   );

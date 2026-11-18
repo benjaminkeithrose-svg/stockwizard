@@ -11,7 +11,7 @@ import { expiryChoices, expiryLabel, MoveMode, moveLeg, newPosition, OptionPosit
 import type { useFavourites, usePositions } from "../data/usePositions";
 import { cachedCandles, Store } from "../data/store";
 import { Close, Indicators, Legs, Pencil, Plus, Star } from "./icons";
-import { AskText, ConfirmDelete, MoreMenu } from "./parts";
+import { AskText, ConfirmDelete, MoreMenu, Info } from "./parts";
 import { DrawSheet, IndicatorSheet, SymbolSearch } from "./sheets";
 import { OptionsSheet, PositionSheet } from "./OptionSheets";
 
@@ -128,8 +128,8 @@ export default function ChartScreen(props: {
     if (candles.source === "made-up") return <span className="badge est">Made-up candles</span>;
     if (candles.source?.includes("yahoo")) return <span className="badge est" title="Free, unofficial source. Nothing on it counts as validated.">Free data source</span>;
     if (live.length) return anyDelayed(live)
-      ? <span className="badge est" title="Interactive Brokers is sending prices about 15 minutes behind: there's no real-time data subscription on the account.">Delayed</span>
-      : <span className="badge ok" title="Updating from Interactive Brokers every few seconds.">Live</span>;
+      ? <><span className="badge est" title="Interactive Brokers is sending prices about 15 minutes behind: there's no real-time data subscription on the account.">Delayed</span> <Info term="live" /></>
+      : <><span className="badge ok" title="Updating from Interactive Brokers every few seconds.">Live</span> <Info term="live" /></>;
     return null;
   }, [candles.source, live]);
 

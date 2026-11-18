@@ -1,5 +1,6 @@
 // One line on Today and Safety: what the PC that runs your bot is doing, refreshed every 30 seconds.
 
+import { Info } from "./parts";
 import { useEffect, useState } from "react";
 import { describePc, PcStatus } from "../data/pcStatus";
 import type { Store } from "../data/store";
@@ -15,5 +16,5 @@ export default function PcStatusLine({ store }: { store: Store }) {
   }, [store]);
   if (status === undefined) return null;
   const d = describePc(status, now);
-  return <div className={`msg ${d.kind}`} role="status">{d.text}</div>;
+  return <div className={`msg ${d.kind}`} role="status">{d.text} <Info term="pcline" /></div>;
 }
