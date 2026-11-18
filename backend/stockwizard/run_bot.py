@@ -35,10 +35,13 @@ from dataclasses import asdict
 from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
+import pandas as pd
+
 QUOTE_EVERY = timedelta(minutes=30)
 
 from stockwizard.bot import Bot, Proposal
 from stockwizard.broker import BrokerOrder, PretendBroker
+from stockwizard.data.base import select_preferred
 from stockwizard.data.store import SupabaseStore
 from stockwizard.pricing import historical_vol, limit_price, net_value, years_left
 from stockwizard.notify import Notifier, limit_message, message
@@ -143,16 +146,16 @@ class BotRunner:
         """(price, when, volatility, where the volatility came from) from the latest stored candles."""
         latest = None
         for tf in ("5m", "1d"):
-            rows = self.store.select("candles", {"select": "ts,close", "symbol": f"eq.{symbol}", "timeframe": f"eq.{tf}", "order": "ts.desc", "limit": "1"})
-            if rows and (latest is None or rows[0]["ts"] > latest["ts"]):
+            rows = select_preferred(self.store, "candles", {"select": "ts,close", "symbol": f"eq.{symbol}", "timeframe": f"eq.{tf}", "order": "ts.desc", "limit": "1"})
+            if rows and (latest is None or pd.Timestamp(rows[0]["ts"]) > pd.Timestamp(latest["ts"])):
                 latest = rows[0]
         if latest is None:
             raise ValueError(f"No candles for {symbol}")
         if symbol == "SPY":
-            vix = self.store.select("candles", {"select": "close", "symbol": "eq.^VIX", "timeframe": "eq.1d", "order": "ts.desc", "limit": "1"})
+            vix = select_preferred(self.store, "candles", {"select": "close", "symbol": "eq.^VIX", "timeframe": "eq.1d", "order": "ts.desc", "limit": "1"})
             if vix:
                 return float(latest["close"]), latest["ts"], float(vix[0]["close"]) / 100, "the VIX"
-        daily = self.store.select("candles", {"select": "close", "symbol": f"eq.{symbol}", "timeframe": "eq.1d", "order": "ts.desc", "limit": "21"})
+        daily = select_preferred(self.store, "candles", {"select": "close", "symbol": f"eq.{symbol}", "timeframe": "eq.1d", "order": "ts.desc", "limit": "21"})
         hv = historical_vol([float(r["close"]) for r in reversed(daily)])
         return float(latest["close"]), latest["ts"], hv or 0.2, "the last 20 days' moves" if hv else "a default 20%"
 
@@ -276,7 +279,7 @@ class BotRunner:
     # --- practice ---
     def practice(self) -> Proposal:
         """A made-up iron condor on SPY with $1 wings, proposed so Ben can try approving one. The price is made up."""
-        rows = self.store.select("candles", {"select": "close", "symbol": "eq.SPY", "timeframe": "eq.1d", "order": "ts.desc", "limit": "1"})
+        rows = select_preferred(self.store, "candles", {"select": "close", "symbol": "eq.SPY", "timeframe": "eq.1d", "order": "ts.desc", "limit": "1"})
         price = round(float(rows[0]["close"])) if rows else 600
         expiry = self.clock().astimezone(NY).date() + timedelta(days=1)
         while expiry.weekday() >= 5:

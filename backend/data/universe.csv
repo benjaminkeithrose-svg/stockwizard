@@ -1,0 +1,30 @@
+symbol,market,instrument_type,tradable,name
+^SPX,US,index,false,S&P 500 Index
+^NDX,US,index,false,Nasdaq-100 Index
+^RUT,US,index,false,Russell 2000 Index
+^VIX,US,index,false,CBOE Volatility Index
+^VIX1D,US,index,false,CBOE 1-Day Volatility Index
+^VIX9D,US,index,false,CBOE 9-Day Volatility Index
+^VIX3M,US,index,false,CBOE 3-Month Volatility Index
+SPY,US,etf,true,SPDR S&P 500 ETF
+QQQ,US,etf,true,Invesco QQQ
+IWM,US,etf,true,iShares Russell 2000 ETF
+DIA,US,etf,true,SPDR Dow Jones Industrial Average ETF
+TLT,US,etf,true,iShares 20+ Year Treasury Bond ETF
+GLD,US,etf,true,SPDR Gold Shares
+AAPL,US,stock,true,Apple
+MSFT,US,stock,true,Microsoft
+NVDA,US,stock,true,NVIDIA
+AMZN,US,stock,true,Amazon
+GOOGL,US,stock,true,Alphabet Class A
+META,US,stock,true,Meta Platforms
+TSLA,US,stock,true,Tesla
+AVGO,US,stock,true,Broadcom
+JPM,US,stock,true,JPMorgan Chase
+BRK.B,US,stock,true,Berkshire Hathaway Class B
+LMT,US,stock,true,Lockheed Martin
+RTX,US,stock,true,RTX
+NOC,US,stock,true,Northrop Grumman
+GD,US,stock,true,General Dynamics
+BA,US,stock,true,Boeing
+LHX,US,stock,true,L3Harris Technologies

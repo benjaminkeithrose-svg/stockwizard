@@ -6,3 +6,4 @@ node_modules/
 web/dist/
 pc/stockwizard.env
 pc/.venv/
+pc/data/
