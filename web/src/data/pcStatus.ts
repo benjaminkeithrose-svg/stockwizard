@@ -28,15 +28,15 @@ const ago = (ms: number) => {
 
 /** The line to show, and how it should look: ok (green), warn (amber) or err (red). */
 export function describePc(s: PcStatus | null, now: Date): { kind: "ok" | "warn" | "err"; text: string } {
-  if (!s) return { kind: "warn", text: "PC: no word yet. Install the Stock Wizard bot (Bot key, setup guide) and start it." };
+  if (!s) return { kind: "warn", text: "PC: no word yet. Install Stock Wizard on your PC (Menu, Access key, setup guide) and open it." };
   const age = now.getTime() - Date.parse(s.updated_at);
   const where = s.host ? ` (${s.host})` : "";
   if (age > STALE_MS) return { kind: "err", text: `PC${where}: last heard ${ago(age)}. Is the PC on, with Stock Wizard running?` };
-  const bot = s.bot_state === "connected" ? (s.bot_detail ?? "bot connected").replace(/^Connected/, "bot connected")
-    : s.bot_state === "waiting" ? `bot waiting: ${s.bot_detail ?? "TWS isn't taking connections"}`
-    : s.bot_state === "starting" ? "bot starting"
-    : `bot stopped${s.bot_detail ? `: ${s.bot_detail}` : ""}`;
-  const data = s.data_state && s.data_state !== "off" ? ` · data ${s.data_state}` : "";
+  const bot = s.bot_state === "connected" ? (s.bot_detail ?? "trading connected").replace(/^Connected( to Interactive Brokers)?/, "trading connected")
+    : s.bot_state === "waiting" ? `trading waiting: ${s.bot_detail ?? "TWS isn't taking connections"}`
+    : s.bot_state === "starting" ? "trading starting"
+    : `trading stopped${s.bot_detail ? `: ${s.bot_detail}` : ""}`;
+  const data = s.data_state && s.data_state !== "off" ? ` · market data ${s.data_state}` : "";
   const kind = s.bot_state === "connected" && s.data_state !== "stopped" ? "ok" : s.bot_state === "stopped" ? "err" : "warn";
   return { kind, text: `PC${where}: ${bot}${data} · ${ago(age)}` };
 }

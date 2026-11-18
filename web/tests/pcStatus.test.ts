@@ -11,18 +11,18 @@ describe("the PC status line", () => {
   it("says all's well in green with the bot connected", () => {
     const d = describePc(beat(), NOW);
     expect(d.kind).toBe("ok");
-    expect(d.text).toBe("PC (BEN-PC): bot connected, paper account DU…930 · data streaming · 20 seconds ago");
+    expect(d.text).toBe("PC (BEN-PC): trading connected, paper account DU…930 · market data streaming · 20 seconds ago");
   });
 
   it("warns while the bot waits for TWS", () => {
     const d = describePc(beat({ bot_state: "waiting", bot_detail: "TWS isn't taking connections: is it running and logged in to Paper Trading?" }), NOW);
     expect(d.kind).toBe("warn");
-    expect(d.text).toContain("bot waiting: TWS isn't taking connections");
+    expect(d.text).toContain("trading waiting: TWS isn't taking connections");
   });
 
   it("goes red when the bot has stopped, with why", () => {
     const d = describePc(beat({ bot_state: "stopped", bot_detail: "The bot key was refused" }), NOW);
-    expect(d).toEqual({ kind: "err", text: expect.stringContaining("bot stopped: The bot key was refused") });
+    expect(d).toEqual({ kind: "err", text: expect.stringContaining("trading stopped: The bot key was refused") });
   });
 
   it("goes red when the PC hasn't been heard from for over 2 minutes", () => {
@@ -32,7 +32,7 @@ describe("the PC status line", () => {
   });
 
   it("says how to start when no PC has reported yet", () => {
-    expect(describePc(null, NOW).text).toContain("Install the Stock Wizard bot");
+    expect(describePc(null, NOW).text).toContain("Install Stock Wizard on your PC");
   });
 
   it("leaves the data program out for people who don't run it", () => {

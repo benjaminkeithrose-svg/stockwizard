@@ -1,11 +1,11 @@
-# Builds dist\StockWizardBotSetup.exe: the bot with its own Python, for any Windows PC.
+# Builds dist\StockWizardSetup.exe: Stock Wizard with its own Python, for any Windows PC.
 # Runs on GitHub (.github/workflows/installer.yml); also by hand, with Python 3.13 and
 # Inno Setup 6 installed:  powershell -File pc\installer\build.ps1
 #
 # 1. Python's embeddable package (a small Python with no installer) from python.org.
 # 2. The bot's packages into it, as ready-made Windows wheels.
 # 3. backend\stockwizard beside it (started by "pythonw -m stockwizard.supervisor").
-# 4. Inno Setup compiles StockWizardBot.iss into the installer.
+# 4. Inno Setup compiles StockWizard.iss into the installer.
 
 param(
   [string]$PythonVersion = "3.13.17",
@@ -60,6 +60,6 @@ Set-Content -Encoding ascii "$build\app\stockwizard\_release.py" "RELEASE = `"$A
 if ($LASTEXITCODE) { throw "The bundled Python can't load the bot" }
 
 # 4. The installer
-& $Iscc "/DSourceDir=$build" "/DAppVersion=$AppVersion" "$here\StockWizardBot.iss"
+& $Iscc "/DSourceDir=$build" "/DAppVersion=$AppVersion" "$here\StockWizard.iss"
 if ($LASTEXITCODE) { throw "Inno Setup failed" }
-Get-Item "$root\dist\StockWizardBotSetup.exe" | ForEach-Object { "Built $($_.FullName) ({0:N1} MB)" -f ($_.Length / 1MB) }
+Get-Item "$root\dist\StockWizardSetup.exe" | ForEach-Object { "Built $($_.FullName) ({0:N1} MB)" -f ($_.Length / 1MB) }

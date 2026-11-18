@@ -60,7 +60,7 @@ def read_bot_key(bot_key: str) -> tuple[str, str]:
     """The bot account's email and password packed in a bot key ("swbot1." + base64 JSON), made in the app."""
     prefix, _, body = bot_key.strip().partition(".")
     if prefix != "swbot1" or not body:
-        raise ValueError("That isn't a Stock Wizard bot key: make one in the app (the menu, three dots, then Bot key) and copy all of it")
+        raise ValueError("That isn't a Stock Wizard access key: make one in the app (Menu, then Access key) and copy all of it")
     d = json.loads(base64.urlsafe_b64decode(body + "=" * (-len(body) % 4)))
     return d["e"], d["p"]
 
@@ -83,8 +83,8 @@ class BotLogin:
         if status >= 300:
             if grant == "refresh_token":   # the renewal was refused (an old login): sign in afresh
                 return self._login({"email": self.email, "password": self.password}, "password")
-            raise RuntimeError("The bot key was refused: it may have been replaced in the app. Make a new one (the app's menu, three dots, "
-                               f"then Bot key) and put it in the bot's settings on the BOT_KEY= line. (HTTP {status})")
+            raise RuntimeError("The access key was refused: it may have been replaced in the app. Make a new one (Menu, then Access key) "
+                               f"and paste it in Stock Wizard's Settings on this PC. (HTTP {status})")
         d = json.loads(raw)
         self.token, self.refresh_token = d["access_token"], d["refresh_token"]
         self.expires_at = self.clock() + float(d.get("expires_in", 3600))
@@ -108,7 +108,7 @@ class SupabaseStore:
         bot_key = bot_key or os.environ.get("BOT_KEY", "")
         if not self.key:
             if not bot_key:
-                raise RuntimeError("Set BOT_KEY (made in the app's menu, three dots, then Bot key) in the bot's settings, or on Ben's PC SUPABASE_SECRET_KEY")
+                raise RuntimeError("No access key: make one in the app (Menu, then Access key) and paste it in Stock Wizard's Settings (BOT_KEY), or on Ben's PC SUPABASE_SECRET_KEY")
             self.bot, self.key = BotLogin(self.url, bot_key, send, clock), PUBLISHABLE_KEY
 
     @property

@@ -127,7 +127,7 @@ const ROWS: [string, string, (m: Metrics) => string][] = [
   ["Exits", "target / stop / time", (m) => (m.exits ? `${m.exits.target ?? 0} / ${m.exits.stop ?? 0} / ${m.exits.time ?? 0}` : "—")],
 ];
 
-const NO_STOCK_BOT = "These are stock signals. The bot trades option structures only, so a stock signal can't be a bot yet; an option backtest that trades on the signal (e.g. the squeeze condors) can.";
+const NO_STOCK_BOT = "These are stock signals. Automated trading places option structures only, so a stock signal can't be automated yet; an option backtest that trades on the signal (e.g. the squeeze condors) can.";
 
 export function BacktestScreen(props: { store: Store; id: string }) {
   const [s, setS] = useState<StrategyDef | null>(null);

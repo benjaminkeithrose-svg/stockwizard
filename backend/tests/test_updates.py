@@ -22,7 +22,7 @@ def github(tag="bot-v0.1.12", data=INSTALLER, digest=None):
     def get(url):
         calls.append(url)
         if url.endswith("/releases/latest"):
-            return json.dumps({"tag_name": tag, "assets": [{"name": "StockWizardBotSetup.exe", "size": len(data),
+            return json.dumps({"tag_name": tag, "assets": [{"name": "StockWizardSetup.exe", "size": len(data),
                 "digest": digest or "sha256:" + hashlib.sha256(data).hexdigest(), "browser_download_url": "https://example.invalid/setup.exe"}]}).encode()
         return data
     get.calls = calls

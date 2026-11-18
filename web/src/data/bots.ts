@@ -20,9 +20,9 @@ const BOT_STRUCTURES = ["iron_condor", "iron_fly", "bull_put", "bear_call", "bul
 /** An option backtest (Backtests, Options) as a bot: SPY, the same structure, expiry, placement, wings and management. */
 export function botFromOptionBacktest(def: OptionStrategyDef, run: OptionRun | undefined): BotDraft {
   const c = def.config as OptionStrategyDef["config"] & { intraday?: boolean; signal_params?: Record<string, unknown>; vix_min?: number | null };
-  if (c.intraday) return { ok: false, why: "Same-day methods are tested on hourly candles, which the bot doesn't use. The 0DTE research survivors can be made into bots." };
-  if (!BOT_STRUCTURES.includes(c.structure)) return { ok: false, why: "The bot can't place call or put condors yet. The iron condor on the same strikes has the same payoff and can be a bot." };
-  if (!(c.manage in MANAGE)) return { ok: false, why: `The bot doesn't manage trades this way (${c.manage}) yet.` };
+  if (c.intraday) return { ok: false, why: "Same-day methods are tested on hourly candles, which automated trading doesn't use. The 0DTE research survivors can be automated." };
+  if (!BOT_STRUCTURES.includes(c.structure)) return { ok: false, why: "Automated trading can't place call or put condors yet. The iron condor on the same strikes has the same payoff and can be automated." };
+  if (!(c.manage in MANAGE)) return { ok: false, why: `Automated trading doesn't manage trades this way (${c.manage}) yet.` };
   if (!run) return { ok: false, why: "This backtest hasn't been run yet." };
   const config: StrategyConfig = {
     instrument: "SPY", structure: c.structure, entry: "10:00", short_delta: 0.15, width: c.wing, dte: c.dte,
@@ -39,7 +39,7 @@ export function botFromOptionBacktest(def: OptionStrategyDef, run: OptionRun | u
 
 /** A 0DTE research survivor as a bot: its configuration is already the bot's. */
 export function botFromResearch(s: ResearchStrategy): BotDraft {
-  if (!s.config) return { ok: false, why: "This result was saved before its settings were kept; re-run the research to make a bot from it." };
+  if (!s.config) return { ok: false, why: "This result was saved before its settings were kept; re-run the research to automate it." };
   const raw = Object.fromEntries(Object.entries(s.config).filter(([, v]) => v !== null && v !== false && !(Array.isArray(v) && !v.length)));
   const config = { ...raw, dte: 0 } as StrategyConfig;
   const v = s.validation;

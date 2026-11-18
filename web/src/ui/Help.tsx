@@ -1,5 +1,5 @@
 // Help (Menu): a guide in plain English. Getting started first, then each
-// screen, the bot and its safety, what to do when something looks wrong, and
+// screen, automated trading and its safety, what to do when something looks wrong, and
 // the terms. Each topic is folded so the page stays short; the search icon
 // opens a full-screen search over every topic. Refreshed 19 Nov 2026: Ben
 // asks for a refresh when he wants one (it isn't redone with every change).
@@ -28,13 +28,13 @@ const START: Topic[] = [
     "Backtests (in the menu) shows how rules and option structures did over about 20 years. Read the held-back column: the years the rule never saw while it was being made.",
     "Each test also shows what $5,000 would have become, risking 2% a trade.",
   ]],
-  ["5. Make a bot and let it trade on paper", [
-    "On an option backtest or a 0DTE survivor you like, tap Make a bot, then Done. It's saved switched off.",
+  ["5. Automate a strategy and let it trade on paper", [
+    "On an option backtest or a 0DTE survivor you like, tap Automate this strategy, then Done. It's saved switched off.",
     "Set your limits first: Menu, Safety and orders, Change limits. With no daily loss limit, every order is refused.",
-    "Switch the bot on under Bots. At its entry time each trading day it proposes the trade; you approve it in Safety and orders (or let it run in Automatic mode, paper only). Your phone tells you when there's something to do.",
+    "Switch it on under Automated strategies (in Safety and orders). At its entry time each trading day it proposes the trade; you approve it in Safety and orders (or let it run in Automatic mode, paper only). Your phone tells you when there's something to do.",
   ]],
   ["6. Each morning", [
-    "Today (top of the chart screen) shows whether the US market is open, the market numbers, what each bot did, and today's result against your limit.",
+    "Today (top of the chart screen) shows whether the US market is open, the market numbers, what each automated strategy did, and today's result against your limit.",
   ]],
 ];
 
@@ -49,20 +49,20 @@ const SCREENS: Topic[] = [
   ["Options on the chart", [
     "Each leg is a line: ▲ for a call, ▼ for a put. Solid lines are legs you sell; dotted lines are legs you buy. Purple means planned; green means marked bought.",
     "Touch a line to see that leg, its expiry and days left.",
-    "Teal lines are a bot's open paper position. An arrow marks where a bot trade opened; a dot with its profit or loss, where it closed.",
+    "Teal lines are an automated strategy's open paper position. An arrow (Auto in) marks where its trade opened; a dot with its profit or loss, where it closed.",
     "Tap the structure's chip to open its analysis. Adjust on the chart lets you drag it: All moves everything, Side moves the put or call side, Leg moves one line.",
   ]],
   ["Analysis", [
     "The graph shows profit or loss at every price: the solid line at expiry, the dashed line at the date on the slider. Green is profit; red is loss. The shaded band is the expected move.",
     "Move the date slider to watch time decay, and the volatility slider to see what a calmer or wilder market does.",
     "+ Compare puts up to 3 structures on one graph, with a table side by side.",
-    "Order (paper) sends it to the bot. The bot prices it, checks every limit, and it waits for you in Safety and orders.",
+    "Send as a paper order passes it to Stock Wizard on your PC. It prices it, checks every limit, and it waits for you in Safety and orders.",
     "All prices here are theoretical (Black-Scholes) until Interactive Brokers supplies real ones.",
   ]],
   ["Today", [
     "The morning checklist: whether the US market is open and when it opens in Sydney time, the latest SPY price, VIX, VIX1D, expected move to the close, opening range, VWAP and direction.",
-    "Under it, each bot that's switched on and what it did today, the orders waiting for you, today's profit or loss and how much of the daily limit is used. A Fed day or an expiration Friday is flagged at the top.",
-    "The bot saves the market numbers every cycle during the US session; between sessions you see the last session's.",
+    "Under it, each automated strategy that's switched on and what it did today, the orders waiting for you, today's profit or loss and how much of the daily limit is used. A Fed day or an expiration Friday is flagged at the top.",
+    "Your PC saves the market numbers every 30 seconds during the US session; between sessions you see the last session's.",
   ]],
   ["Chart pages", ["Up to 10 charts as cards on a page. On the PC, drag a card to move it and its corner to resize it; Tidy closes the gaps. Tap a card to open it full screen."]],
   ["Scanner", ["The latest run of each scan, in tabs: squeeze on, squeeze fired, breakout, trend break, drawdown and RSI divergence. Scans run on Ben's PC after each US close (about 8 to 9 am Sydney). Tap a result to open it on the chart."]],
@@ -80,44 +80,44 @@ const SCREENS: Topic[] = [
 ];
 
 const BOT: Topic[] = [
-  ["Make a bot", [
-    "At the top of each option backtest page and in each 0DTE survivor. It fills in the bot with exactly the tested settings: structure, expiry, strikes, wings, how it's managed, and any VIX filter or signal. Its card shows the held-back result.",
-    "Only tested settings can run. Change a setting and the bot is marked Untested and switched off; Put them back restores them. A bot set up by hand is untested.",
-    "Can't be bots yet, and say why: stock strategies and the pattern lab (stock signals; the bot trades options), the same-day methods tested on hourly candles, and call or put condors.",
+  ["Automate a strategy", [
+    "At the top of each option backtest page and in each 0DTE survivor. It fills in the automated strategy with exactly the tested settings: structure, expiry, strikes, wings, how it's managed, and any VIX filter or signal. Its card shows the held-back result.",
+    "Only tested settings can run. Change a setting and it's marked Untested and switched off; Put them back restores them. One set up by hand is untested.",
+    "Can't be automated yet, and say why: stock strategies and the pattern lab (stock signals; automated trading places options), the same-day methods tested on hourly candles, and call or put condors.",
   ]],
-  ["What a bot does each day", [
+  ["What an automated strategy does each day", [
     "In the 15 minutes after its entry time (New York) it reads the market, checks its setup (VIX range, signal, direction), picks the strikes and proposes the trade at the price you can count on getting.",
     "Every order then goes through the safety rails. In Approve mode it waits for you; in Automatic mode (paper only) it's sent straight away if every rail passes.",
-    "While a trade is open, the bot checks its exits every cycle: profit target, stop, days left, time of day. Anything still open settles at its expiry's close.",
-    "Same-day bots trade once a day. Multi-day bots (3 days, 9 days, about a month) hold one position at a time, overnight.",
+    "While a trade is open, your PC checks its exits every 30 seconds: profit target, stop, days left, time of day. Anything still open settles at its expiry's close.",
+    "Same-day strategies trade once a day. Multi-day ones (3 days, 9 days, about a month) hold one position at a time, overnight.",
     "A day with no setup is recorded with the reason; Today shows it.",
   ]],
   ["The safety rails", [
     "Every order must pass all of them, when proposed and again when approved: defined risk only (no naked options), the most a trade may lose, the most a day may lose, positions open at once, capital at risk, prices no older than your limit, limit orders only, and the kill switch off.",
     "While the daily loss limit is empty, every order is refused.",
-    "The kill switch (Safety and orders) stops all trading at once: it drops waiting orders and the bot cancels anything working.",
-    "Paper trading only. Live trading can't be turned on from the app, and the bot refuses live ports and accounts.",
+    "The kill switch (Safety and orders) stops all trading at once: it drops waiting orders and cancels anything working.",
+    "Paper trading only. Live trading can't be turned on from the app, and Stock Wizard refuses live ports and accounts.",
   ]],
   ["Safety and orders", [
-    "Waiting: orders the bot has proposed. Tap one to approve or reject it. Approving doesn't send it straight away: the bot gets a fresh price and checks every limit again first.",
-    "Bots: switch one on (it asks first) or off. Each card shows Tested or Untested, its paper results so far, and what its backtest expected.",
+    "Waiting: orders proposed by an automated strategy or sent from a chart. Tap one to approve or reject it. Approving doesn't send it straight away: your PC gets a fresh price and checks every limit again first.",
+    "Automated strategies: switch one on (it asks first) or off. Each card shows Tested or Untested, its paper results so far, and what its backtest expected.",
     "Limits: the most a trade or a day may lose, positions at once, capital at risk, how old prices may be, and Approve or Automatic.",
   ]],
   ["Phone notifications", ["Through the free ntfy app: an order waiting for you, filled, closed or stopped, and the daily loss limit reached. Each is told once. Open Stock Wizard's Safety and orders to act on it."]],
-  ["Where the bot runs", [
+  ["Where trading runs", [
     "In the Stock Wizard program on your Windows PC, next to Interactive Brokers' TWS logged in to Paper Trading. It runs behind the icon by the clock (an S in a circle: green connected, amber waiting, red stopped) and starts when you sign in to Windows.",
-    "The line under the header (PC: …) shows whether the PC's bot and market data are running, from its heartbeat every 30 seconds.",
+    "The line under the header (PC: …) shows whether the PC's trading connection and market data are running, from its heartbeat every 30 seconds.",
     "Right-click the icon for Settings, Logs, updates and, on Ben's PC, Run backtests. Closing the window keeps trading running; Quit on the icon stops it.",
-    "Setting up a PC: docs/SETUP-BOT.md on GitHub, or the setup guide in the Start menu.",
+    "Setting up a PC: docs/SETUP.md on GitHub, or the setup guide in the Start menu.",
   ]],
-  ["Bot key (invited people)", ["Menu, Bot key, Make a bot key: the key your PC's Stock Wizard signs in with. It can only touch your own orders. Making a new one stops the old one."]],
+  ["Access key (invited people)", ["Menu, Access key, Make an access key: the key your PC's Stock Wizard signs in with. It can only touch your own orders. Making a new one stops the old one."]],
 ];
 
 const TROUBLE: Topic[] = [
   ["The app looks out of date", ["Menu, then Get latest version. If it still looks old, close the app fully and open it again."]],
-  ["Today says no snapshot, or the numbers are old", ["The bot saves them only during the US session. If the session is open and they're more than 10 minutes old, the bot isn't running: look at the PC line under the header, then the icon by the clock on the PC."]],
+  ["Today says no snapshot, or the numbers are old", ["Your PC saves them only during the US session. If the session is open and they're more than 10 minutes old, Stock Wizard isn't running on the PC: look at the PC line under the header, then the icon by the clock on the PC."]],
   ["The PC line says waiting or stopped", ["Usually TWS: it isn't open, isn't logged in to Paper Trading, or restarted overnight. Log in again; Stock Wizard reconnects within a minute. Right-click the icon by the clock, Logs, shows the full story."]],
-  ["A bot didn't propose anything", ["Open Today: it shows the reason (outside its VIX range, no setup, a day it skips, a position still open). If it says the bot may not have run in time, the bot wasn't running at the entry time."]],
+  ["An automated strategy didn't propose anything", ["Open Today: it shows the reason (outside its VIX range, no setup, a day it skips, a position still open). If it says your PC may not have been running, Stock Wizard wasn't running at the entry time."]],
   ["Every order is refused", ["Open the order in Safety and orders: it lists every rail it failed. Most often the daily loss limit is empty, the trade risks more than the per-trade limit, or the prices are too old."]],
   ["Charts have no candles, or yesterday is missing", ["Candles come from Interactive Brokers through Ben's PC, topped up after each US close (about 8 to 9 am Sydney). While that PC or TWS is off nothing updates; the next start fills the gap. A new symbol needs adding to the symbol list; ask me."]],
 ];
@@ -149,7 +149,7 @@ const TERMS: [string, string][] = [
   ["False-discovery check", "When hundreds of rules are tried, some look good by luck. This check (Benjamini-Hochberg) only passes those too strong to be luck."],
   ["Modelled prices", "Option prices worked out with Black-Scholes and the VIX, not real quotes. Real fills, especially on the wings, usually cost more."],
   ["The $5,000 kitty", "What $5,000 would have become, trade by trade, risking 2% of the balance on each."],
-  ["Tested / untested bot", "A tested bot runs exactly the settings a backtest tested. Change any of them and it's untested until backtested again."],
+  ["Tested / untested", "A tested automated strategy runs exactly the settings a backtest tested. Change any of them and it's untested until backtested again."],
   ["Kill switch", "Stops all trading at once: waiting orders dropped, working orders cancelled, nothing new until you turn trading back on."],
   ["Paper trading", "Practice orders with pretend money at Interactive Brokers. Nothing real is at stake."],
 ];
@@ -157,7 +157,7 @@ const TERMS: [string, string][] = [
 const SECTIONS: [string, Topic[]][] = [
   ["Getting started", START],
   ["The screens", SCREENS],
-  ["The bot and safety", BOT],
+  ["Automated trading and safety", BOT],
   ["When something looks wrong", TROUBLE],
   ["Terms", TERMS.map(([t, w]) => [t, [w]] as Topic)],
 ];
@@ -198,7 +198,7 @@ export default function HelpScreen() {
           {topics.map((t) => <TopicCard key={t[0]} topic={t} />)}
         </section>
       ))}
-      <p className="hint">A fuller guide, how everything runs, and setting up a PC: docs/GUIDE.md, docs/OPERATIONS.md and docs/SETUP-BOT.md in the repository on GitHub.</p>
+      <p className="hint">A fuller guide, how everything runs, and setting up a PC: docs/GUIDE.md, docs/OPERATIONS.md and docs/SETUP.md in the repository on GitHub.</p>
       {searching && <HelpSearch onClose={() => setSearching(false)} />}
     </div>
   );

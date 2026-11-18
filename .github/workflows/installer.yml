@@ -1,8 +1,8 @@
-# Builds the Stock Wizard Bot installer (pc/installer): the bot with its own Python, for any
+# Builds the Stock Wizard installer (pc/installer): the bot with its own Python, for any
 # Windows PC (Ben, 18 Nov 2026: multi-user). On a pull request it's built and kept as a
 # download on the run (Actions tab) for testing; after a merge to main, or run by hand, it's
 # published as a release: https://github.com/benjaminkeithrose-svg/stockwizard/releases/latest
-# (the setup guide, docs/SETUP-BOT.md, links there).
+# (the setup guide, docs/SETUP.md, links there).
 name: Bot installer
 
 on:
@@ -34,17 +34,19 @@ jobs:
           if (-not (Test-Path "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe")) { choco install innosetup -y --no-progress }
       - name: Build the installer
         shell: pwsh
-        run: pc/installer/build.ps1 -AppVersion "0.1.${{ github.run_number }}"
+        run: pc/installer/build.ps1 -AppVersion "0.2.${{ github.run_number }}"
       - uses: actions/upload-artifact@v4
         with:
-          name: StockWizardBotSetup
-          path: dist/StockWizardBotSetup.exe
+          name: StockWizardSetup
+          path: dist/StockWizardSetup.exe
       - name: Publish the release
         if: github.event_name != 'pull_request'
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "bot-v0.1.${{ github.run_number }}" dist/StockWizardBotSetup.exe --latest `
-            --title "Stock Wizard Bot 0.1.${{ github.run_number }}" `
-            --notes "The bot for your own PC. Download StockWizardBotSetup.exe and follow the setup guide: https://github.com/benjaminkeithrose-svg/stockwizard/blob/main/docs/SETUP-BOT.md"
+          # The same installer under its old name too, for Stock Wizard 0.1.x, which looks for that name to update itself.
+          Copy-Item dist/StockWizardSetup.exe dist/StockWizardBotSetup.exe
+          gh release create "v0.2.${{ github.run_number }}" dist/StockWizardSetup.exe dist/StockWizardBotSetup.exe --latest `
+            --title "Stock Wizard 0.2.${{ github.run_number }}" `
+            --notes "Stock Wizard for your Windows PC. Download StockWizardSetup.exe and follow the setup guide: https://github.com/benjaminkeithrose-svg/stockwizard/blob/main/docs/SETUP.md"

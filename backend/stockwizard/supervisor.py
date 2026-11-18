@@ -83,10 +83,10 @@ def read_line(kind: str, line: str) -> tuple[str | None, str | None]:
         return ("waiting" if kind == "bot" else "stopped"), "TWS isn't taking connections: is it running and logged in to Paper Trading?"
     if "disconnected" in s and "Interactive Brokers" in s:
         return ("waiting" if kind == "bot" else "stopped"), "TWS closed or restarted: reconnecting"
-    if "bot key was refused" in s:
-        return "stopped", "The bot key was refused: make a new one in the app (Bot key) and put it in the settings"
+    if "key was refused" in s:
+        return "stopped", "The access key was refused: make a new one in the app (Menu, Access key) and paste it in Settings"
     if "Set BOT_KEY" in s:
-        return "stopped", "No bot key in the settings"
+        return "stopped", "No access key in Settings"
     if "isn't a paper account" in s:
         return "stopped", "TWS is logged in to a live account: log in to Paper Trading"
     if kind == "bot":
@@ -199,7 +199,7 @@ class Supervisor:
                 if c.state not in ("stopped",):
                     c.state = "waiting" if c.kind == "bot" else "stopped"
                 err = next((ln for ln in reversed(c.lines) if re.match(r"^\w+(Error|Exception|Exit)\b", ln.strip())), None)
-                if err and (c.detail is None or c.state == "stopped" and not c.detail.startswith(("TWS", "The bot key", "No bot key", "Needs"))):
+                if err and (c.detail is None or c.state == "stopped" and not c.detail.startswith(("TWS", "The access key", "No access key", "Needs"))):
                     c.detail = "Stopped: " + err.strip()[:150]
                 c.restart_at = now + RESTART_AFTER
             elif c.restart_at is not None and now >= c.restart_at:
@@ -350,8 +350,8 @@ def run_desktop(sup: Supervisor, settings_path: Path, log_dir: Path, lock: socke
         def text(_item) -> str:
             c = sup.child(kind)
             if c is None:
-                return "Data program: off"
-            return f"{'Bot' if kind == 'bot' else 'Data'}: {c.state}" + (f" · {c.detail[:70]}" if c.detail else "")
+                return "Market data: off (another PC supplies it)"
+            return f"{'Trading' if kind == 'bot' else 'Market data'}: {c.state}" + (f" · {c.detail[:70]}" if c.detail else "")
         return text
 
     def update(icon, _item):
@@ -403,7 +403,7 @@ def run_desktop(sup: Supervisor, settings_path: Path, log_dir: Path, lock: socke
                          visible=lambda _i: bool(sup.settings.get("SUPABASE_SECRET_KEY"))),
         pystray.MenuItem(lambda _i: updater.label(), update, enabled=lambda _i: updater.can_apply()),
         pystray.Menu.SEPARATOR,
-        pystray.MenuItem("Quit (stops the bot)", quit_),
+        pystray.MenuItem("Quit (stops trading)", quit_),
     ))
 
     def requests():
@@ -427,7 +427,7 @@ def run_desktop(sup: Supervisor, settings_path: Path, log_dir: Path, lock: socke
             sup.poll()
             bot = sup.child("bot")
             icon.icon = _icon_image(bot.state)
-            icon.title = f"Stock Wizard: bot {bot.state}" + (f", data {sup.child('data').state}" if sup.child("data") else "")
+            icon.title = f"Stock Wizard: trading {bot.state}" + (f", market data {sup.child('data').state}" if sup.child("data") else "")
             icon.update_menu()
             time.sleep(1)
 
@@ -465,7 +465,7 @@ def main(argv: list[str] | None = None) -> int:
             print("Stock Wizard is already running on this PC (look for its icon by the clock).")
             return 1
     if not a.settings.exists():
-        print(f"No settings at {a.settings}: run the installer again and paste your bot key.")
+        print(f"No settings at {a.settings}: open Stock Wizard settings from the Start menu and paste your access key.")
         return 1
     settings = load_settings(a.settings)
     os.environ.update(settings)

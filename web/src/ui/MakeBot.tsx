@@ -13,19 +13,19 @@ export default function MakeBot({ store, draft }: { store: Store; draft: BotDraf
   if (!draft.ok) {
     return (
       <>
-        <button className="big" disabled>Make a bot</button>
+        <button className="big" disabled>Automate this strategy</button>
         <p className="hint">{draft.why}</p>
       </>
     );
   }
   return (
     <>
-      <button className="big" onClick={() => { setSaid(null); setOpen(true); }}>Make a bot</button>
+      <button className="big" onClick={() => { setSaid(null); setOpen(true); }}>Automate this strategy</button>
       {said && <div className="msg ok" role="status">{said}</div>}
       {open && (
         <BotSheet strategy={draft.bot} onClose={() => setOpen(false)}
           onDone={(b) => store.saveBotStrategy(b)
-            .then(() => setSaid(`Saved in Bots, switched off. To run it: ⋯, Safety and orders, then its switch under Bots.`))
+            .then(() => setSaid(`Saved in Automated strategies, switched off. To run it: Menu, Safety and orders, then its switch under Automated strategies.`))
             .catch((e) => setSaid(`Couldn't save: ${e.message ?? e}`))} />
       )}
     </>

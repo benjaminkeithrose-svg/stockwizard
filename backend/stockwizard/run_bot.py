@@ -59,7 +59,7 @@ def find_owner(store: SupabaseStore) -> str:
     if bot is not None:
         rows = store.select("bot_accounts", {"select": "owner", "bot_user": f"eq.{bot.user_id}"})
         if not rows:
-            raise SystemExit("This bot key isn't linked to anyone any more: make a new one in the app (the menu, three dots, then Bot key)")
+            raise SystemExit("This access key isn't linked to anyone any more: make a new one in the app (Menu, then Access key)")
         return rows[0]["owner"]
     if os.environ.get("STOCKWIZARD_OWNER"):   # Ben's PC: his user id, now that others have accounts too
         return os.environ["STOCKWIZARD_OWNER"]

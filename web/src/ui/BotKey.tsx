@@ -7,7 +7,7 @@ import { useEffect, useState } from "react";
 import type { Store } from "../data/store";
 import { Sheet } from "./parts";
 
-const GUIDE = "https://github.com/benjaminkeithrose-svg/stockwizard/blob/main/docs/SETUP-BOT.md";
+const GUIDE = "https://github.com/benjaminkeithrose-svg/stockwizard/blob/main/docs/SETUP.md";
 
 export default function BotKeyScreen({ store }: { store: Store }) {
   const [madeAt, setMadeAt] = useState<string | null | undefined>(undefined);
@@ -42,30 +42,29 @@ export default function BotKeyScreen({ store }: { store: Store }) {
   return (
     <div className="list">
       <button className="big" disabled={busy || madeAt === undefined} onClick={() => (madeAt ? setConfirm(true) : make())}>
-        {busy ? "Making the key…" : madeAt ? "Make a new bot key" : "Make a bot key"}
+        {busy ? "Making the key…" : madeAt ? "Make a new access key" : "Make an access key"}
       </button>
       {error && <div className="msg err" style={{ marginTop: 8 }}>{error}</div>}
 
       {key ? (
         <>
-          <div className="msg ok" style={{ marginTop: 12 }}>Here's your bot key. It's shown only this once: copy it now.</div>
+          <div className="msg ok" style={{ marginTop: 12 }}>Here's your access key. It's shown only this once: copy it now.</div>
           <div className="card" style={{ marginTop: 8 }}>
-            <code style={{ wordBreak: "break-all", padding: "10px 12px", fontSize: 13, flex: 1 }} aria-label="Your bot key">{key}</code>
+            <code style={{ wordBreak: "break-all", padding: "10px 12px", fontSize: 13, flex: 1 }} aria-label="Your access key">{key}</code>
           </div>
           <button className="ghost" style={{ marginTop: 8 }} onClick={copy}>{copied ? "Copied" : "Copy the key"}</button>
-          <h2>Put it in your bot</h2>
+          <h2>Put it in Stock Wizard on your PC</h2>
           <p className="hint">Not installed yet? Follow the <a href={GUIDE} target="_blank" rel="noreferrer">setup guide</a>: the installer asks for this key.</p>
           <p className="hint">Already installed:</p>
           <ol className="steps">
-            <li>On the PC that runs your bot, open the Start menu and click <b>Stock Wizard Bot settings</b>.</li>
-            <li>On the line that starts <b>BOT_KEY=</b>, replace everything after the = with the key, with no spaces.</li>
-            <li>Save and close Notepad.</li>
-            <li>Close the bot's window, then open <b>Stock Wizard Bot</b> from the Start menu.</li>
+            <li>On your PC, right-click the Stock Wizard icon by the clock and click <b>Settings</b>.</li>
+            <li>Paste the key into <b>Access key</b>.</li>
+            <li>Click <b>Done</b>. Stock Wizard reconnects with the new key.</li>
           </ol>
         </>
       ) : (
         <p className="hint" style={{ marginTop: 12 }}>
-          {madeAt === undefined ? "Checking…" : when ? `You made a bot key on ${when}. A new one stops the old one working.` : "You haven't made a bot key yet."}
+          {madeAt === undefined ? "Checking…" : when ? `You made an access key on ${when}. A new one stops the old one working.` : "You haven't made an access key yet."}
         </p>
       )}
 
@@ -79,9 +78,9 @@ export default function BotKeyScreen({ store }: { store: Store }) {
         Interactive Brokers, TWS and installing the bot, step by step.</p>
 
       {confirm && (
-        <Sheet title="Make a new bot key?" onClose={() => setConfirm(false)}>
-          <p style={{ margin: "4px 0 6px" }}>Your <b>old bot key stops working</b>, within the hour.</p>
-          <p className="hint">Put the new key in your bot's stockwizard.env afterwards, or the bot can't sign in.</p>
+        <Sheet title="Make a new access key?" onClose={() => setConfirm(false)}>
+          <p style={{ margin: "4px 0 6px" }}>Your <b>old access key stops working</b>, within the hour.</p>
+          <p className="hint">Paste the new key in Stock Wizard's Settings on your PC afterwards, or it can't sign in.</p>
           <div style={{ display: "flex", gap: 10, marginTop: 14 }}>
             <button className="ghost" autoFocus onClick={() => setConfirm(false)}>Cancel</button>
             <button className="ghost" onClick={make}>Make a new key</button>

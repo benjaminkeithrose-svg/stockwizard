@@ -1,7 +1,7 @@
 # Ben's PC: trading, market data and backtests
 
 Every PC runs the same installed Stock Wizard (setting it up:
-[SETUP-BOT.md](SETUP-BOT.md)). Ben's PC does three more things, because its
+[SETUP.md](SETUP.md)). Ben's PC does three more things, because its
 settings hold the Supabase **secret key** instead of a bot key:
 
 - **Market data** for everyone: candles for the symbol list from Interactive

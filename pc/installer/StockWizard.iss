@@ -1,4 +1,4 @@
-; Stock Wizard Bot installer (Ben, 18 Nov 2026: multi-user, part 2).
+; Stock Wizard installer (Ben, 18 Nov 2026: multi-user, part 2; named Stock Wizard, not Stock Wizard Bot, 19 Nov 2026).
 ; Built by pc/installer/build.ps1 (on GitHub: .github/workflows/installer.yml) with Inno Setup 6.
 ;
 ; Installs for the person only (no administrator rights): its own Python and packages, the
@@ -10,7 +10,7 @@
 ;
 ; Silent install (for testing): /VERYSILENT /BOTKEY=swbot1.... /PORT=4002 /DELAYED=1
 
-#define AppName "Stock Wizard Bot"
+#define AppName "Stock Wizard"
 #ifndef AppVersion
   #define AppVersion "0.0.0"
 #endif
@@ -24,13 +24,15 @@ AppName={#AppName}
 AppVersion={#AppVersion}
 AppPublisher=Stock Wizard
 AppPublisherURL=https://github.com/benjaminkeithrose-svg/stockwizard
-DefaultDirName={localappdata}\Programs\Stock Wizard Bot
-DefaultGroupName=Stock Wizard Bot
+; An existing install stays in its folder (Programs\Stock Wizard Bot): same AppId, previous folder kept.
+DefaultDirName={localappdata}\Programs\Stock Wizard
+DefaultGroupName=Stock Wizard
+UsePreviousGroup=no
 DisableProgramGroupPage=yes
 DisableDirPage=yes
 PrivilegesRequired=lowest
 OutputDir=..\..\dist
-OutputBaseFilename=StockWizardBotSetup
+OutputBaseFilename=StockWizardSetup
 Compression=lzma2/max
 SolidCompression=yes
 WizardStyle=modern
@@ -40,7 +42,7 @@ ArchitecturesInstallIn64BitMode=x64compatible
 CloseApplications=no
 
 [Tasks]
-Name: startup; Description: "Start Stock Wizard when I sign in to Windows (the bot runs behind its icon by the clock)"
+Name: startup; Description: "Start Stock Wizard when I sign in to Windows (trading runs behind its icon by the clock)"
 
 [Files]
 Source: "{#SourceDir}\*"; DestDir: "{app}"; Flags: recursesubdirs createallsubdirs ignoreversion
@@ -51,11 +53,13 @@ Type: files; Name: "{group}\Stock Wizard Bot.lnk"
 Type: files; Name: "{group}\Stock Wizard Bot settings.lnk"
 Type: files; Name: "{group}\Stock Wizard (the app).url"
 Type: files; Name: "{userstartup}\Stock Wizard Bot.lnk"
+; The Start menu folder was "Stock Wizard Bot" until 19 Nov 2026.
+Type: filesandordirs; Name: "{userprograms}\Stock Wizard Bot"
 
 [Icons]
 Name: "{group}\Stock Wizard"; Filename: "{app}\python\pythonw.exe"; Parameters: "-m stockwizard.supervisor --show"; WorkingDir: "{app}"
 Name: "{group}\Stock Wizard settings"; Filename: "{app}\python\pythonw.exe"; Parameters: "-m stockwizard.supervisor --open-settings"; WorkingDir: "{app}"
-Name: "{group}\Stock Wizard Bot setup guide"; Filename: "https://github.com/benjaminkeithrose-svg/stockwizard/blob/main/docs/SETUP-BOT.md"
+Name: "{group}\Stock Wizard setup guide"; Filename: "https://github.com/benjaminkeithrose-svg/stockwizard/blob/main/docs/SETUP.md"
 Name: "{userstartup}\Stock Wizard"; Filename: "{app}\python\pythonw.exe"; Parameters: "-m stockwizard.supervisor"; WorkingDir: "{app}"; Tasks: startup
 
 [Run]
@@ -109,16 +113,16 @@ begin
   { On an update, start from the person's own choices; the command line can still override them. }
   Port := ExpandConstant('{param:PORT|' + Existing('IB_PORT', '7497') + '}');
   Delayed := ExpandConstant('{param:DELAYED|' + Existing('IB_DELAYED', '0') + '}');
-  KeyPage := CreateInputQueryPage(wpWelcome, 'Your bot key',
-    'Paste the bot key from Stock Wizard.',
-    'In the Stock Wizard app, open the menu at the top right (three dots), choose Bot key, make a key and copy it. ' +
+  KeyPage := CreateInputQueryPage(wpWelcome, 'Your access key',
+    'Paste the access key from Stock Wizard.',
+    'In the Stock Wizard app, open Menu at the top right, choose Access key, make a key and copy it. ' +
     'Paste it below. Updating and already set up? Leave it empty to keep the key you have.');
-  KeyPage.Add('Bot key:', False);
+  KeyPage.Add('Access key:', False);
   KeyPage.Values[0] := ExpandConstant('{param:BOTKEY|}');
 
   ConnPage := CreateInputOptionPage(KeyPage.ID, 'Interactive Brokers',
     'Which Interactive Brokers program do you log in to?',
-    'The bot connects to it on this PC. Log in to Paper Trading, and turn on its API (the setup guide shows how).',
+    'Stock Wizard connects to it on this PC. Log in to Paper Trading, and turn on its API (the setup guide shows how).',
     True, False);
   ConnPage.Add('TWS (Trader Workstation): paper port 7497');
   ConnPage.Add('IB Gateway: paper port 4002');
@@ -126,7 +130,7 @@ begin
 
   DataPage := CreateInputOptionPage(ConnPage.ID, 'Market data',
     'Does your Interactive Brokers account have real-time US options data?',
-    'Without a subscription, Interactive Brokers sends prices about 15 minutes late. Tick the box so the bot knows; ' +
+    'Without a subscription, Interactive Brokers sends prices about 15 minutes late. Tick the box so Stock Wizard knows; ' +
     'you can change it later in Stock Wizard settings.',
     False, False);
   DataPage.Add('No real-time options data: use delayed prices');

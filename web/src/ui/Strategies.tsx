@@ -63,9 +63,9 @@ export function BotSheet(props: { strategy: BotStrategy | null; onDone: (s: BotS
   const source = props.strategy?.source ?? null;
   const changed = !!source && !sameSettings(c, source.config);
   // A tested bot changed away from its settings is switched off: it can't run untested.
-  const done = () => { props.onDone({ id: props.strategy?.id ?? "", label: label.trim() || "Bot", config: c, source, enabled: (props.strategy?.enabled ?? false) && !changed }); props.onClose(); };
+  const done = () => { props.onDone({ id: props.strategy?.id ?? "", label: label.trim() || "Automated strategy", config: c, source, enabled: (props.strategy?.enabled ?? false) && !changed }); props.onClose(); };
   return (
-    <Sheet title={props.strategy?.id ? "Bot" : "New bot"} onClose={props.onClose} onDone={done}>
+    <Sheet title={props.strategy?.id ? "Automated strategy" : "New automated strategy"} onClose={props.onClose} onDone={done}>
       {source && (
         <div className={`msg ${changed ? "warn" : "ok"}`}>
           {changed
@@ -73,7 +73,7 @@ export function BotSheet(props: { strategy: BotStrategy | null; onDone: (s: BotS
             : <>Tested: {source.label}{source.held_back ? `. Held back: ${source.held_back.trades} trades, ${pct(source.held_back.win_rate)} won, ${money(source.held_back.expectancy)} a trade.` : "."}</>}
         </div>
       )}
-      {!source && <div className="msg warn">Set up by hand: untested, so it can't be switched on. Use Make a bot on a backtest page to start from tested settings.</div>}
+      {!source && <div className="msg warn">Set up by hand: untested, so it can't be switched on. Use Automate this strategy on a backtest page to start from tested settings.</div>}
       {!props.strategy && (
         <>
           <h2>Start from</h2>
@@ -99,10 +99,10 @@ export function BotSheet(props: { strategy: BotStrategy | null; onDone: (s: BotS
       <Chips label="Stop at" value={c.stop_mult ?? null} options={[[null, "None"], [1.5, "1.5×"], [2, "2×"], [3, "3×"]]} onChange={(v) => set("stop_mult", v)} />
       <Chips label="Out by" value={c.exit_time ?? null} options={[[null, "Expiry"], ["14:30", "14:30"], ["15:00", "15:00"], ["15:30", "15:30"]]} onChange={(v) => set("exit_time", v)} />
       <p className="hint">{describeStrategy(c)}. The safety rails check every order; your per-trade limit applies.</p>
-      {props.strategy?.id && props.onDelete && <button className="link" style={{ color: "var(--warn)", marginTop: 12 }} onClick={() => setConfirmDelete(true)}><Bin /> Delete this bot</button>}
+      {props.strategy?.id && props.onDelete && <button className="link" style={{ color: "var(--warn)", marginTop: 12 }} onClick={() => setConfirmDelete(true)}><Bin /> Delete this automated strategy</button>}
       {confirmDelete && (
         <Sheet title="Delete?" onClose={() => setConfirmDelete(false)}>
-          <p>Delete the bot <b>{props.strategy?.label}</b>? Its past orders stay in the history.</p>
+          <p>Delete the automated strategy <b>{props.strategy?.label}</b>? Its past orders stay in the history.</p>
           <div style={{ display: "flex", gap: 10 }}>
             <button className="ghost" autoFocus onClick={() => setConfirmDelete(false)}>Cancel</button>
             <button className="ghost" style={{ color: "var(--warn)", borderColor: "var(--warn)" }} onClick={() => { props.onDelete?.(); props.onClose(); }}>Delete</button>
@@ -124,7 +124,7 @@ export default function StrategiesSection({ store, onError }: { store: Store; on
 
   return (
     <>
-      <h2>Bots</h2>
+      <h2>Automated strategies</h2>
       {!list.length && <p className="empty">None yet.</p>}
       {list.map((s) => (
         <div key={s.id} className="card strat" style={{ borderLeftColor: s.enabled ? "#237F35" : undefined }}>
@@ -146,7 +146,7 @@ export default function StrategiesSection({ store, onError }: { store: Store; on
             onClick={() => (s.enabled ? save({ ...s, enabled: false }) : setTurningOn(s))}>{s.enabled ? "On" : "Off"}</button>
         </div>
       ))}
-      <p className="hint">Make a bot from a backtest: Backtests, open one, then Make a bot. Only a tested bot can be switched on. Each card compares its paper results with what its backtest expected. With the pretend broker the prices are made up.</p>
+      <p className="hint">Automate a strategy from its backtest: Backtests, open one, then Automate this strategy. Only a tested one can be switched on. Each card compares its paper results with what its backtest expected. With the pretend broker the prices are made up.</p>
       <button className="ghost" onClick={() => setOpen("new")}>+ Set one up by hand (untested)</button>
       {open && (
         <BotSheet strategy={open === "new" ? null : open} onClose={() => setOpen(null)} onDone={save}
@@ -162,7 +162,7 @@ export default function StrategiesSection({ store, onError }: { store: Store; on
         </Sheet>
         : <Sheet title="Can't switch on" onClose={() => setTurningOn(null)}>
           <p><b>{turningOn.label}</b> {turningOn.source ? "has been changed from the settings its backtest tested" : "was set up by hand, so nothing has tested it"}. Only tested settings can run.</p>
-          <p className="hint">{turningOn.source ? "Open it and tap Put them back, or make a new bot from a backtest." : "Open a backtest in Backtests and tap Make a bot."}</p>
+          <p className="hint">{turningOn.source ? "Open it and tap Put them back, or automate one from a backtest." : "Open a backtest in Backtests and tap Automate this strategy."}</p>
           <button className="ghost" autoFocus onClick={() => setTurningOn(null)}>OK</button>
         </Sheet>
       )}

@@ -34,7 +34,7 @@ class FakeSupabase:
 
 def test_a_bot_key_unpacks_to_the_bot_accounts_sign_in():
     assert read_bot_key(make_key()) == ("bot-1@stockwizard.invalid", "s3cret")
-    with pytest.raises(ValueError, match="isn't a Stock Wizard bot key"):
+    with pytest.raises(ValueError, match="isn't a Stock Wizard access key"):
         read_bot_key("sb_secret_abc")
 
 
