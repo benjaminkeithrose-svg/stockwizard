@@ -2,6 +2,7 @@
 // whole history and the held-back years (the fair test) side by side, and a
 // line of the balance trade by trade, with where the held-back years begin.
 
+import { Info } from "./parts";
 import type { KittyResult } from "../data/kitty";
 import Graph from "./Graph";
 
@@ -19,7 +20,7 @@ export default function KittyCard({ all, held, splitAt, sizing }: { all: KittyRe
   ];
   return (
     <>
-      <h2>If you'd started with $5,000</h2>
+      <h2>If you'd started with $5,000 <Info term="kitty" /></h2>
       <div className="cmptable" role="table" aria-label="The $5,000 kitty">
         <div role="row" className="head"><span role="columnheader" /><span role="columnheader">All years</span>{held && <span role="columnheader">Held-back years</span>}</div>
         {rows.map(([n, f]) => (

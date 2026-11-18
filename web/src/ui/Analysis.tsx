@@ -12,7 +12,7 @@ import { expiryLabel, legName, OptionPosition, structureLabel } from "../data/op
 import { analyse, decayCurve, expiryTime, historicalVol, pnlCurve } from "../data/pricing";
 import Graph, { Marker, Series } from "./Graph";
 import { ExpiryChips } from "./OptionSheets";
-import { Sheet } from "./parts";
+import { Sheet, Info } from "./parts";
 
 const COLOURS = ["#7A3E9D", "#00708D", "#E36C00"];
 export const MAX_COMPARE = 3;
@@ -231,14 +231,14 @@ export default function AnalysisScreen(props: {
         <div><span>{main.credit ? "Credit (est.)" : "Debit (est.)"}</span><b>{money(Math.abs(main.entry))}</b></div>
         <div><span>Most it makes</span><b className="up">{money(main.maxProfit)}</b></div>
         <div><span>Most it loses</span><b className="down">{money(main.maxLoss)}</b></div>
-        <div><span>Chance of profit</span><b>{pct(main.pop)}</b></div>
+        <div><span>Chance of profit <Info term="pop" /></span><b>{pct(main.pop)}</b></div>
         <div><span>Break-even{main.breakevens.length > 1 ? "s" : ""}</span><b>{main.breakevens.map((b) => b.toFixed(2)).join(" / ") || "—"}</b></div>
         <div><span>Return on risk</span><b>{main.returnOnRisk === null ? "—" : pct(main.returnOnRisk)}</b></div>
-        <div><span>Expected move</span><b>±{main.expectedMove.toFixed(2)}</b></div>
-        <div><span>Theta (a day)</span><b>{signed(main.greeks.theta)}</b></div>
-        <div><span>Delta</span><b>{main.greeks.delta.toFixed(1)}</b></div>
-        <div><span>Vega (1 vol point)</span><b>{signed(main.greeks.vega)}</b></div>
-        <div><span>Gamma</span><b>{main.greeks.gamma.toFixed(2)}</b></div>
+        <div><span>Expected move <Info term="expectedmove" /></span><b>±{main.expectedMove.toFixed(2)}</b></div>
+        <div><span>Theta (a day) <Info term="theta" /></span><b>{signed(main.greeks.theta)}</b></div>
+        <div><span>Delta <Info term="delta" /></span><b>{main.greeks.delta.toFixed(1)}</b></div>
+        <div><span>Vega (1 vol point) <Info term="vega" /></span><b>{signed(main.greeks.vega)}</b></div>
+        <div><span>Gamma <Info term="gamma" /></span><b>{main.greeks.gamma.toFixed(2)}</b></div>
         <div><span>Underlying</span><b>{spot.toFixed(2)}</b></div>
       </div>
       <p className="hint">
@@ -246,7 +246,7 @@ export default function AnalysisScreen(props: {
         Prices are Black-Scholes estimates from the last close; real spreads will differ.
       </p>
 
-      <h2>Time decay</h2>
+      <h2>Time decay <Info term="theta" /></h2>
       {decay && (
         <Graph label="Profit or loss from today to expiry, if the price stays where it is" xs={decay.xs} series={decay.series} height={180}
           xFmt={(t) => dayFmt.format(new Date(t * 1000))} yFmt={signed} />

@@ -419,3 +419,11 @@ ol.steps li { margin-bottom: 4px; }
 .pathbar button { background: none; border: 0; padding: 6px 2px; min-height: 32px; color: var(--act); cursor: pointer; font-size: 13px; }
 @media (max-width: 420px) { header .back { min-width: 42px; padding: 0 4px 0 8px; } }
 [data-mode="dark"] .seg button.on, [data-mode="dark"] .tab.on { background: var(--act); color: #fff; }
+
+/* (i) beside a setting or number: a small circle, with a 40px touch area around it (Ben, 19 Nov 2026). */
+button.info { display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; padding: 0;
+  margin: -11px -11px -11px -5px; border: 11px solid transparent; box-sizing: content-box; background-clip: padding-box;
+  border-radius: 50%; background-color: var(--cyan-lt); color: var(--cyan-dk); font: italic 700 12px/1 Georgia, serif;
+  text-transform: none; letter-spacing: 0;
+  cursor: pointer; vertical-align: middle; }
+button.info:hover, button.info:focus-visible { background-color: var(--cyan-dk); color: #fff; }

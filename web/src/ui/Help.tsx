@@ -5,6 +5,7 @@
 // asks for a refresh when he wants one (it isn't redone with every change).
 
 import { useState } from "react";
+import { GLOSSARY, Term } from "../data/glossary";
 import { Search } from "./icons";
 import { Sheet } from "./parts";
 
@@ -122,37 +123,7 @@ const TROUBLE: Topic[] = [
   ["Charts have no candles, or yesterday is missing", ["Candles come from Interactive Brokers through Ben's PC, topped up after each US close (about 8 to 9 am Sydney). While that PC or TWS is off nothing updates; the next start fills the gap. A new symbol needs adding to the symbol list; ask me."]],
 ];
 
-const TERMS: [string, string][] = [
-  ["Call / put", "The right to buy (call) or sell (put) at a set price, the strike, until the expiry. One contract covers 100 shares."],
-  ["Credit / debit", "A credit is money received to open a position (selling); a debit is money paid (buying)."],
-  ["Spread", "Selling one option and buying another further out, so the most you can lose is capped: defined risk."],
-  ["Bull put / bear call", "Credit spreads that profit if the price stays above (bull put) or below (bear call) a level."],
-  ["Iron condor", "A bull put and a bear call together: profits if the price stays inside a range."],
-  ["Debit spread", "Buying one option and selling another further out: you pay up front, and the most you can lose is what you paid. A bull call spread profits if the price rises; a bear put spread if it falls."],
-  ["Call / put condor", "Four strikes all of one type, bought for a debit: profits if the price ends between the two middle strikes. The same shape as an iron condor, paid for up front instead of received."],
-  ["Iron fly", "A condor with both short strikes at the current price. A bigger credit, but it needs the price to stay close."],
-  ["Wing", "The option bought further out that caps the loss."],
-  ["0DTE / DTE", "Days to expiry. 0DTE: opened and finished the same day."],
-  ["Daily range (ATR)", "How far the price typically moves in a day, averaged over 14 days. Strikes placed 'one daily range out' sit that far from the price."],
-  ["Delta", "How much the position gains or loses for a $1 move. A short strike's delta is roughly its chance of finishing in the money: 15 delta ≈ 15%."],
-  ["Theta", "What time decay earns or costs each day."],
-  ["Vega", "What a 1-point rise in volatility does to the position."],
-  ["Expected move", "The range the market expects to about 2 chances in 3, worked out from option prices."],
-  ["VIX / VIX1D", "The market's expected volatility: the VIX over 30 days, VIX1D over one day. Around 12–15 is calm; 25 and above is fear."],
-  ["VWAP", "The day's average price weighted by volume. Above it and rising is bullish."],
-  ["Opening range", "The high and low of the first 30 minutes."],
-  ["Squeeze", "Bollinger bands inside the Keltner channel: the price is coiling. 'Fired' is when it breaks out of it."],
-  ["Natural price", "Selling at the bid and buying at the ask, the price you can count on getting. The mid is halfway between."],
-  ["Slippage", "Getting a worse price than expected, especially on fast moves."],
-  ["Profit target / stop", "Close early when the trade has made a set share of the most it can make (take 50%), or lost a set amount (a stop at 2× the credit)."],
-  ["Build years / held-back years", "Build years are where a rule was made. Held-back years are years it never saw while it was being made. Only results there stand for what to expect, and they can only be used once."],
-  ["False-discovery check", "When hundreds of rules are tried, some look good by luck. This check (Benjamini-Hochberg) only passes those too strong to be luck."],
-  ["Modelled prices", "Option prices worked out with Black-Scholes and the VIX, not real quotes. Real fills, especially on the wings, usually cost more."],
-  ["The $5,000 kitty", "What $5,000 would have become, trade by trade, risking 2% of the balance on each."],
-  ["Tested / untested", "A tested automated strategy runs exactly the settings a backtest tested. Change any of them and it's untested until backtested again."],
-  ["Kill switch", "Stops all trading at once: waiting orders dropped, working orders cancelled, nothing new until you turn trading back on."],
-  ["Paper trading", "Practice orders with pretend money at Interactive Brokers. Nothing real is at stake."],
-];
+const TERMS: [string, string][] = Object.values(GLOSSARY as Record<string, Term>).filter((t) => t.help).map((t) => [t.title, t.text]);
 
 const SECTIONS: [string, Topic[]][] = [
   ["Getting started", START],

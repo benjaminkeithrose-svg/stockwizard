@@ -3,11 +3,12 @@
 // anything; this screen only sets them and records Ben's decisions. There is
 // no live-trading switch here, or anywhere in the app.
 
+import type { TermKey } from "../data/glossary";
 import { useEffect, useState } from "react";
 import { BotRequest, PaperOrder, SafetyLimits } from "../data/model";
 import type { Store } from "../data/store";
 import { expiryLabel, legName, structureLabel, Structure } from "../data/options";
-import { Sheet } from "./parts";
+import { Sheet, Info } from "./parts";
 import StrategiesSection from "./Strategies";
 import PcStatusLine from "./PcStatusLine";
 
@@ -69,9 +70,9 @@ function LimitsSheet(props: { limits: SafetyLimits; onDone: (l: SafetyLimits) =>
   const [l, setL] = useState(props.limits);
   const [day, setDay] = useState(props.limits.max_loss_per_day === null ? "" : String(props.limits.max_loss_per_day));
   const [auto, setAuto] = useState(false);
-  const field = (k: keyof SafetyLimits, text: string, step = "1") => (
+  const field = (k: keyof SafetyLimits, text: string, term: TermKey, step = "1") => (
     <div>
-      <label htmlFor={`lim-${k}`}>{text}</label>
+      <label htmlFor={`lim-${k}`}>{text} <Info term={term} /></label>
       <input id={`lim-${k}`} type="number" inputMode="decimal" min="1" step={step} value={String(l[k] ?? "")}
         onChange={(e) => { const v = Number(e.target.value); if (e.target.value !== "" && v > 0) setL({ ...l, [k]: v }); }} />
     </div>
@@ -84,17 +85,17 @@ function LimitsSheet(props: { limits: SafetyLimits; onDone: (l: SafetyLimits) =>
   return (
     <Sheet title="Limits" onClose={props.onClose} onDone={done}>
       <div className="fields">
-        {field("max_loss_per_trade", "Most a trade may lose ($)")}
+        {field("max_loss_per_trade", "Most a trade may lose ($)", "maxtrade")}
         <div>
-          <label htmlFor="lim-day">Most a day may lose ($)</label>
+          <label htmlFor="lim-day">Most a day may lose ($) <Info term="maxday" /></label>
           <input id="lim-day" type="number" inputMode="decimal" min="1" placeholder="Not set" value={day} onChange={(e) => setDay(e.target.value)} />
         </div>
-        {field("max_open_positions", "Open positions at once")}
-        {field("max_capital_at_risk", "Capital at risk ($)")}
-        {field("max_data_age_seconds", "Oldest prices allowed (seconds)")}
+        {field("max_open_positions", "Open positions at once", "positions")}
+        {field("max_capital_at_risk", "Capital at risk ($)", "capital")}
+        {field("max_data_age_seconds", "Oldest prices allowed (seconds)", "dataage")}
       </div>
       {day.trim() === "" && <p className="msg warn">While the daily limit is empty, every order is refused.</p>}
-      <h2>Orders</h2>
+      <h2>Orders <Info term="approval" /></h2>
       <div className="seg wide" role="group" aria-label="Approval mode">
         <button className={l.approval_mode === "approval" ? "on" : ""} aria-pressed={l.approval_mode === "approval"}
           onClick={() => setL({ ...l, approval_mode: "approval" })}>I approve each one</button>
@@ -140,7 +141,7 @@ export default function SafetyScreen({ store }: { store: Store }) {
           <button className="ghost" style={{ marginTop: 8 }} onClick={() => setConfirm("resume")}>Turn trading back on</button>
         </>
       ) : (
-        <button className="ghost" style={{ color: "var(--warn)", borderColor: "var(--warn)" }} onClick={() => setConfirm("kill")}>Kill switch: stop all trading</button>
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}><button className="ghost" style={{ color: "var(--warn)", borderColor: "var(--warn)" }} onClick={() => setConfirm("kill")}>Kill switch: stop all trading</button> <Info term="killswitch" /></div>
       )}
       {error && <div className="msg err" style={{ marginTop: 8 }}>{error}</div>}
 
@@ -170,7 +171,7 @@ export default function SafetyScreen({ store }: { store: Store }) {
 
       <StrategiesSection store={store} onError={setError} />
 
-      <h2>Limits</h2>
+      <h2>Limits <Info term="maxday" /></h2>
       <div className="card">
         <button className="cmain" onClick={() => setEditing(true)} aria-label="Change limits">
           <div className="t">{money(limits.max_loss_per_trade)} a trade · {limits.max_loss_per_day === null ? "no daily limit set" : `${money(limits.max_loss_per_day)} a day`}</div>

@@ -4,6 +4,7 @@
 // special days, each switched-on strategy and what it did today, and the
 // orders and the day's profit or loss against the limit.
 
+import { Info } from "./parts";
 import { useEffect, useState } from "react";
 import type { BotStrategy, MarketSnapshot, PaperOrder, SafetyLimits } from "../data/model";
 import type { Store } from "../data/store";
@@ -83,18 +84,18 @@ export default function TodayScreen({ store, onSafety }: { store: Store; onSafet
           {!fresh && <p className="hint">From the last session ({snap.session_date}).</p>}
           <div className="kv">
             <div><span>SPY</span><b>{snap.price.toFixed(2)}</b></div>
-            <div><span>VIX</span><b>{snap.vix?.toFixed(1) ?? "—"}</b></div>
-            <div><span>VIX1D</span><b>{snap.vix1d?.toFixed(1) ?? "—"}</b></div>
-            <div><span>Expected move to the close</span><b>{snap.expected_move != null ? `±${snap.expected_move.toFixed(2)}` : "—"}</b></div>
-            <div><span>Opening range</span><b>{snap.or_low != null ? `${snap.or_low.toFixed(2)} – ${snap.or_high?.toFixed(2)}` : "—"}</b></div>
-            <div><span>VWAP</span><b>{snap.vwap?.toFixed(2) ?? "—"}</b></div>
-            <div><span>Direction</span><b className={snap.direction === "bullish" ? "up" : snap.direction === "bearish" ? "down" : ""}>{snap.direction ?? "—"}</b></div>
+            <div><span>VIX <Info term="vix" /></span><b>{snap.vix?.toFixed(1) ?? "—"}</b></div>
+            <div><span>VIX1D <Info term="vix" /></span><b>{snap.vix1d?.toFixed(1) ?? "—"}</b></div>
+            <div><span>Expected move to the close <Info term="expectedmove" /></span><b>{snap.expected_move != null ? `±${snap.expected_move.toFixed(2)}` : "—"}</b></div>
+            <div><span>Opening range <Info term="openingrange" /></span><b>{snap.or_low != null ? `${snap.or_low.toFixed(2)} – ${snap.or_high?.toFixed(2)}` : "—"}</b></div>
+            <div><span>VWAP <Info term="vwap" /></span><b>{snap.vwap?.toFixed(2) ?? "—"}</b></div>
+            <div><span>Direction <Info term="direction" /></span><b className={snap.direction === "bullish" ? "up" : snap.direction === "bearish" ? "down" : ""}>{snap.direction ?? "—"}</b></div>
           </div>
           <p className="hint">{snap.source === "ibkr" ? "From Interactive Brokers." : "From the free source's 5-minute candles, which can run a little behind."}</p>
         </>
       )}
 
-      <h2>Strategies today</h2>
+      <h2>Strategies today <Info term="entrytime" /></h2>
       {!strategies.length && <p className="empty">None switched on.</p>}
       {strategies.map((st) => {
         const o = todays.find((x) => x.strategy_id === st.id)

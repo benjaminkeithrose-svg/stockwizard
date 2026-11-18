@@ -10,7 +10,7 @@ import type { BotStrategy, PaperOrder, StrategyConfig } from "../data/model";
 import { isTested, paperResults, sameSettings } from "../data/bots";
 import type { Store } from "../data/store";
 import { Bin } from "./icons";
-import { Sheet } from "./parts";
+import { Sheet, Info } from "./parts";
 
 const PRESETS: { name: string; what: string; config: StrategyConfig }[] = [
   { name: "Directional", what: "10:30: bull put if bullish, bear call if bearish, nothing if neutral; take 50%, stop 2×, out by 15:00",
@@ -124,7 +124,7 @@ export default function StrategiesSection({ store, onError }: { store: Store; on
 
   return (
     <>
-      <h2>Automated strategies</h2>
+      <h2>Automated strategies <Info term="tested" /></h2>
       {!list.length && <p className="empty">None yet.</p>}
       {list.map((s) => (
         <div key={s.id} className="card strat" style={{ borderLeftColor: s.enabled ? "#237F35" : undefined }}>

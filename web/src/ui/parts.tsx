@@ -1,6 +1,8 @@
 // Shared pieces: sheets (pop-up panels), ⋯ menus and the delete confirmation.
 
+import { GLOSSARY, TermKey } from "../data/glossary";
 import { ReactNode, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Close, Dots } from "./icons";
 
 export function Sheet(props: {
@@ -99,5 +101,24 @@ export function AskText(props: { title: string; label: string; value: string; on
       <label htmlFor="asktext">{props.label}</label>
       <input id="asktext" autoFocus value={v} onChange={(e) => setV(e.target.value)} onKeyDown={(e) => e.key === "Enter" && done()} />
     </Sheet>
+  );
+}
+
+/** A small (i) beside a setting or number: tap for what it means, in plain words (data/glossary.ts). */
+export function Info({ term }: { term: TermKey }) {
+  const [open, setOpen] = useState(false);
+  const t = GLOSSARY[term];
+  return (
+    <>
+      <button type="button" className="info" aria-label={`What is ${t.title}?`}
+        onClick={(e) => { e.preventDefault(); e.stopPropagation(); setOpen(true); }}>i</button>
+      {open && createPortal(   // outside the label it sits in, so it doesn't take on the label's look
+        <Sheet title={t.title} onClose={() => setOpen(false)}>
+          <p style={{ margin: "4px 0 8px" }}>{t.text}</p>
+          <p className="hint">Every term is in Help (Menu, Help), under Terms.</p>
+        </Sheet>,
+        document.body,
+      )}
+    </>
   );
 }
