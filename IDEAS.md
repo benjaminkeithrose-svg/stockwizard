@@ -99,3 +99,46 @@ Follows on from the one-tap option structures above.
 - Today Stock Wizard follows Field CRM's look (CLAUDE.md, Hard rules). Read
   Finance Vault first, list what it does differently, and agree with Ben
   which parts to bring over before changing anything.
+
+## The lab: one place from idea to automation (19 Nov 2026)
+
+- Backtests and the pattern lab become one screen, **the Lab**: find an idea,
+  test it backwards (history) and forwards (paper, running live), then
+  automate it to capture it from the market. All in one flow.
+- Why: testing backwards and forwards happens at the same time; it should be
+  one slick path, not separate screens.
+
+## Traditional patterns as conditions (19 Nov 2026)
+
+- Add the patterns earlier traders recognised, alongside our own searches:
+  candlestick patterns (engulfing, hammer, doji, morning star, inside bar)
+  and chart patterns (flags, pennants, triangles, double tops, head and
+  shoulders, breakouts), plus the traditional indicators (RSI, momentum and
+  the rest) and how they combine.
+- Market internals as well: NYSE TICK (upticks minus downticks), advance and
+  decline, TRIN.
+- Each pattern detected only from what's known at the bar's close (a chart
+  pattern counts only once it's confirmed), truncation-tested like every
+  other rule, and usable as a condition in the lab.
+
+## Patterns across linked symbols (19 Nov 2026)
+
+- Pick a few symbols (say three) and look at how they move together:
+  correlations, which one leads, and whether a pattern on one or two of them
+  (a flag on two charts) says something about the third.
+- Linked symbols for SPY: the VIX, and the big names that move it (NVIDIA,
+  Apple, Tesla and so on).
+- Needed to narrow the search: the combinations grow very fast, so the
+  false-discovery check and the held-back years matter more.
+
+## Test this structure, from the chart (19 Nov 2026)
+
+- Put a structure on a chart (a debit butterfly on SPY, say) and ask: how
+  often has this exact position, placed the same way, made money in the past?
+  Optionally only on days like today across the linked symbols (VIX level,
+  NVIDIA's trend and so on).
+- The answer: the historical chance of profit, the average result, the worst
+  case. Run on Ben's PC from the archive (not instant, but minutes), with the
+  result shown on the structure's analysis.
+- Why: a check before pressing the button, which may save money on trades
+  that history says don't work.
