@@ -24,7 +24,7 @@ The repository is public, so no keys or personal data are ever in it.
 | Key | Kept in | Used by |
 |---|---|---|
 | Supabase secret key | GitHub secret `SUPABASE_SECRET_KEY`; Ben's PC settings, encrypted | The GitHub jobs; Ben's trading, market data and backtests |
-| Access key (invited people) | Their PC's settings, encrypted; made in the app (Menu, Access key) | Their trading, limited to their own orders |
+| Access key (invited people) | Their PC's settings, encrypted; made and saved by the app in the PC program (Menu, Setup), or shown in Menu, Access key | Their trading, limited to their own orders |
 | ntfy topic name | GitHub secret `NTFY_TOPIC`; the PC settings | Phone notifications |
 | Anthropic key | Supabase secret `ANTHROPIC_API_KEY` | Claude in the app |
 | Interactive Brokers login | Only in TWS on the PC | Trading and the market data |
@@ -82,8 +82,9 @@ python -m stockwizard.run_data --deepen
 
 ### Stock Wizard isn't running on the PC
 1. Click **Start**, type **Stock Wizard**, and open it.
-2. If it asks for a key, its settings are missing: open **Stock Wizard
-   settings** from the Start menu and fill them in (or ask me).
+2. If the icon is amber and says **Not set up yet**, it isn't connected to
+   your account: in its window, open **Menu**, then **Setup**, and follow
+   the steps (Setup opens by itself the first time).
 3. Keep the PC from sleeping: Start, **Power & sleep settings**, set **When
    plugged in, PC goes to sleep after** to **Never**.
 
