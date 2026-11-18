@@ -142,3 +142,36 @@ Follows on from the one-tap option structures above.
   result shown on the structure's analysis.
 - Why: a check before pressing the button, which may save money on trades
   that history says don't work.
+
+## Chart workspace: one symbol control, one toolbar, movable (19 Nov 2026)
+
+- The tab's name (IWM) and the symbol button under it are the same thing:
+  make them one control, so changing symbol takes the fewest taps.
+- On chart pages, tapping a chart selects it and the one toolbar acts on
+  it (symbol, timeframe, indicators, options, draw), instead of a toolbar per
+  chart.
+- The toolbar can be hidden and moved: along the top, down the side, or
+  floating in front of the charts where you drag it, remembered per device.
+- Why: fewer taps, and on wide or several screens the toolbar isn't
+  stretched across all of them.
+
+## Several screens, each with its own layout (19 Nov 2026)
+
+- On the PC, Stock Wizard detects the monitors and opens a window on each,
+  with its own job: say the main working chart on the left, a page of the
+  symbols you watch in the middle, and automated trading on the right.
+- Configurable per person, with a setup step for it; charts don't jump
+  between screens.
+
+## Trading screens (19 Nov 2026)
+
+- A trading screen showing what's running in the market (automated
+  strategies, open positions), that can sit on its own screen next to the
+  charts.
+- A marker on each chart tab or card where an automated strategy trades
+  that symbol, so it's always clear where orders are being placed.
+- Orders, like TradeStation or tastytrade: working orders with their
+  current value, filled orders with fill price and time, closed positions.
+- Results: profit and loss over time against targets and limits, by
+  strategy, and against what its backtest expected.
+- All in one Trading group in the menu.
