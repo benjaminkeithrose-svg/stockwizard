@@ -8,13 +8,13 @@ wrong. Refreshed 19 November 2026: refreshed when Ben asks.
 | Part | Where | What it does |
 |---|---|---|
 | The app | GitHub Pages: https://benjaminkeithrose-svg.github.io/stockwizard/ | The screens. Published again on every merge to `main`. Works offline with what it last loaded. Also opens in its own window on a PC with Stock Wizard installed |
-| The database | Supabase, project `stockwizard` (Sydney) | The recent candles the app shows, live bars, your charts and settings, backtest results, bots, orders, limits, the audit log, the PC heartbeat. Each person sees only their own rows; market data is shared |
+| The database | Supabase, project `stockwizard` (Sydney) | The recent candles the app shows, live bars, your charts and settings, backtest results, automated strategies, orders, limits, the audit log, the PC heartbeat. Each person sees only their own rows; market data is shared |
 | Claude in the app | A Supabase function | Answers questions, runs tests. Ben only (`claude_access`). Needs the Anthropic key saved as a Supabase secret |
-| Stock Wizard on a PC | Installed from `StockWizardBotSetup.exe` (GitHub releases) into `%LOCALAPPDATA%\Programs\Stock Wizard Bot` | The app's window, the icon by the clock, the bot, and on Ben's PC the market data program. Starts when you sign in to Windows |
+| Stock Wizard on a PC | Installed from `StockWizardSetup.exe` (GitHub releases) into `%LOCALAPPDATA%\Programs\Stock Wizard` | The app's window, the icon by the clock, trading, and on Ben's PC the market data program. Starts when you sign in to Windows |
 | Settings, archive and logs | `%LOCALAPPDATA%\StockWizard` on the PC | `stockwizard.env` (the key encrypted with Windows' own protection), `archive.sqlite` (every candle ever fetched, 1990 on), `logs\` |
 | Archive backup | `OneDrive\StockWizard\archive.sqlite` | Copied after each US close |
 | Market data | Interactive Brokers, through TWS on Ben's PC (read-only, client 30) | Candles for the symbol list (`backend/data/universe.csv`) and live bars in US hours |
-| Scheduled jobs on GitHub | GitHub Actions (the Actions tab) | Keeping Supabase awake, the pretend-broker bot, publishing the app, building the installer |
+| Scheduled jobs on GitHub | GitHub Actions (the Actions tab) | Keeping Supabase awake, the practice cycle with a pretend broker, publishing the app, building the installer |
 | Phone notifications | ntfy (free app) | Order waiting, filled, closed or stopped, daily limit reached |
 
 The repository is public, so no keys or personal data are ever in it.
@@ -23,11 +23,11 @@ The repository is public, so no keys or personal data are ever in it.
 
 | Key | Kept in | Used by |
 |---|---|---|
-| Supabase secret key | GitHub secret `SUPABASE_SECRET_KEY`; Ben's PC settings, encrypted | The GitHub jobs; Ben's bot, market data and backtests |
-| Bot key (invited people) | Their PC's settings, encrypted; made in the app (Menu, Bot key) | Their bot, limited to their own orders |
+| Supabase secret key | GitHub secret `SUPABASE_SECRET_KEY`; Ben's PC settings, encrypted | The GitHub jobs; Ben's trading, market data and backtests |
+| Access key (invited people) | Their PC's settings, encrypted; made in the app (Menu, Access key) | Their trading, limited to their own orders |
 | ntfy topic name | GitHub secret `NTFY_TOPIC`; the PC settings | Phone notifications |
 | Anthropic key | Supabase secret `ANTHROPIC_API_KEY` | Claude in the app |
-| Interactive Brokers login | Only in TWS on the PC | The bot and the market data |
+| Interactive Brokers login | Only in TWS on the PC | Trading and the market data |
 
 ## What runs when
 
@@ -37,16 +37,16 @@ its clocks. The US market is open 9:30 am to 4 pm New York time: about
 
 | Job | When | What it does |
 |---|---|---|
-| The bot (on the PC) | All the time while Stock Wizard runs | A cycle every 30 seconds: proposes, approves, manages and settles trades; records SPY option quotes every 30 minutes in US hours |
+| Trading (on the PC) | All the time while Stock Wizard runs | A cycle every 30 seconds: proposes, approves, manages and settles trades; records SPY option quotes every 30 minutes in US hours |
 | Live bars (Ben's PC) | US market hours | Today's 1-minute bars to Supabase every 5 seconds, finished 5-minute candles every 5 minutes |
 | After the close (Ben's PC) | About 8 to 9 am | Adds the day's candles to the archive and Supabase, runs the scans, backs up the archive to OneDrive |
 | Heartbeat | Every 30 seconds | The PC line under the app's header |
 | Backtests | By hand: right-click the icon by the clock, **Run backtests** (Ben's PC only) | The stock backtests, the option backtests and the pattern lab, on the archive; a notice when done; `logs\backtests.log` |
 | Updates | The icon checks GitHub at start and every 6 hours | Says when a new version is ready; **Update to …** on the icon installs it (not during the US session) |
 | Keep Supabase awake | Monday and Thursday mornings | A small request, so the free project isn't paused |
-| Paper bot (pretend broker) | Every 10 minutes in US hours, from GitHub | A practice cycle with made-up prices. To be turned off now the PC bot runs |
+| Practice cycle (pretend broker) | Every 10 minutes in US hours, from GitHub | A practice cycle with made-up prices. To be turned off now trading runs on the PC |
 | Publish the web app | On every merge | Runs the web tests, builds the app, publishes it |
-| Build the installer | On every merge that changes the PC program | Builds `StockWizardBotSetup.exe` and publishes it as a release |
+| Build the installer | On every merge that changes the PC program | Builds `StockWizardSetup.exe` and publishes it as a release |
 
 ## Supabase's window and the archive
 
@@ -77,7 +77,7 @@ python -m stockwizard.run_data --deepen
    when it's connected.
 3. If it stays amber or red, right-click the icon, click **Logs**, open
    `bot.log` or `data.log`, and send me the last lines.
-4. After a reconnect, the bot checks its orders against Interactive Brokers
+4. After a reconnect, Stock Wizard checks its orders against Interactive Brokers
    before trading. If they don't match, it stays stopped and says why.
 
 ### Stock Wizard isn't running on the PC
@@ -95,11 +95,11 @@ python -m stockwizard.run_data --deepen
    - the trade risks more than the per-trade limit
    - the prices are older than your limit (delayed data counts as 15 minutes old)
 
-### A bot didn't trade
+### An automated strategy didn't trade
 1. Open **Today**.
-2. Read the bot's line:
+2. Read its line:
    - "no trade" with a reason (VIX range, no setup, a skipped day, a position still open)
-   - or "the bot may not have run in time", meaning the bot wasn't running at its entry time
+   - or "your PC may not have been running at the entry time", meaning Stock Wizard wasn't running then
 
 ### A scheduled job on GitHub failed (GitHub emails you)
 1. Open the repository on github.com.
@@ -116,7 +116,7 @@ python -m stockwizard.run_data --deepen
 
 The automated checks run on every pull request:
 
-- the Python tests (indicators, rules, backtests, bot, safety rails, the PC program)
+- the Python tests (indicators, rules, backtests, trading, safety rails, the PC program)
 - the app's tests
 - the built app in a headless browser
 - the database security rules on a local copy

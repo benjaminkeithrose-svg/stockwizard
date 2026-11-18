@@ -156,7 +156,7 @@ def test_saving_keeps_the_key_and_other_lines_and_restarts_the_bot(tmp_path):
 def test_a_new_key_replaces_the_old_and_a_wrong_one_is_refused(tmp_path):
     f = settings_file(tmp_path, "BOT_KEY=swbot1.old\n")
     api = SettingsApi(f)
-    assert "isn't a bot key" in api.save({"bot_key": "sb_secret_xyz", "connection": "tws"})["error"]
+    assert "isn't an access key" in api.save({"bot_key": "sb_secret_xyz", "connection": "tws"})["error"]
     assert read_settings(f)["BOT_KEY"] == "swbot1.old", "nothing written when it's refused"
     api.save({"bot_key": " swbot1.new ", "connection": "tws"})
     assert read_settings(f)["BOT_KEY"] == "swbot1.new"
@@ -164,7 +164,7 @@ def test_a_new_key_replaces_the_old_and_a_wrong_one_is_refused(tmp_path):
 
 def test_no_key_at_all_asks_for_one(tmp_path):
     f = settings_file(tmp_path, "")
-    assert "Paste your bot key" in SettingsApi(f).save({"bot_key": "", "connection": "tws"})["error"]
+    assert "Paste your access key" in SettingsApi(f).save({"bot_key": "", "connection": "tws"})["error"]
 
 
 def test_the_data_program_switch_is_only_for_the_pc_with_the_secret_key(tmp_path):

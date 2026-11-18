@@ -207,8 +207,8 @@ try {
   await page.getByRole("button", { name: "Order (paper)" }).click();
   check(await page.getByRole("dialog", { name: "Order (paper)" }).isVisible(), "Order (paper) opens with the estimate");
   await page.getByRole("button", { name: "3", exact: true }).click();
-  await page.getByRole("button", { name: "Send to the bot" }).click();
-  check(await page.getByText(/Sent to the bot/).isVisible(), "the order request goes to the bot");
+  await page.getByRole("button", { name: "Send as a paper order" }).click();
+  check(await page.getByText(/Sent to Stock Wizard on your PC/).isVisible(), "the order request goes to the bot");
   await page.getByRole("dialog", { name: "Order (paper)" }).getByRole("button", { name: "Done" }).click();
   await page.getByRole("button", { name: "Adjust on the chart" }).click();
   await page.waitForSelector("[data-testid=chart] canvas");
@@ -349,21 +349,21 @@ try {
   check(await page.getByRole("img", { name: /Walk-forward blocks/ }).isVisible() && await page.getByRole("table", { name: "By regime" }).isVisible(),
     "a survivor shows its walk-forward blocks and results by market conditions");
   // Make a bot from a 0DTE survivor: its settings, already filled in and marked tested
-  await page.getByRole("dialog", { name: "Strategy" }).getByRole("button", { name: "Make a bot" }).click();
-  check(await page.getByRole("dialog", { name: "New bot" }).getByText(/^Tested: Made-up/).isVisible(), "a survivor makes a bot marked tested");
-  await page.getByRole("dialog", { name: "New bot" }).getByRole("button", { name: "Done" }).click();
-  check(await page.getByText(/Saved in Bots, switched off/).isVisible(), "the bot is saved, switched off");
+  await page.getByRole("dialog", { name: "Strategy" }).getByRole("button", { name: "Automate this strategy" }).click();
+  check(await page.getByRole("dialog", { name: "New automated strategy" }).getByText(/^Tested: Made-up/).isVisible(), "a survivor makes a bot marked tested");
+  await page.getByRole("dialog", { name: "New automated strategy" }).getByRole("button", { name: "Done" }).click();
+  check(await page.getByText(/Saved in Automated strategies, switched off/).isVisible(), "the bot is saved, switched off");
   await page.getByRole("dialog", { name: "Strategy" }).getByRole("button", { name: "Close" }).click();
   await page.getByRole("button", { name: "Options", exact: true }).click();
   check(await page.getByText(/Build 64% won, \+\$39 a trade · Held back 51% won, \+\$31 a trade/).isVisible(), "the Options tab shows build and held back side by side");
   await page.getByRole("button", { name: /^Made-up 9-day iron condor/ }).click();
   check(await page.getByRole("heading", { name: "Option backtest" }).isVisible(), "an option strategy opens its own page");
-  const mk = page.getByRole("button", { name: "Make a bot" });
+  const mk = page.getByRole("button", { name: "Automate this strategy" });
   const [mkBox, firstRow] = [await mk.boundingBox(), await page.getByRole("table", { name: "Build and held back" }).boundingBox()];
   check(mkBox && firstRow && mkBox.y < firstRow.y, "Make a bot sits at the top of a backtest page");
   await mk.click();
   check(await page.getByText(/SPY · Iron condor · 10:00 · expires 9 days · shorts 1× daily range · \$5 wide/).first().isVisible(), "an option backtest maps to the bot's settings");
-  await page.getByRole("dialog", { name: "New bot" }).getByRole("button", { name: "Done" }).click();
+  await page.getByRole("dialog", { name: "New automated strategy" }).getByRole("button", { name: "Done" }).click();
   check(await page.getByText(/Modelled option prices/).isVisible(), "it says the prices are modelled");
   check(await page.getByRole("row", { name: /Likely wins in the next 100.*56–72.*43–59/ }).isVisible(), "with the likely range for the next 100 trades");
   check(await page.getByRole("img", { name: "Running total, trade by trade" }).isVisible(), "the running profit or loss draws");
@@ -374,7 +374,7 @@ try {
   check(await page.getByRole("heading", { name: "Backtests" }).isVisible(), "Back returns to the Backtests screen");
   await page.getByRole("button", { name: "Strategies" }).click();
   await page.getByRole("button", { name: /^Made-up signal → \+40%/ }).click();
-  check(await page.getByRole("button", { name: "Make a bot" }).isDisabled() && await page.getByText(/stock signals/).isVisible(), "a stock strategy says why it can't be a bot");
+  check(await page.getByRole("button", { name: "Automate this strategy" }).isDisabled() && await page.getByText(/stock signals/).isVisible(), "a stock strategy says why it can't be a bot");
   await page.getByRole("button", { name: "Back", exact: true }).click();
   await page.getByRole("button", { name: "Back", exact: true }).click();
 
@@ -434,9 +434,9 @@ try {
   await wait(300);
   check(await page.getByRole("switch", { name: /Made-up 9-day iron condor on/ }).isVisible(), "and it shows as on");
   await ic9.getByRole("button").first().click();
-  await page.getByRole("dialog", { name: "Bot" }).getByRole("button", { name: "$2", exact: true }).click();
+  await page.getByRole("dialog", { name: "Automated strategy" }).getByRole("button", { name: "$2", exact: true }).click();
   check(await page.getByText(/Changed from the tested settings/).isVisible(), "changing a setting says it's no longer tested");
-  await page.getByRole("dialog", { name: "Bot" }).getByRole("button", { name: "Done" }).click();
+  await page.getByRole("dialog", { name: "Automated strategy" }).getByRole("button", { name: "Done" }).click();
   await wait(300);
   check(await ic9.getByText("Untested", { exact: true }).isVisible() && await page.getByRole("switch", { name: /Made-up 9-day iron condor off/ }).isVisible(),
     "a changed bot is switched off and marked untested");
@@ -446,7 +446,7 @@ try {
   await page.getByRole("button", { name: "+ Set one up by hand (untested)" }).click();
   await page.getByRole("button", { name: /^Directional 10:30/ }).click();
   await page.getByRole("button", { name: "20", exact: true }).click();
-  await page.getByRole("dialog", { name: "New bot" }).getByRole("button", { name: "Done" }).click();
+  await page.getByRole("dialog", { name: "New automated strategy" }).getByRole("button", { name: "Done" }).click();
   await wait(300);
   check(await page.getByText(/XSP · Credit spread by direction · 10:30 · expires same day · 20 delta · \$1 wide/).isVisible(), "a hand-made bot keeps its settings");
   await page.getByRole("button", { name: "Kill switch: stop all trading" }).click();

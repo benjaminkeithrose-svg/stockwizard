@@ -78,7 +78,7 @@ export default function TodayScreen({ store, onSafety }: { store: Store; onSafet
       {tags.length > 0 && <div className="msg warn">Today is a {tags.join(" and ")}: expect bigger moves.</div>}
 
       <h2>The market {snap ? `· as of ${sydTime(new Date(snap.taken_at))} Sydney` : ""}</h2>
-      {!snap ? <p className="empty">No snapshot yet: the bot saves one every cycle during the US session.</p> : (
+      {!snap ? <p className="empty">No snapshot yet: your PC saves one every 30 seconds during the US session.</p> : (
         <>
           {!fresh && <p className="hint">From the last session ({snap.session_date}).</p>}
           <div className="kv">
@@ -103,7 +103,7 @@ export default function TodayScreen({ store, onSafety }: { store: Store; onSafet
         const entry = nyAt(today, st.config.entry);
         const status = o
           ? (o.status === "closed" ? `Closed ${money(o.pnl)}` : o.status === "proposed" ? "Waiting for your approval" : o.status === "refused" ? `Refused: ${o.refusals[0]?.why ?? ""}` : o.status === "filled" ? `Open (filled)${String(o.expiry).slice(0, 10) > today ? `, expires ${String(o.expiry).slice(0, 10)}` : ""}` : o.status)
-          : nt ? `No trade: ${nt.why}` : now < entry ? `Due at ${st.config.entry} New York (${sydTime(entry)} Sydney)` : "No proposal (the bot may not have run in time)";
+          : nt ? `No trade: ${nt.why}` : now < entry ? `Due at ${st.config.entry} New York (${sydTime(entry)} Sydney)` : "No proposal (your PC may not have been running at the entry time)";
         return (
           <div key={st.id} className="card strat" style={{ borderLeftColor: o?.status === "closed" ? ((o.pnl ?? 0) >= 0 ? "#237F35" : "var(--warn)") : undefined }}>
             <div className="cmain" style={{ cursor: "default" }}>

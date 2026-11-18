@@ -19,8 +19,8 @@ Five parts that build on each other:
    about 20 years, judged honestly (see "How a backtest is judged").
 4. **The pattern lab and the 0DTE research.** Searches across hundreds of
    combinations, with a check that throws out what looks good only by luck.
-5. **The bot.** It trades on **paper** at Interactive Brokers, only through
-   the safety rails, and only bots whose settings were backtested. It runs
+5. **Automated trading.** It trades on **paper** at Interactive Brokers, only through
+   the safety rails, and only automated strategies whose settings were backtested. It runs
    in the Stock Wizard program on your Windows PC, next to TWS.
 
 Claude sits on top of all of it. Ask in plain words and it runs tests,
@@ -29,14 +29,14 @@ explains results or sets up a chart. It cannot place orders or change limits.
 ## A normal week
 
 1. **Each morning (Sydney):** open **Today**. You'll see whether the US
-   market is open, the market numbers, what each bot did overnight, and the
+   market is open, the market numbers, what each automated strategy did overnight, and the
    day's result against your loss limit.
 2. **When your phone buzzes:** the ntfy app tells you an order is waiting, a
    trade filled, closed or stopped, or the daily limit was hit. Open Menu →
    Safety and orders to act on it.
 3. **When you have an idea:** set it up on a chart, open its analysis, find
-   the nearest backtest, and if the held-back years support it, tap **Make a
-   bot**.
+   the nearest backtest, and if the held-back years support it, tap **Automate this
+   strategy**.
 
 ## Market data
 
@@ -64,7 +64,7 @@ nothing updates; the next start fills the gap.
   the chance of profit and the expected move, and can compare up to three
   structures. Prices are theoretical (Black-Scholes, with the VIX for SPY)
   until Interactive Brokers supplies real ones.
-- **Bot trades** show in teal: open positions as lines, an arrow where a
+- **Automated trades** show in teal: open positions as lines, an arrow where a
   trade opened and a dot with its result where it closed.
 
 ## How a backtest is judged
@@ -87,7 +87,7 @@ The aim is to know what to expect, not to find something that looks good.
   way for options. Fills are at the next open for stocks.
 - **Modelled option prices.** There is no 20-year history of option quotes
   here yet, so options are priced with Black-Scholes and the VIX. Real
-  wings usually cost more. The bot records real quotes from Interactive
+  wings usually cost more. Stock Wizard on Ben's PC records real quotes from Interactive
   Brokers every 30 minutes, so tests can move to real prices over time.
 - **The false-discovery check** (Benjamini-Hochberg) applies when hundreds
   of combinations are tried, as in the pattern lab and the 0DTE research.
@@ -109,36 +109,37 @@ What the results say so far (all modelled, none of it evidence yet):
   find no reliable edge after costs. Real quotes are needed before trusting
   any of it.
 
-## Bots
+## Automated strategies
 
-A bot is a rule the bot program runs by itself every trading day.
+An automated strategy is a rule Stock Wizard on your PC runs by itself every
+trading day.
 
-- **Made from a backtest.** Tap **Make a bot** on an option backtest page or
+- **Made from a backtest.** Tap **Automate this strategy** on an option backtest page or
   a 0DTE survivor. It copies the tested settings exactly: structure,
   expiry, strike placement, wings, management, VIX filter and signal.
-- **Tested or untested.** Only a bot whose settings still equal the tested
-  ones can be switched on. Change one and the bot is switched off and marked
-  untested; **Put them back** restores the tested settings. A bot set up by
+- **Tested or untested.** Only one whose settings still equal the tested
+  ones can be switched on. Change one and it's switched off and marked
+  untested; **Put them back** restores the tested settings. One set up by
   hand is untested.
-- **What can't be a bot yet:** stock strategies and pattern lab results
-  (stock signals; the bot trades options), the same-day methods tested on
+- **What can't be automated yet:** stock strategies and pattern lab results
+  (stock signals; automated trading places options), the same-day methods tested on
   hourly candles, and call or put condors.
-- **Each day.** In the 15 minutes after its entry time (New York) the bot
+- **Each day.** In the 15 minutes after its entry time (New York) Stock Wizard
   checks the setup. That covers the VIX range, the signal at the previous
-  close, and direction for directional bots. It then picks the strikes and
+  close, and direction for directional strategies. It then picks the strikes and
   proposes the trade at the price it can count on getting.
-- **While a trade is open,** the bot checks its exits every cycle: profit
+- **While a trade is open,** Stock Wizard checks its exits every 30 seconds: profit
   target, stop, days left and time of day. Anything still open settles at
-  its expiry's close. A multi-day bot holds one position at a time.
-- **Paper results against the backtest.** Each bot's card shows its closed
+  its expiry's close. A multi-day strategy holds one position at a time.
+- **Paper results against the backtest.** Each automated strategy's card shows its closed
   paper trades, share won and average a trade beside what the backtest
-  expected. That comparison is how you tell whether a bot is behaving like
+  expected. That comparison is how you tell whether it's behaving like
   its test.
 
 Two known differences from the option backtests:
 
-- A bot enters at 10:00 New York; the test enters at the open.
-- A bot checks its exits every cycle; the test checks them at each daily
+- An automated strategy enters at 10:00 New York; the test enters at the open.
+- An automated strategy checks its exits every 30 seconds; the test checks them at each daily
   close.
 
 ## The safety rails
@@ -153,7 +154,7 @@ fresh price when it's approved.
 - **Fresh prices.** Prices may not be older than your limit.
 - **Limit orders only.**
 - **The kill switch** (Safety and orders) stops everything at once.
-- **Paper only.** Live trading can't be enabled from the app. The bot
+- **Paper only.** Live trading can't be enabled from the app. Stock Wizard
   refuses Interactive Brokers' live ports and any account that isn't a
   paper account (DU…).
 
@@ -167,7 +168,7 @@ changed.
 How everything runs, what to do when something goes wrong, and the
 accounts involved: [OPERATIONS.md](OPERATIONS.md).
 
-Setting up Stock Wizard on a PC: [SETUP-BOT.md](SETUP-BOT.md). What Ben's PC
+Setting up Stock Wizard on a PC: [SETUP.md](SETUP.md). What Ben's PC
 does as well (market data, the archive, backtests): [PC-BOT.md](PC-BOT.md).
 
 The 0DTE research report: [research/0DTE-RESEARCH.md](research/0DTE-RESEARCH.md).

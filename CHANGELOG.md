@@ -5,6 +5,7 @@ on GitHub (#number). Kept up when Ben asks for a documentation refresh.
 
 ## 19 November 2026
 
+- #55 Plain names: Stock Wizard (no "bot"), Access key, Automate this strategy, Automated strategies, trading and market data on the PC line
 - #54 Help and the guides refreshed: Menu, the installed program, live bars, bot keys, backtests on the PC
 - #53 Backtests on the PC from the 20-year archive (Run backtests on the icon); bad IBKR prices repaired as read; Yahoo removed
 - #52 A clearer icon by the clock: an S in a circle, coloured by state

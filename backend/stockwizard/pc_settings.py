@@ -54,7 +54,7 @@ class SettingsApi:
         """Check and write the settings; {"ok": True} or {"error": what to fix}."""
         key = str(form.get("bot_key") or "").strip()
         if key and not key.startswith("swbot1."):
-            return {"error": "That isn't a bot key. Copy the whole key from the app (menu, Bot key): it starts with swbot1."}
+            return {"error": "That isn't an access key. Copy the whole key from the app (Menu, Access key): it starts with swbot1."}
         connection = form.get("connection", "tws")
         if connection not in PORTS:
             return {"error": "Choose TWS or IB Gateway."}
@@ -65,7 +65,7 @@ class SettingsApi:
         current = _values(lines)
         secret = current.get("SUPABASE_SECRET_KEY") or current.get("SUPABASE_SECRET_KEY_PROTECTED")
         if not key and not current.get("BOT_KEY") and not secret:
-            return {"error": "Paste your bot key: make one in the app (menu, Bot key)."}
+            return {"error": "Paste your access key: make one in the app (Menu, Access key)."}
         new = {"IB_PORT": PORTS[connection], "IB_DELAYED": "1" if form.get("delayed") else "0", "NTFY_TOPIC": topic}
         if key:
             new["BOT_KEY"] = key
@@ -109,9 +109,9 @@ PAGE = """<!doctype html>
   <button class="done" id="done">Done</button>
   <div id="msg" class="msg" hidden></div>
 
-  <h2>Bot key</h2>
+  <h2>Access key</h2>
   <div class="card">
-    <label for="key">Bot key</label>
+    <label for="key">Access key</label>
     <input id="key" type="password" autocomplete="off" placeholder="Paste a new key, or leave empty to keep yours">
     <div class="hint" id="keyhint"></div>
   </div>
@@ -140,7 +140,7 @@ PAGE = """<!doctype html>
         <span>Run the data program: candles and live bars from Interactive Brokers for everyone</span></label>
     </div>
   </div>
-  <p class="hint">Done saves and restarts the bot with the new settings, then closes this window.</p>
+  <p class="hint">Done saves, reconnects with the new settings, then closes this window.</p>
 </div>
 <script>
   let conn = "tws";
@@ -152,9 +152,9 @@ PAGE = """<!doctype html>
   $("gateway").onclick = () => setConn("gateway");
   window.addEventListener("pywebviewready", async () => {
     const s = await window.pywebview.api.load();
-    $("keyhint").textContent = s.bot_key_set ? "A bot key is set. Paste a new one only if you made a new key in the app."
-      : s.uses_secret_key ? "This PC uses the secret key (Ben's PC): no bot key needed."
-      : "No bot key yet: make one in the app (menu, Bot key) and paste it here.";
+    $("keyhint").textContent = s.bot_key_set ? "An access key is set. Paste a new one only if you made a new key in the app."
+      : s.uses_secret_key ? "This PC uses the secret key (Ben's PC): no access key needed."
+      : "No access key yet: make one in the app (Menu, Access key) and paste it here.";
     setConn(s.connection); $("delayed").checked = s.delayed; $("topic").value = s.ntfy_topic;
     if (s.run_data !== null) { $("dataBox").hidden = false; $("data").checked = s.run_data; }
   });
@@ -163,7 +163,7 @@ PAGE = """<!doctype html>
     const r = await window.pywebview.api.save({ bot_key: $("key").value, connection: conn, delayed: $("delayed").checked,
       ntfy_topic: $("topic").value, run_data: $("dataBox").hidden ? null : $("data").checked });
     $("done").disabled = false;
-    if (r.error) show("err", r.error); else { show("ok", "Saved. The bot is restarting with the new settings."); setTimeout(() => window.pywebview.api.close(), 900); }
+    if (r.error) show("err", r.error); else { show("ok", "Saved. Reconnecting with the new settings."); setTimeout(() => window.pywebview.api.close(), 900); }
   };
 </script></body></html>
 """

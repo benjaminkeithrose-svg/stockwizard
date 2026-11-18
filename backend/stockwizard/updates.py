@@ -24,7 +24,7 @@ from pathlib import Path
 import pandas as pd
 
 RELEASES = "https://api.github.com/repos/benjaminkeithrose-svg/stockwizard/releases/latest"
-ASSET = "StockWizardBotSetup.exe"
+ASSET = "StockWizardSetup.exe"
 CHECK_EVERY = 6 * 3600.0
 NY = "America/New_York"
 

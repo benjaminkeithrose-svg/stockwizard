@@ -87,12 +87,12 @@ function OrderSheet(props: { store: Store; position: OptionPosition; perContract
     <Sheet title="Order (paper)" onClose={props.onClose}>
       {state === "sent" ? (
         <>
-          <p className="msg ok">Sent to the bot. It prices the order and checks every limit; it then waits for you under Safety and orders, Waiting.</p>
+          <p className="msg ok">Sent to Stock Wizard on your PC. It prices the order and checks every limit; it then waits for you under Safety and orders, Waiting.</p>
           <button className="big" onClick={props.onClose}>Done</button>
         </>
       ) : (
         <>
-          <button className="big" disabled={state === "sending"} onClick={send}>Send to the bot</button>
+          <button className="big" disabled={state === "sending"} onClick={send}>Send as a paper order</button>
           <h2>Contracts</h2>
           <div className="seg wide" role="group" aria-label="Contracts">
             {[1, 2, 3, 4, 5].map((n) => (
@@ -103,7 +103,7 @@ function OrderSheet(props: { store: Store; position: OptionPosition; perContract
             <div><span>{credit ? "Credit (est.)" : "Debit (est.)"}</span><b>{money(price * qty)}</b></div>
             <div><span>Most it loses</span><b className="down">{money(maxLoss === null ? null : maxLoss * qty)}</b></div>
           </div>
-          <p className="hint">Paper only: the pretend broker until Interactive Brokers is connected. The bot prices it again when it picks it up, checks every limit, and nothing is sent until you approve it.</p>
+          <p className="hint">Paper only: the pretend broker until Interactive Brokers is connected. Your PC prices it again when it picks it up, checks every limit, and nothing is sent until you approve it.</p>
           {state !== "idle" && state !== "sending" && <p className="msg err">{state}</p>}
         </>
       )}

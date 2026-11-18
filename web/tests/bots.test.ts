@@ -61,6 +61,6 @@ describe("a bot's paper results and its marks on the chart", () => {
   it("draws open positions in the bot colour and marks entries and closes", () => {
     const { positions, markers } = botsOnChart([order({}), order({ id: 2, status: "filled", pnl: null }), order({ id: 3, symbol: "QQQ" })], { b1: "My bot" }, "SPY");
     expect(positions.map((p) => [p.id, p.status, p.note])).toEqual([["bot-2", "bot", "My bot"]]);
-    expect(markers.map((x) => x.text)).toEqual(["Bot in", "+$50", "Bot in"]);
+    expect(markers.map((x) => x.text)).toEqual(["Auto in", "+$50", "Auto in"]);
   });
 });

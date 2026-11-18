@@ -13,7 +13,7 @@ import PcStatusLine from "./PcStatusLine";
 
 const money = (v: number | null | undefined) => (v === null || v === undefined ? "—" : `$${v.toLocaleString(undefined, { maximumFractionDigits: 2 })}`);
 const STATUS: Record<PaperOrder["status"], string> = {
-  proposed: "Waiting for you", refused: "Refused by the rails", approved: "Approved, bot checking again", rejected: "Rejected",
+  proposed: "Waiting for you", refused: "Refused by the rails", approved: "Approved, checking again", rejected: "Rejected",
   sent: "Sent (paper)", filled: "Filled (paper)", cancelled: "Cancelled", closed: "Closed", failed: "Broker failed",
 };
 const label = (s: string) => structureLabel(s as Structure);
@@ -57,10 +57,10 @@ function OrderSheet(props: { order: PaperOrder; killed: boolean; onDecide: (appr
       {o.status === "filled" && <button className="ghost" style={{ marginTop: 14 }} onClick={() => setClosing(true)}>Close (paper)</button>}
       {closing && (
         <Confirm title="Close this position?" yes="Close it"
-          body={`The bot closes the ${label(o.structure)} on ${o.symbol} at its current theoretical price, the next time it runs. The profit or loss counts towards today's limit.`}
+          body={`Your PC closes the ${label(o.structure)} on ${o.symbol} at its current theoretical price, the next time it runs. The profit or loss counts towards today's limit.`}
           onYes={() => { setClosing(false); props.onClose2(); }} onNo={() => setClosing(false)} />
       )}
-      <p className="hint">Approving doesn't send it straight away: the bot checks every limit again first, and refuses it if anything has changed.</p>
+      <p className="hint">Approving doesn't send it straight away: your PC checks every limit again first, and refuses it if anything has changed.</p>
     </Sheet>
   );
 }
@@ -93,7 +93,7 @@ function LimitsSheet(props: { limits: SafetyLimits; onDone: (l: SafetyLimits) =>
         {field("max_capital_at_risk", "Capital at risk ($)")}
         {field("max_data_age_seconds", "Oldest prices allowed (seconds)")}
       </div>
-      {day.trim() === "" && <p className="msg warn">While the daily limit is empty, the bot refuses every order.</p>}
+      {day.trim() === "" && <p className="msg warn">While the daily limit is empty, every order is refused.</p>}
       <h2>Orders</h2>
       <div className="seg wide" role="group" aria-label="Approval mode">
         <button className={l.approval_mode === "approval" ? "on" : ""} aria-pressed={l.approval_mode === "approval"}
@@ -104,7 +104,7 @@ function LimitsSheet(props: { limits: SafetyLimits; onDone: (l: SafetyLimits) =>
       <p className="hint">Every change here is written to the audit log.</p>
       {auto && (
         <Confirm title="Automatic orders?" yes="Turn on automatic"
-          body="The bot will send paper orders that pass every limit without asking you first. You can switch back at any time."
+          body="Paper orders that pass every limit will be sent without asking you first. You can switch back at any time."
           onYes={() => { setL({ ...l, approval_mode: "automatic" }); setAuto(false); }} onNo={() => setAuto(false)} />
       )}
     </Sheet>
@@ -153,7 +153,7 @@ export default function SafetyScreen({ store }: { store: Store }) {
           <div key={`q${q.id}`} className="card order requested">
             <div className="cmain" style={{ cursor: "default" }}>
               <div className="t">{q.kind === "open" ? `Order request · ${q.quantity} contract${q.quantity === 1 ? "" : "s"}` : `Close request · order ${q.order_id}`}</div>
-              <div className="meta">Waiting for the bot to pick it up</div>
+              <div className="meta">Waiting for your PC to pick it up</div>
             </div>
           </div>
         ))}
@@ -179,7 +179,7 @@ export default function SafetyScreen({ store }: { store: Store }) {
           </div>
         </button>
       </div>
-      {limits.max_loss_per_day === null && <p className="msg warn">The daily loss limit isn't set, so the bot refuses every order. Set it once real spread prices are known.</p>}
+      {limits.max_loss_per_day === null && <p className="msg warn">The daily loss limit isn't set, so every order is refused. Set it once real spread prices are known.</p>}
       <p className="hint">Paper trading only. Live trading is disabled and can't be turned on from the app. Claude can't change anything on this screen.</p>
 
       {open && (
@@ -190,12 +190,12 @@ export default function SafetyScreen({ store }: { store: Store }) {
       {editing && <LimitsSheet limits={limits} onClose={() => setEditing(false)} onDone={(l) => act(store.saveSafetyLimits(l))} />}
       {confirm === "kill" && (
         <Confirm title="Stop all trading?" yes="Stop all trading" danger
-          body={`Blocks every new order and drops ${waiting.length} order${waiting.length === 1 ? "" : "s"} waiting for you; the bot cancels anything working at the broker. Recorded in the audit log.`}
+          body={`Blocks every new order and drops ${waiting.length} order${waiting.length === 1 ? "" : "s"} waiting for you; anything working at the broker is cancelled. Recorded in the audit log.`}
           onYes={() => { act(store.killSwitch()); setConfirm(null); }} onNo={() => setConfirm(null)} />
       )}
       {confirm === "resume" && (
         <Confirm title="Turn trading back on?" yes="Turn back on"
-          body="The bot may propose orders again, within the limits. Recorded in the audit log."
+          body="Orders may be proposed again, within the limits. Recorded in the audit log."
           onYes={() => { act(store.saveSafetyLimits({ ...limits, kill_switch: false })); setConfirm(null); }} onNo={() => setConfirm(null)} />
       )}
     </div>
