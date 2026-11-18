@@ -7,6 +7,8 @@ import { useEffect, useState } from "react";
 import type { Store } from "../data/store";
 import { Sheet } from "./parts";
 
+const GUIDE = "https://github.com/benjaminkeithrose-svg/stockwizard/blob/main/docs/SETUP-BOT.md";
+
 export default function BotKeyScreen({ store }: { store: Store }) {
   const [madeAt, setMadeAt] = useState<string | null | undefined>(undefined);
   const [key, setKey] = useState<string | null>(null);
@@ -52,12 +54,13 @@ export default function BotKeyScreen({ store }: { store: Store }) {
           </div>
           <button className="ghost" style={{ marginTop: 8 }} onClick={copy}>{copied ? "Copied" : "Copy the key"}</button>
           <h2>Put it in your bot</h2>
+          <p className="hint">Not installed yet? Follow the <a href={GUIDE} target="_blank" rel="noreferrer">setup guide</a>: the installer asks for this key.</p>
+          <p className="hint">Already installed:</p>
           <ol className="steps">
-            <li>On the PC that runs your bot, open the <b>pc</b> folder of Stock Wizard.</li>
-            <li>Open <b>stockwizard.env</b> in Notepad.</li>
-            <li>Add a line that starts <b>BOT_KEY=</b> and paste the key straight after it, with no spaces.</li>
+            <li>On the PC that runs your bot, open the Start menu and click <b>Stock Wizard Bot settings</b>.</li>
+            <li>On the line that starts <b>BOT_KEY=</b>, replace everything after the = with the key, with no spaces.</li>
             <li>Save and close Notepad.</li>
-            <li>Close the bot's window if it's open, then double-click <b>start-bot.bat</b>.</li>
+            <li>Close the bot's window, then open <b>Stock Wizard Bot</b> from the Start menu.</li>
           </ol>
         </>
       ) : (
@@ -72,6 +75,8 @@ export default function BotKeyScreen({ store }: { store: Store }) {
         With this key it signs in to Stock Wizard as your bot: it can read your limits and bots and place and update your
         orders, and nothing else of yours or anyone else's. Keep it private, like a password.
       </p>
+      <p className="hint">Setting up for the first time: the <a href={GUIDE} target="_blank" rel="noreferrer">setup guide</a> covers
+        Interactive Brokers, TWS and installing the bot, step by step.</p>
 
       {confirm && (
         <Sheet title="Make a new bot key?" onClose={() => setConfirm(false)}>
