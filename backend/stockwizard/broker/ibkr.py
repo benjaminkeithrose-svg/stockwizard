@@ -205,7 +205,12 @@ class IBKRBroker(Broker):
         if spot is None or (isinstance(spot, float) and math.isnan(spot)):
             raise ValueError(f"No price for {symbol}: is the market open and the data subscribed?")
         chains = self.ib.reqSecDefOptParams(symbol, "", "STK", stock.conId)
-        chain = next((c for c in chains if c.exchange == "SMART"), chains[0] if chains else None)
+        # IBKR lists several SMART chains: the standard one (trading class = the symbol) and adjusted
+        # ones after corporate actions (SPY's "2SPY", a handful of strikes). Seen on TWS paper, 18 Nov 2026.
+        smart = [c for c in chains if c.exchange == "SMART"]
+        chain = next((c for c in smart if getattr(c, "tradingClass", "") == symbol), None)
+        if chain is None:
+            chain = max(smart or chains, key=lambda c: len(c.strikes), default=None)
         if chain is None:
             raise ValueError(f"IBKR lists no options for {symbol}")
         today = self.clock().astimezone(NY).strftime("%Y%m%d")
