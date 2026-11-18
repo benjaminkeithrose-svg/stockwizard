@@ -40,20 +40,26 @@ ArchitecturesInstallIn64BitMode=x64compatible
 CloseApplications=no
 
 [Tasks]
-Name: startup; Description: "Start the bot when I sign in to Windows"
+Name: startup; Description: "Start Stock Wizard when I sign in to Windows (the bot runs behind its icon by the clock)"
 
 [Files]
 Source: "{#SourceDir}\*"; DestDir: "{app}"; Flags: recursesubdirs createallsubdirs ignoreversion
 
+[InstallDelete]
+; Shortcuts from before the app had its own window (stage 1 and earlier).
+Type: files; Name: "{group}\Stock Wizard Bot.lnk"
+Type: files; Name: "{group}\Stock Wizard Bot settings.lnk"
+Type: files; Name: "{group}\Stock Wizard (the app).url"
+Type: files; Name: "{userstartup}\Stock Wizard Bot.lnk"
+
 [Icons]
-Name: "{group}\Stock Wizard Bot"; Filename: "{app}\python\pythonw.exe"; Parameters: "-m stockwizard.supervisor"; WorkingDir: "{app}"
-Name: "{group}\Stock Wizard Bot settings"; Filename: "{win}\notepad.exe"; Parameters: """{localappdata}\StockWizard\stockwizard.env"""
+Name: "{group}\Stock Wizard"; Filename: "{app}\python\pythonw.exe"; Parameters: "-m stockwizard.supervisor --show"; WorkingDir: "{app}"
+Name: "{group}\Stock Wizard settings"; Filename: "{app}\python\pythonw.exe"; Parameters: "-m stockwizard.supervisor --open-settings"; WorkingDir: "{app}"
 Name: "{group}\Stock Wizard Bot setup guide"; Filename: "https://github.com/benjaminkeithrose-svg/stockwizard/blob/main/docs/SETUP-BOT.md"
-Name: "{group}\Stock Wizard (the app)"; Filename: "https://benjaminkeithrose-svg.github.io/stockwizard/"
-Name: "{userstartup}\Stock Wizard Bot"; Filename: "{app}\python\pythonw.exe"; Parameters: "-m stockwizard.supervisor"; WorkingDir: "{app}"; Tasks: startup
+Name: "{userstartup}\Stock Wizard"; Filename: "{app}\python\pythonw.exe"; Parameters: "-m stockwizard.supervisor"; WorkingDir: "{app}"; Tasks: startup
 
 [Run]
-Filename: "{app}\python\pythonw.exe"; Parameters: "-m stockwizard.supervisor"; WorkingDir: "{app}"; Description: "Start the bot now"; Flags: postinstall nowait skipifsilent
+Filename: "{app}\python\pythonw.exe"; Parameters: "-m stockwizard.supervisor --show"; WorkingDir: "{app}"; Description: "Open Stock Wizard now"; Flags: postinstall nowait skipifsilent
 
 [Code]
 { Updating: stop a running Stock Wizard (it keeps its files open) before replacing them. }

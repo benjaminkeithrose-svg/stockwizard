@@ -1,4 +1,4 @@
-"""Stock Wizard on the PC (Ben, 18 Nov 2026: one installed program, stage 1).
+"""Stock Wizard on the PC (Ben, 18 Nov 2026: one installed program, stages 1 and 2).
 
     pythonw -m stockwizard.supervisor --settings %LOCALAPPDATA%\\StockWizard\\stockwizard.env
     python  -m stockwizard.supervisor --settings pc\\stockwizard.env --data      # Ben's PC: the data program too
@@ -9,7 +9,11 @@ their output in logs, starts a stopped one again a minute later (as the start
 files did, so a TWS restart is ridden out), shows their state on an icon by the
 clock, and every 30 seconds writes a heartbeat to Supabase (`pc_status`) for the
 app's PC status line, on any device. Only one runs at a time on a PC: two bots
-on one TWS would clash. Quit from the icon stops everything.
+on one TWS would clash; opening it again shows the running one's window.
+
+Stage 2: the app in its own window (pywebview, Windows' Edge engine), which
+remembers the sign-in and only hides when closed, and a Settings screen
+(pc_settings.py) instead of Notepad. Quit from the icon stops everything.
 """
 
 from __future__ import annotations
@@ -107,17 +111,34 @@ class Child:
 class Supervisor:
     def __init__(self, python: str, settings: dict[str, str], run_data: bool, log_dir: Path,
                  popen=subprocess.Popen, clock=time.monotonic, port_open=None, beat=None):
-        self.settings, self.clock, self.popen, self.beat_fn = settings, clock, popen, beat
-        self.port = int(settings.get("IB_PORT") or 7497)
-        self.port_open = port_open or (lambda: _port_open(self.port))
+        self.python, self.log_dir, self.clock, self.popen, self.beat_fn = python, log_dir, clock, popen, beat
+        self._port_open = port_open
         log_dir.mkdir(parents=True, exist_ok=True)
-        delayed = ["--delayed"] if settings.get("IB_DELAYED", "").lower() in ("1", "yes", "true") else []
-        self.children = [Child("bot", [python, "-u", "-m", "stockwizard.run_bot", "--broker", "ibkr", "--port", str(self.port), *delayed, "--loop", "30"],
-                               log_dir / "bot.log")]
-        if run_data:
-            self.children.append(Child("data", [python, "-u", "-m", "stockwizard.run_data", "--port", str(self.port)], log_dir / "data.log"))
         self.last_beat: float | None = None
         self.stopping = False
+        self.configure(settings, run_data)
+
+    def configure(self, settings: dict[str, str], run_data: bool) -> None:
+        self.settings = settings
+        self.port = int(settings.get("IB_PORT") or 7497)
+        self.port_open = self._port_open or (lambda: _port_open(self.port))
+        delayed = ["--delayed"] if settings.get("IB_DELAYED", "").lower() in ("1", "yes", "true") else []
+        self.children = [Child("bot", [self.python, "-u", "-m", "stockwizard.run_bot", "--broker", "ibkr", "--port", str(self.port), *delayed, "--loop", "30"],
+                               self.log_dir / "bot.log")]
+        if run_data:
+            self.children.append(Child("data", [self.python, "-u", "-m", "stockwizard.run_data", "--port", str(self.port)], self.log_dir / "data.log"))
+
+    def reload(self, settings: dict[str, str], run_data: bool) -> None:
+        """New settings from the Settings screen: stop the programs and start them again with them."""
+        for c in self.children:
+            if c.proc is not None and c.proc.poll() is None:
+                c.proc.terminate()
+                try:
+                    c.proc.wait(timeout=10)
+                except Exception:  # noqa: BLE001
+                    c.proc.kill()
+        self.configure(settings, run_data)
+        self.last_beat = None   # tell the app straight away
 
     def child(self, kind: str) -> Child | None:
         return next((c for c in self.children if c.kind == kind), None)
@@ -217,36 +238,102 @@ def _icon_image(state: str):
     return img
 
 
-def run_tray(sup: Supervisor, settings_path: Path, log_dir: Path) -> None:
-    import webbrowser  # noqa: PLC0415
+APP_URL = "https://benjaminkeithrose-svg.github.io/stockwizard/"
 
+
+def _run_data(settings: dict[str, str], forced: bool) -> bool:
+    return forced or settings.get("RUN_DATA", "").lower() in ("1", "yes", "true")
+
+
+def run_desktop(sup: Supervisor, settings_path: Path, log_dir: Path, lock: socket.socket, show: bool, forced_data: bool,
+                open_settings_first: bool = False) -> None:
+    """The app in its own window, the icon by the clock and the Settings screen (stage 2).
+
+    pywebview owns the main thread; the icon, the supervisor's loop and the "show yourself"
+    listener run beside it. Closing the window only hides it: the bot keeps running until
+    Quit on the icon.
+    """
     import pystray  # noqa: PLC0415
+    import webview  # noqa: PLC0415
+
+    from stockwizard.pc_settings import PAGE, SettingsApi  # noqa: PLC0415
+
+    state: dict = {"quitting": False, "settings": None}
+    main = webview.create_window("Stock Wizard", APP_URL, width=1280, height=860, min_size=(380, 600), hidden=not show)
+
+    def on_closing():
+        if state["quitting"]:
+            return True
+        main.hide()          # the bot keeps running; Quit on the icon stops it
+        return False
+    main.events.closing += on_closing
+
+    def show_main():
+        main.show()
+        main.restore()
+
+    def saved(values: dict[str, str]) -> None:
+        os.environ.update(values)
+        sup.reload(values, _run_data(values, forced_data))
+
+    class Api(SettingsApi):
+        def close(self):
+            w = state["settings"]
+            if w is not None:
+                w.destroy()
+
+    def open_settings():
+        w = state["settings"]
+        if w is not None:
+            try:
+                w.show()
+                w.restore()
+                return
+            except Exception:  # noqa: BLE001 - it was closed: make another
+                pass
+        w = webview.create_window("Stock Wizard settings", html=PAGE, js_api=Api(settings_path, saved), width=600, height=780)
+        w.events.closed += lambda: state.update(settings=None)
+        state["settings"] = w
+
+    def quit_(icon, _item):
+        state["quitting"] = True
+        sup.stop()
+        icon.stop()
+        for w in list(webview.windows):
+            w.destroy()
 
     def label(kind: str):
         def text(_item) -> str:
             c = sup.child(kind)
             if c is None:
-                return "Data program: off (Ben's PC only)"
+                return "Data program: off"
             return f"{'Bot' if kind == 'bot' else 'Data'}: {c.state}" + (f" · {c.detail[:70]}" if c.detail else "")
         return text
 
-    def quit_(icon, _item):
-        sup.stop()
-        icon.stop()
-
     icon = pystray.Icon("stockwizard", _icon_image("starting"), "Stock Wizard", menu=pystray.Menu(
+        pystray.MenuItem("Open Stock Wizard", lambda: show_main(), default=True),
         pystray.MenuItem(label("bot"), None, enabled=False),
         pystray.MenuItem(label("data"), None, enabled=False),
         pystray.Menu.SEPARATOR,
-        pystray.MenuItem("Open Stock Wizard", lambda: webbrowser.open("https://benjaminkeithrose-svg.github.io/stockwizard/"), default=True),
-        pystray.MenuItem("Settings", lambda: os.startfile(settings_path)),  # noqa: S606 - opens the settings in Notepad
-        pystray.MenuItem("Logs", lambda: os.startfile(log_dir)),  # noqa: S606
+        pystray.MenuItem("Settings", lambda: open_settings()),
+        pystray.MenuItem("Logs", lambda: os.startfile(log_dir)),  # noqa: S606 - opens the logs folder
         pystray.Menu.SEPARATOR,
         pystray.MenuItem("Quit (stops the bot)", quit_),
     ))
 
-    def loop(icon):
-        icon.visible = True
+    def requests():
+        """Stock Wizard opened again (Start menu, a second double-click): show the window, or the settings."""
+        lock.listen(4)
+        while not state["quitting"]:
+            try:
+                conn, _ = lock.accept()
+            except OSError:
+                return
+            with conn:
+                what = conn.recv(32).decode(errors="ignore").strip()
+            (open_settings if what == "settings" else show_main)()
+
+    def loop():
         while not sup.stopping:
             sup.poll()
             bot = sup.child("bot")
@@ -255,22 +342,39 @@ def run_tray(sup: Supervisor, settings_path: Path, log_dir: Path) -> None:
             icon.update_menu()
             time.sleep(1)
 
-    icon.run(setup=loop)
+    def started():
+        icon.run_detached()
+        threading.Thread(target=requests, daemon=True).start()
+        threading.Thread(target=loop, daemon=True).start()
+        if open_settings_first:
+            open_settings()
+
+    storage = settings_path.parent / "window"
+    storage.mkdir(parents=True, exist_ok=True)
+    webview.start(started, private_mode=False, storage_path=str(storage))   # keeps the app's sign-in between runs
 
 
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     default = Path(os.environ.get("LOCALAPPDATA", ".")) / "StockWizard" / "stockwizard.env"
     p.add_argument("--settings", type=Path, default=default)
-    p.add_argument("--data", action="store_true", help="also run the data program (Ben's PC)")
-    p.add_argument("--no-tray", action="store_true", help="no icon: run until stopped (for testing)")
+    p.add_argument("--data", action="store_true", help="also run the data program (Ben's PC; or RUN_DATA=1 in the settings)")
+    p.add_argument("--show", action="store_true", help="open the app's window (the Start menu); without it, just the icon (signing in to Windows)")
+    p.add_argument("--open-settings", action="store_true", help="open the Settings screen")
+    p.add_argument("--no-tray", action="store_true", help="no window or icon: run until stopped (for testing)")
     a = p.parse_args(argv)
+    lock = socket.socket()
     try:
-        lock = socket.socket()
-        lock.bind(("127.0.0.1", LOCK_PORT))   # held while this runs
+        lock.bind(("127.0.0.1", LOCK_PORT))   # held while this runs: one Stock Wizard per PC
     except OSError:
-        print("Stock Wizard is already running on this PC (look for its icon by the clock).")
-        return 1
+        # Already running: ask it to show its window (or its settings) instead of starting a second copy.
+        try:
+            with socket.create_connection(("127.0.0.1", LOCK_PORT), timeout=3) as c:
+                c.sendall(b"settings" if a.open_settings else b"show")
+            return 0
+        except OSError:
+            print("Stock Wizard is already running on this PC (look for its icon by the clock).")
+            return 1
     if not a.settings.exists():
         print(f"No settings at {a.settings}: run the installer again and paste your bot key.")
         return 1
@@ -286,7 +390,7 @@ def main(argv: list[str] | None = None) -> int:
         beat = heartbeat(store, find_owner(store))
     except BaseException as e:  # noqa: BLE001 - the bots still run; the status line just won't show
         print(f"No PC status line: {e}")
-    sup = Supervisor(python, settings, a.data or settings.get("RUN_DATA", "") in ("1", "yes", "true"), log_dir, beat=beat)
+    sup = Supervisor(python, settings, _run_data(settings, a.data), log_dir, beat=beat)
     if a.no_tray:
         try:
             while True:
@@ -295,7 +399,7 @@ def main(argv: list[str] | None = None) -> int:
         except KeyboardInterrupt:
             sup.stop()
         return 0
-    run_tray(sup, a.settings, log_dir)
+    run_desktop(sup, a.settings, log_dir, lock, show=a.show or a.open_settings, forced_data=a.data, open_settings_first=a.open_settings)
     lock.close()
     return 0
 

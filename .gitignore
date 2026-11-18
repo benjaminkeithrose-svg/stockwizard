@@ -10,3 +10,4 @@ pc/data/
 pc/installer/build/
 /dist/
 pc/logs/
+pc/window/
