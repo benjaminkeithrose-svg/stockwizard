@@ -35,7 +35,7 @@ function Notes({ run }: { run: OptionRun }) {
   return (
     <>
       <div className="msg info">Modelled option prices (Black-Scholes, the VIX as volatility), with $0.65 a leg commission and 5c a leg slippage each way.</div>
-      {run.source === "yahoo-unofficial" && <div className="msg warn">Free, unofficial data: nothing here counts as validated.</div>}
+      {run.source?.includes("yahoo") && <div className="msg warn">Free, unofficial data: nothing here counts as validated.</div>}
       {run.held_back_burned && <div className="msg warn">The held-back years were already seen with other settings, so their result is no longer a fair test.</div>}
       {run.report.warnings.filter((w) => !w.startsWith("Modelled")).map((w) => <div key={w} className="msg warn">{w}</div>)}
     </>

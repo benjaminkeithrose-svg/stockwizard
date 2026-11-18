@@ -5,7 +5,7 @@ from __future__ import annotations
 import pandas as pd
 
 from stockwizard.data.archive import Archive
-from stockwizard.data.archive_store import STITCHED, ArchiveStore, joined, to_ny_midnight
+from stockwizard.data.archive_store import STITCHED, ArchiveStore, joined, repair, to_ny_midnight
 from stockwizard.run_backtests import read_range
 
 
@@ -67,3 +67,21 @@ def test_ibkr_alone_is_still_there_for_repeating_a_run(tmp_path):
     store = ArchiveStore(Supabase(), archive(tmp_path))
     rows = store.select("candles", {"symbol": "eq.^VIX", "timeframe": "eq.1d", "source": "eq.ibkr", "order": "ts.desc", "limit": "1"})
     assert len(rows) == 1 and rows[0]["ts"].startswith("2005-10-04")
+
+
+def test_bad_ticks_are_repaired_and_real_spikes_kept():
+    idx = pd.DatetimeIndex([pd.Timestamp(d, tz="UTC") for d in ("2006-03-23 05:00", "2004-04-19 04:00", "2015-08-24 04:00")])
+    df = pd.DataFrame({"open": [130.24, 113.55, 28.03], "high": [9130.03, 116.63, 53.29], "low": [129.66, 0.87, 28.03],
+                       "close": [130.12, 113.79, 40.74], "volume": 1.0}, index=idx)
+    out = repair(df)
+    assert list(out["high"]) == [130.24, 116.63, 53.29], "SPY's 9,130 high becomes the open; the VIX's real 53.29 stays"
+    assert list(out["low"]) == [129.66, 113.55, 28.03], "SPY's 0.87 low becomes the open"
+    assert df["high"].iloc[0] == 9130.03, "the archive's own copy is untouched"
+
+
+def test_the_store_serves_repaired_candles(tmp_path):
+    a = Archive(tmp_path / "a.sqlite")
+    a.upsert_candles("SPY", "1d", "ibkr", pd.DataFrame({"open": 130.24, "high": 9130.03, "low": 129.66, "close": 130.12, "volume": 1.0},
+                                                        index=pd.DatetimeIndex([pd.Timestamp("2006-03-23 05:00", tz="UTC")])))
+    rows = ArchiveStore(Supabase(), a).select("candles", {"symbol": "eq.SPY", "timeframe": "eq.1d", "source": f"eq.{STITCHED}"})
+    assert rows[0]["high"] == 130.24

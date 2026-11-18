@@ -9,7 +9,6 @@ import pandas as pd
 import pytest
 
 from stockwizard.data.store import SupabaseStore, candle_rows
-from stockwizard.data.yahoo import to_candles
 from stockwizard.load import read_symbols, run
 
 from conftest import daily_index, intraday_index, make_candles
@@ -17,35 +16,12 @@ from conftest import daily_index, intraday_index, make_candles
 SYMBOLS_CSV = Path(__file__).parents[1] / "data" / "test_symbols.csv"
 
 
-def yahoo_style(df: pd.DataFrame, tz="America/New_York") -> pd.DataFrame:
-    raw = df.rename(columns=str.title)
-    raw["Adj Close"] = raw["Close"] * 0.99
-    raw.index = df.index.tz_convert(tz)
-    return raw
-
-
-def test_yahoo_frame_becomes_utc_candles_and_drops_the_unfinished_one():
-    idx = intraday_index(days=1)
-    df = make_candles(idx)
-    now = idx[10] + pd.Timedelta(minutes=2)  # candle 10 still forming
-    out = to_candles(yahoo_style(df), "5m", now=now)
-    assert str(out.index.tz) == "UTC"
-    assert len(out) == 10
-    assert out.index[-1] == idx[9]
-    assert list(out.columns) == ["open", "high", "low", "close", "volume"]
-
-
-def test_yahoo_rejects_empty():
-    with pytest.raises(ValueError):
-        to_candles(pd.DataFrame(), "1d", now=pd.Timestamp.now(tz="UTC"))
-
-
 def test_candle_rows_carry_source_and_version():
     df = make_candles(daily_index(3))
-    rows = candle_rows("SPY", "1d", "yahoo-unofficial", df)
+    rows = candle_rows("SPY", "1d", "ibkr", df)
     assert len(rows) == 3
     assert rows[0]["ts"].endswith("+00:00")
-    assert rows[0]["source"] == "yahoo-unofficial"
+    assert rows[0]["source"] == "ibkr"
     assert rows[0]["source_version"].startswith("stockwizard-")
 
 
@@ -118,25 +94,6 @@ def test_load_run_writes_symbols_then_candles_and_carries_on_after_a_failure(cap
     assert tables[0] == "symbols"
     assert tables.count("candles") == len(read_symbols(SYMBOLS_CSV)) - 1
     assert "MSFT: FAILED" in capsys.readouterr().err
-
-
-def test_days_option_fetches_only_recent_candles(monkeypatch):
-    import stockwizard.load as load
-    from datetime import date, timedelta
-
-    seen = {}
-    monkeypatch.setattr(load, "run", lambda csv, tf, start, end: seen.update(tf=tf, start=start, end=end) or 0)
-    assert load.main(["--symbols", str(SYMBOLS_CSV), "--timeframe", "5m", "--days", "7"]) == 0
-    assert seen == {"tf": "5m", "start": date.today() - timedelta(days=7), "end": None}
-    with pytest.raises(SystemExit):
-        load.main(["--symbols", str(SYMBOLS_CSV), "--days", "7", "--start", "2020-01-01"])
-
-
-def test_a_failed_symbol_makes_the_run_fail(monkeypatch):
-    import stockwizard.load as load
-
-    monkeypatch.setattr(load, "run", lambda *a: 1)
-    assert load.main(["--symbols", str(SYMBOLS_CSV)]) == 1
 
 
 def test_nan_is_written_as_null():

@@ -12,6 +12,10 @@ October 2005, VIX3M before August 2009). Runs on it say so, and the app keeps it
 "free data, not validated" warning on them (SPEC.md: nothing on the free source is
 reported as validated). Yahoo's daily candles are re-stamped to midnight New York,
 as IBKR's are, so the two join without a day counted twice.
+
+IBKR's older daily candles have a few misplaced-decimal highs and lows (SPY's high on
+23 March 2006 is 9,130.03; its low on 19 April 2004 is 0.87). The archive keeps them as
+sent; `repair` fixes them as a backtest reads them (Ben, 19 Nov 2026).
 """
 
 from __future__ import annotations
@@ -47,6 +51,25 @@ def _range(q: dict) -> tuple[pd.Timestamp | None, pd.Timestamp | None]:
             hi = pd.Timestamp(val)
     utc = lambda t: None if t is None else (t.tz_localize("UTC") if t.tzinfo is None else t.tz_convert("UTC"))  # noqa: E731
     return utc(lo), utc(hi)
+
+
+#: A high more than this many times the larger of the open and close (or a low less than the smaller
+#: divided by it) is a bad tick, not a real move: the VIX's real spikes (Aug 2015, Feb 2018) stay under it.
+BAD_TICK = 1.5
+
+
+def repair(df: pd.DataFrame) -> pd.DataFrame:
+    """Bad-tick highs and lows set to the day's open or close, whichever is further out."""
+    if df.empty:
+        return df
+    top, bottom = df[["open", "close"]].max(axis=1), df[["open", "close"]].min(axis=1)
+    bad_hi, bad_lo = df["high"] > top * BAD_TICK, df["low"] < bottom / BAD_TICK
+    if not (bad_hi.any() or bad_lo.any()):
+        return df
+    df = df.copy()
+    df.loc[bad_hi, "high"] = top[bad_hi]
+    df.loc[bad_lo, "low"] = bottom[bad_lo]
+    return df
 
 
 def to_ny_midnight(index: pd.DatetimeIndex) -> pd.DatetimeIndex:
@@ -94,6 +117,7 @@ class ArchiveStore:
             df = joined(self.archive, symbol, timeframe, start, end)
         else:
             df = self.archive.read(symbol, timeframe, source or "ibkr", start, end)
+        df = repair(df)
         if query.get("order", "ts.asc").endswith(".desc"):
             df = df.iloc[::-1]
         if "limit" in query:
