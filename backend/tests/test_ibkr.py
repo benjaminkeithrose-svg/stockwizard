@@ -83,7 +83,9 @@ class FakeIB:
 
     def reqSecDefOptParams(self, symbol, exchange, sec_type, con_id):
         assert con_id == 756733
-        return [SimpleNamespace(exchange="SMART", expirations=["20261117", "20261118", "20261119", "20261120", "20261123", "20261124"],
+        # As TWS returns it: an adjusted chain (2SPY, few strikes) listed before the standard one.
+        return [SimpleNamespace(exchange="SMART", tradingClass="2SPY", expirations=["20261120", "20261127"], strikes=[596.0, 597.0]),
+                SimpleNamespace(exchange="SMART", tradingClass="SPY", expirations=["20261117", "20261118", "20261119", "20261120", "20261123", "20261124"],
                                 strikes=[float(k) for k in range(580, 621)])]
 
     def placeOrder(self, contract, order):
@@ -272,3 +274,10 @@ def test_a_snapshot_covers_the_next_4_expiries_within_2_percent():
     r = rows[0]
     assert r["bid"] == 0.95 and r["ask"] == 1.05 and r["last"] is None and r["iv"] == 0.16 and r["underlying"] == 600.0
     assert max(ib.ticker_batches) <= 50, "stays inside IBKR's market-data line limit"
+
+
+def test_a_snapshot_uses_the_standard_chain_not_an_adjusted_one():
+    b, ib = broker()
+    rows = b.chain_snapshot("SPY")
+    assert "2026-11-27" not in {r["expiry"] for r in rows}, "2SPY's expiry, not SPY's"
+    assert len({r["strike"] for r in rows}) == 25, "SPY's strikes within 2%, not 2SPY's two"
