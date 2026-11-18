@@ -8,6 +8,7 @@ import { ARRIVED_BY, DemoStore, Store, SupabaseStore, User } from "../data/store
 import type { SymbolInfo, Watchlist } from "../data/model";
 import { useWorkspaces } from "../data/useWorkspaces";
 import ChartScreen from "./ChartScreen";
+import TradingScreen from "./Trading";
 import SafetyScreen from "./Safety";
 import HelpScreen from "./Help";
 import TodayScreen from "./Today";
@@ -30,7 +31,7 @@ import BotKeyScreen from "./BotKey";
 import { useWatchlists, WatchlistScreen, WatchlistsScreen } from "./Watchlists";
 import { APP_BUILD } from "../config";
 
-type Screen = { name: "chart" } | { name: "scanner" } | { name: "pages" } | { name: "card" } | { name: "backtests" } | { name: "backtest"; id: string } | { name: "watchlists" } | { name: "safety" } | { name: "botkey" } | { name: "help" } | { name: "today" } | { name: "analysis"; id: string } | { name: "optbacktest"; id: string } | { name: "watchlist"; list: Watchlist };
+type Screen = { name: "chart" } | { name: "scanner" } | { name: "pages" } | { name: "card" } | { name: "backtests" } | { name: "backtest"; id: string } | { name: "watchlists" } | { name: "safety" } | { name: "trading" } | { name: "botkey" } | { name: "help" } | { name: "today" } | { name: "analysis"; id: string } | { name: "optbacktest"; id: string } | { name: "watchlist"; list: Watchlist };
 
 /** One screen's identity, for the path and the menu: its name, and which backtest, structure or list. */
 function screenKey(s: Screen): string {
@@ -134,7 +135,7 @@ function SignedIn({ store, user }: { store: Store; user: User }) {
   const titleOf = (s: Screen): string => s.name === "chart" ? "Stock Wizard" : s.name === "scanner" ? "Scanner"
     : s.name === "pages" ? "Chart pages" : s.name === "backtests" ? "Backtests"
     : s.name === "backtest" ? (strategyLabels[s.id] ?? "Backtest") : s.name === "card" ? (ws.active?.name ?? "Chart")
-    : s.name === "watchlists" ? "Watchlists" : s.name === "optbacktest" ? "Option backtest" : s.name === "safety" ? "Safety and orders" : s.name === "botkey" ? "Access key" : s.name === "help" ? "Help" : s.name === "today" ? "Today"
+    : s.name === "watchlists" ? "Watchlists" : s.name === "optbacktest" ? "Option backtest" : s.name === "safety" ? "Safety and orders" : s.name === "trading" ? "Trading" : s.name === "botkey" ? "Access key" : s.name === "help" ? "Help" : s.name === "today" ? "Today"
     : s.name === "analysis" ? (() => { const p = pos.list.find((x) => x.id === s.id); return p ? `${structureLabel(p.structure)} · ${p.symbol}` : "Analysis"; })()
     : s.list.name;
   const title = titleOf(screen);
@@ -159,7 +160,7 @@ function SignedIn({ store, user }: { store: Store; user: User }) {
   const groups: MenuGroup[] = [
     { label: "Charts", entries: [entry({ name: "chart" }, "Chart"), entry({ name: "today" }), entry({ name: "pages" })] },
     { label: "Research", entries: [entry({ name: "scanner" }), entry({ name: "backtests" }), entry({ name: "watchlists" })] },
-    { label: "Trading", entries: [entry({ name: "safety" }), entry({ name: "botkey" })] },
+    { label: "Trading", entries: [entry({ name: "trading" }), entry({ name: "safety" }), entry({ name: "botkey" })] },
     { label: "Settings and help", entries: [
       entry({ name: "help" }),
       { key: "update", label: "Get latest version", onPick: () => { setToast("Getting the latest version…"); getLatestVersion(); } },
@@ -202,6 +203,7 @@ function SignedIn({ store, user }: { store: Store; user: User }) {
       {screen.name === "chart" && <ChartScreen store={store} ws={ws} pos={pos} fav={fav} symbols={symbols} firstSymbol={firstSymbol}
         onAnalyse={(id) => { setAdjust(null); setScreen({ name: "analysis", id }); }} adjust={adjust} />}
       {screen.name === "safety" && <SafetyScreen store={store} />}
+      {screen.name === "trading" && <TradingScreen store={store} onSafety={() => go({ name: "safety" })} />}
       {screen.name === "botkey" && <BotKeyScreen store={store} />}
       {screen.name === "help" && <HelpScreen />}
       {screen.name === "today" && <TodayScreen store={store} onSafety={() => setScreen({ name: "safety" })} />}

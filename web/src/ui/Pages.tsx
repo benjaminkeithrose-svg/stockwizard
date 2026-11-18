@@ -13,6 +13,7 @@ import type { useViews } from "../data/useViews";
 import type { OptionPosition } from "../data/options";
 import type { useWorkspaces } from "../data/useWorkspaces";
 import { Expand, Plus } from "./icons";
+import { useAutoSymbols } from "../data/useAutoSymbols";
 import { AskText, ConfirmDelete, MoreMenu, Sheet } from "./parts";
 
 type Views = ReturnType<typeof useViews>;
@@ -71,6 +72,7 @@ export default function PagesScreen(props: {
   const [naming, setNaming] = useState<ChartView | "new" | null>(null);
   const [deleting, setDeleting] = useState<ChartView | null>(null);
   const moved = useRef(false);
+  const auto = useAutoSymbols(store);
 
   useEffect(() => {
     if (!box.current) return;
@@ -157,7 +159,7 @@ export default function PagesScreen(props: {
     return (
       <div key={c.id} className={`gcard${drag?.id === c.id ? " dragging" : ""}${w.id === selected ? " sel" : ""}`} style={style} data-testid="page-card" data-card={c.id}>
         <div className="gbar" onPointerDown={(e) => start(e, c.id, "move")} title={phone ? undefined : "Drag to move"}>
-          <span className="gname">{w.name}</span>
+          <span className="gname">{auto.has(w.symbol) && <span className="automark" title="Automated trading on this symbol">Auto</span>}{w.name}</span>
           <button className="icon gfull" aria-label={`Open ${w.name} full screen`} onPointerDown={(e) => e.stopPropagation()}
             onClick={() => props.onOpen(w.id)}><Expand /></button>
           <MoreMenu className="icon" label={`More for ${w.name} on this page`} items={[

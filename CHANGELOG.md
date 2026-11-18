@@ -5,6 +5,8 @@ on GitHub (#number). Kept up when Ben asks for a documentation refresh.
 
 ## 19 November 2026
 
+- #58 Trading: what's running, orders as a broker lists them (Working, Filled, Closed, Not traded), results over time; Auto markers on charts
+
 - #57 Chart workspace: the open tab changes the symbol; chart pages select a card and one toolbar acts on it; the toolbar along the top, down the side, floating or hidden
 
 - #56 (i) buttons beside settings and numbers: what each means, in plain words; one glossary for them and Help's Terms

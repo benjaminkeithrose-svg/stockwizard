@@ -16,6 +16,7 @@ import { cachedCandles, Store } from "../data/store";
 import { Close, Indicators, Legs, Pencil, Plus, Star } from "./icons";
 import { AskText, ConfirmDelete, MoreMenu, Info } from "./parts";
 import { clampPlace, nextPlace, ToolbarMode, useToolbarPlace } from "../data/toolbar";
+import { useAutoSymbols } from "../data/useAutoSymbols";
 import { DrawSheet, IndicatorSheet, SymbolSearch } from "./sheets";
 import { OptionsSheet, PositionSheet } from "./OptionSheets";
 
@@ -70,6 +71,7 @@ export default function ChartScreen(props: {
   const [renaming, setRenaming] = useState<Workspace | null>(null);
   const [deleting, setDeleting] = useState<Workspace | null>(null);
   const [tb, setTb] = useToolbarPlace();
+  const auto = useAutoSymbols(store);
   const [floatDrag, setFloatDrag] = useState<{ sx: number; sy: number; x: number; y: number } | null>(null);
   useEffect(() => {
     if (!floatDrag) return;
@@ -191,6 +193,7 @@ export default function ChartScreen(props: {
             <button role="tab" aria-selected={t.id === w.id} className="tname"
               aria-label={t.id === w.id ? `${t.name}: change the symbol` : t.name}
               onClick={() => (t.id === w.id ? setSheet("symbol") : ws.setActiveId(t.id))}>
+              {auto.has(t.symbol) && <span className="automark" title="Automated trading on this symbol">Auto</span>}
               {t.name}{t.id === w.id && <span className="tchev" aria-hidden="true">▾</span>}
             </button>
             <MoreMenu className="tmore" label={`More for ${t.name}`} items={[
