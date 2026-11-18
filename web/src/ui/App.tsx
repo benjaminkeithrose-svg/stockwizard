@@ -2,7 +2,7 @@
 // Back goes up one level: a watchlist → Watchlists → Chart.
 
 import { useEffect, useMemo, useState } from "react";
-import { DemoStore, Store, SupabaseStore, User } from "../data/store";
+import { ARRIVED_BY, DemoStore, Store, SupabaseStore, User } from "../data/store";
 import type { SymbolInfo, Watchlist } from "../data/model";
 import { useWorkspaces } from "../data/useWorkspaces";
 import ChartScreen from "./ChartScreen";
@@ -23,11 +23,12 @@ import { cameBackFresh, checkForUpdate, getLatestVersion } from "../update";
 import ScannerScreen from "./Scanner";
 import type { Timeframe } from "../data/candles";
 import { MoreMenu } from "./parts";
-import SignIn from "./SignIn";
+import SignIn, { SetPassword } from "./SignIn";
+import BotKeyScreen from "./BotKey";
 import { useWatchlists, WatchlistScreen, WatchlistsScreen } from "./Watchlists";
 import { APP_BUILD } from "../config";
 
-type Screen = { name: "chart" } | { name: "scanner" } | { name: "pages" } | { name: "card" } | { name: "backtests" } | { name: "backtest"; id: string } | { name: "watchlists" } | { name: "safety" } | { name: "help" } | { name: "today" } | { name: "analysis"; id: string } | { name: "optbacktest"; id: string } | { name: "watchlist"; list: Watchlist };
+type Screen = { name: "chart" } | { name: "scanner" } | { name: "pages" } | { name: "card" } | { name: "backtests" } | { name: "backtest"; id: string } | { name: "watchlists" } | { name: "safety" } | { name: "botkey" } | { name: "help" } | { name: "today" } | { name: "analysis"; id: string } | { name: "optbacktest"; id: string } | { name: "watchlist"; list: Watchlist };
 
 export function makeStore(): Store {
   return new URLSearchParams(location.search).has("demo") ? new DemoStore() : new SupabaseStore();
@@ -35,6 +36,7 @@ export function makeStore(): Store {
 
 export default function App({ store }: { store: Store }) {
   const [user, setUser] = useState<User | null | undefined>(undefined);
+  const [passwordSet, setPasswordSet] = useState(false);
   useEffect(() => {
     store.currentUser().then(setUser).catch(() => setUser(null));
     return store.onUserChange(setUser);
@@ -42,6 +44,8 @@ export default function App({ store }: { store: Store }) {
 
   if (user === undefined) return <div className="app"><Header title="Stock Wizard" /></div>;
   if (!user) return <div className="app"><Header title="Stock Wizard" /><SignIn store={store} /></div>;
+  // Arrived from an invitation or a password-reset email: choose a password first.
+  if (ARRIVED_BY && !passwordSet) return <div className="app"><Header title="Stock Wizard" /><SetPassword store={store} why={ARRIVED_BY} onDone={() => setPasswordSet(true)} /></div>;
   return <SignedIn store={store} user={user} key={user.id} />;
 }
 
@@ -91,6 +95,9 @@ function SignedIn({ store, user }: { store: Store; user: User }) {
   const analysing = screen.name === "analysis" ? pos.list.find((p) => p.id === screen.id) ?? null : null;
   const [toast, setToast] = useState<string | null>(null);
   const [claudeOpen, setClaudeOpen] = useState(false);
+  // Claude costs Ben's Anthropic account: the button shows only for people it's switched on for.
+  const [claudeOk, setClaudeOk] = useState(false);
+  useEffect(() => { store.claudeAllowed().then(setClaudeOk).catch(() => setClaudeOk(false)); }, [store]);
   useEffect(() => {
     if (cameBackFresh()) setToast(`Up to date: build ${APP_BUILD}`);
     checkForUpdate();
@@ -105,11 +112,11 @@ function SignedIn({ store, user }: { store: Store; user: User }) {
     : screen.name === "card" ? () => setScreen({ name: "pages" })
     : screen.name === "backtest" || screen.name === "optbacktest" ? () => setScreen({ name: "backtests" })
     : screen.name === "backtests" ? () => setScreen({ name: "chart" })
-    : screen.name === "watchlists" || screen.name === "scanner" || screen.name === "pages" || screen.name === "safety" || screen.name === "analysis" || screen.name === "help" || screen.name === "today" ? () => setScreen({ name: "chart" }) : undefined;
+    : screen.name === "watchlists" || screen.name === "scanner" || screen.name === "pages" || screen.name === "safety" || screen.name === "botkey" || screen.name === "analysis" || screen.name === "help" || screen.name === "today" ? () => setScreen({ name: "chart" }) : undefined;
   const title = screen.name === "chart" ? "Stock Wizard" : screen.name === "scanner" ? "Scanner"
     : screen.name === "pages" ? "Chart pages" : screen.name === "backtests" ? "Backtests"
     : screen.name === "backtest" ? (strategyLabels[screen.id] ?? "Backtest") : screen.name === "card" ? (ws.active?.name ?? "Chart")
-    : screen.name === "watchlists" ? "Watchlists" : screen.name === "optbacktest" ? "Option backtest" : screen.name === "safety" ? "Safety" : screen.name === "help" ? "Help" : screen.name === "today" ? "Today" : screen.name === "analysis" ? (analysing ? `${structureLabel(analysing.structure)} · ${analysing.symbol}` : "Analysis") : screen.list.name;
+    : screen.name === "watchlists" ? "Watchlists" : screen.name === "optbacktest" ? "Option backtest" : screen.name === "safety" ? "Safety" : screen.name === "botkey" ? "Bot key" : screen.name === "help" ? "Help" : screen.name === "today" ? "Today" : screen.name === "analysis" ? (analysing ? `${structureLabel(analysing.structure)} · ${analysing.symbol}` : "Analysis") : screen.list.name;
   // Open a symbol and timeframe in the current tab; a tab still on its automatic name follows.
   const openOnChart = (s: string, tf?: Timeframe) => {
     const w = ws.active;
@@ -128,6 +135,7 @@ function SignedIn({ store, user }: { store: Store; user: User }) {
     <MoreMenu label="More" items={[
       { label: "Watchlists", icon: <List />, onPick: () => setScreen({ name: "watchlists" }) },
       { label: "Safety and orders", onPick: () => setScreen({ name: "safety" }) },
+      { label: "Bot key", onPick: () => setScreen({ name: "botkey" }) },
       { label: "Help", onPick: () => setScreen({ name: "help" }) },
       { label: "-", onPick: () => {} },
       { label: "Get latest version", onPick: () => { setToast("Getting the latest version…"); getLatestVersion(); } },
@@ -143,8 +151,8 @@ function SignedIn({ store, user }: { store: Store; user: User }) {
         onPages={screen.name === "chart" ? () => setScreen({ name: "pages" }) : undefined}
         onBacktests={screen.name === "chart" ? () => setScreen({ name: "backtests" }) : undefined}
         onToday={screen.name === "chart" ? () => setScreen({ name: "today" }) : undefined}
-        onClaude={() => setClaudeOpen(!claudeOpen)} menu={menu} />
-      {claudeOpen && (
+        onClaude={claudeOk ? () => setClaudeOpen(!claudeOpen) : undefined} menu={menu} />
+      {claudeOpen && claudeOk && (
         <ClaudePanel store={store} userId={user.id} onClose={() => setClaudeOpen(false)}
           onOpenBacktest={(id) => { setScreen({ name: "backtest", id }); if (window.innerWidth < 720) setClaudeOpen(false); }}
           onAction={(a) => {
@@ -169,6 +177,7 @@ function SignedIn({ store, user }: { store: Store; user: User }) {
       {screen.name === "chart" && <ChartScreen store={store} ws={ws} pos={pos} fav={fav} symbols={symbols} firstSymbol={firstSymbol}
         onAnalyse={(id) => { setAdjust(null); setScreen({ name: "analysis", id }); }} adjust={adjust} />}
       {screen.name === "safety" && <SafetyScreen store={store} />}
+      {screen.name === "botkey" && <BotKeyScreen store={store} />}
       {screen.name === "help" && <HelpScreen />}
       {screen.name === "today" && <TodayScreen store={store} onSafety={() => setScreen({ name: "safety" })} />}
       {screen.name === "analysis" && (analysing

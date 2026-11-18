@@ -7,9 +7,11 @@ sent to the browser.
 
 from __future__ import annotations
 
+import base64
 import json
 import math
 import os
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -49,13 +51,70 @@ def _json(rows) -> bytes:
     return json.dumps(_clean(rows), allow_nan=False).encode()
 
 
+#: Stock Wizard's project and its publishable key: public by design (the web app ships them, web/src/config.ts).
+DEFAULT_URL = "https://cxpspihahmztfydvdwpd.supabase.co"
+PUBLISHABLE_KEY = "sb_publishable_6C3xmFTbEXfkNtt3Xv3Opg_8d0XoGUG"
+
+
+def read_bot_key(bot_key: str) -> tuple[str, str]:
+    """The bot account's email and password packed in a bot key ("swbot1." + base64 JSON), made in the app."""
+    prefix, _, body = bot_key.strip().partition(".")
+    if prefix != "swbot1" or not body:
+        raise ValueError("That isn't a Stock Wizard bot key: make one in the app (⋯, Bot key) and copy all of it")
+    d = json.loads(base64.urlsafe_b64decode(body + "=" * (-len(body) % 4)))
+    return d["e"], d["p"]
+
+
+class BotLogin:
+    """A person's bot signed in as its bot account (multi-user, 18 Nov 2026): the database lets it act on that
+    one person's orders and nothing else. Its login lasts an hour and is renewed before it runs out."""
+
+    def __init__(self, url: str, bot_key: str, send: Sender, clock=time.time):
+        self.url, self.send, self.clock = url, send, clock
+        self.email, self.password = read_bot_key(bot_key)
+        self.token = self.refresh_token = ""
+        self.expires_at = 0.0
+        self.user_id = ""
+        self._login({"email": self.email, "password": self.password}, "password")
+
+    def _login(self, body: dict, grant: str) -> None:
+        status, raw = self.send("POST", f"{self.url}/auth/v1/token?grant_type={grant}",
+                                {"apikey": PUBLISHABLE_KEY, "Content-Type": "application/json"}, json.dumps(body).encode())
+        if status >= 300:
+            if grant == "refresh_token":   # the renewal was refused (an old login): sign in afresh
+                return self._login({"email": self.email, "password": self.password}, "password")
+            raise RuntimeError("The bot key was refused: it may have been replaced in the app. Make a new one (⋯, Bot key) "
+                               f"and put it in stockwizard.env. (HTTP {status})")
+        d = json.loads(raw)
+        self.token, self.refresh_token = d["access_token"], d["refresh_token"]
+        self.expires_at = self.clock() + float(d.get("expires_in", 3600))
+        self.user_id = d["user"]["id"]
+
+    def bearer(self) -> str:
+        if self.clock() > self.expires_at - 300:
+            self._login({"refresh_token": self.refresh_token}, "refresh_token")
+        return self.token
+
+
 class SupabaseStore:
-    def __init__(self, url: str | None = None, key: str | None = None, send: Sender = _urllib_send):
-        self.url = (url or os.environ.get("SUPABASE_URL", "")).rstrip("/")
+    def __init__(self, url: str | None = None, key: str | None = None, send: Sender = _urllib_send,
+                 bot_key: str | None = None, clock=time.time):
+        """With the secret key (Ben's PC: the data program and his bot) it bypasses the database's rules.
+        With a bot key (anyone's bot, BOT_KEY) it signs in as that person's bot account instead."""
+        self.url = (url or os.environ.get("SUPABASE_URL") or DEFAULT_URL).rstrip("/")
         self.key = key or os.environ.get("SUPABASE_SECRET_KEY", "")
-        if not self.url or not self.key:
-            raise RuntimeError("Set SUPABASE_URL and SUPABASE_SECRET_KEY to write to Supabase")
         self.send = send
+        self.bot: BotLogin | None = None
+        bot_key = bot_key or os.environ.get("BOT_KEY", "")
+        if not self.key:
+            if not bot_key:
+                raise RuntimeError("Set BOT_KEY (made in the app: ⋯, Bot key) in stockwizard.env, or on Ben's PC SUPABASE_SECRET_KEY")
+            self.bot, self.key = BotLogin(self.url, bot_key, send, clock), PUBLISHABLE_KEY
+
+    @property
+    def is_service(self) -> bool:
+        """True with the secret key: shared data (market snapshots, recorded quotes) is written only this way."""
+        return self.bot is None
 
     def _headers(self) -> dict:
         h = {
@@ -63,7 +122,9 @@ class SupabaseStore:
             "Content-Type": "application/json",
             "Prefer": "resolution=merge-duplicates,return=minimal",
         }
-        if self.key.startswith("eyJ"):  # legacy service_role JWT
+        if self.bot is not None:
+            h["Authorization"] = f"Bearer {self.bot.bearer()}"
+        elif self.key.startswith("eyJ"):  # legacy service_role JWT
             h["Authorization"] = f"Bearer {self.key}"
         return h
 
