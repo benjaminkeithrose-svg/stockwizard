@@ -1,7 +1,7 @@
 """The candle archive on Ben's PC (Ben, 18 Nov 2026): every candle fetched, kept, never trimmed.
 
 One SQLite file (Python's own; no extra library), by default
-pc/data/archive.sqlite, never committed. Supabase keeps only the recent window
+archive.sqlite in %LOCALAPPDATA%/StockWizard (beside the installed program's settings), never committed. Supabase keeps only the recent window
 the app shows; the archive keeps everything for backtests on the PC.
 
 A backup copy goes to OneDrive (made with SQLite's own backup, safe while the
@@ -20,7 +20,8 @@ import pandas as pd
 
 from stockwizard.candles import COLUMNS
 
-DEFAULT_PATH = Path(__file__).resolve().parents[3] / "pc" / "data" / "archive.sqlite"
+# Beside the installed program's settings (stage 3); the supervisor also sets ARCHIVE_PATH to this.
+DEFAULT_PATH = Path(os.environ.get("LOCALAPPDATA") or Path.home()) / "StockWizard" / "archive.sqlite"
 
 SCHEMA = """
 create table if not exists candles (

@@ -192,3 +192,28 @@ def test_new_settings_restart_the_programs_with_them(tmp_path):
     s.poll()
     args = launch.started[-1][0]
     assert "--port" in args and args[args.index("--port") + 1] == "4002" and "--delayed" in args
+
+
+# --- stage 3: the secret key encrypted with Windows' protection; the archive beside the settings ---
+
+import sys  # noqa: E402
+
+import pytest  # noqa: E402
+
+from stockwizard.supervisor import load_settings  # noqa: E402
+
+
+@pytest.mark.skipif(sys.platform != "win32", reason="Windows' data protection")
+def test_a_plain_secret_key_is_encrypted_in_the_file_and_decrypted_only_in_memory(tmp_path):
+    f = settings_file(tmp_path, "SUPABASE_SECRET_KEY=sb_secret_madeup\nRUN_DATA=1\n")
+    s = load_settings(f)
+    assert s["SUPABASE_SECRET_KEY"] == "sb_secret_madeup"            # the programs get it
+    text = f.read_text(encoding="utf-8")
+    assert "sb_secret_madeup" not in text and "SUPABASE_SECRET_KEY_PROTECTED=dpapi1." in text and "RUN_DATA=1" in text
+    assert load_settings(f)["SUPABASE_SECRET_KEY"] == "sb_secret_madeup"   # read back next time
+    assert SettingsApi(f).load()["run_data"] is True, "Settings still sees it as the data PC"
+
+
+def test_the_archive_sits_beside_the_settings_unless_told_otherwise(tmp_path):
+    assert load_settings(settings_file(tmp_path, "BOT_KEY=swbot1.k\n"))["ARCHIVE_PATH"] == str(tmp_path / "archive.sqlite")
+    assert load_settings(settings_file(tmp_path, "ARCHIVE_PATH=D:\a.sqlite\n"))["ARCHIVE_PATH"] == "D:\a.sqlite"
