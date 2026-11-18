@@ -9,6 +9,7 @@ import type { Store } from "../data/store";
 import { expiryLabel, legName, structureLabel, Structure } from "../data/options";
 import { Sheet } from "./parts";
 import StrategiesSection from "./Strategies";
+import PcStatusLine from "./PcStatusLine";
 
 const money = (v: number | null | undefined) => (v === null || v === undefined ? "—" : `$${v.toLocaleString(undefined, { maximumFractionDigits: 2 })}`);
 const STATUS: Record<PaperOrder["status"], string> = {
@@ -132,6 +133,7 @@ export default function SafetyScreen({ store }: { store: Store }) {
 
   return (
     <div className="list">
+      <PcStatusLine store={store} />
       {limits.kill_switch ? (
         <>
           <div className="msg err">The kill switch is on: no new orders, nothing can be approved.</div>

@@ -30,6 +30,7 @@ doing anything else. Needs SUPABASE_URL and SUPABASE_SECRET_KEY, like the loader
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 import time
 from dataclasses import asdict
@@ -60,10 +61,12 @@ def find_owner(store: SupabaseStore) -> str:
         if not rows:
             raise SystemExit("This bot key isn't linked to anyone any more: make a new one in the app (the menu, three dots, then Bot key)")
         return rows[0]["owner"]
+    if os.environ.get("STOCKWIZARD_OWNER"):   # Ben's PC: his user id, now that others have accounts too
+        return os.environ["STOCKWIZARD_OWNER"]
     owners = {r["owner"] for r in store.select("safety_limits", {"select": "owner"})}
     owners |= {r["owner"] for r in store.select("workspaces", {"select": "owner"})}
     if len(owners) != 1:
-        raise SystemExit(f"Expected one person using Stock Wizard, found {len(owners)}: pass --owner")
+        raise SystemExit(f"Found {len(owners)} people using Stock Wizard: add STOCKWIZARD_OWNER=<your user id> to stockwizard.env (or pass --owner)")
     return owners.pop()
 
 

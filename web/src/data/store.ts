@@ -5,6 +5,7 @@
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
 import { Candles, emptyCandles, madeUpCandles, Timeframe } from "./candles";
 import type { LiveBar } from "./live";
+import type { PcStatus } from "./pcStatus";
 import type { ClaudeMessage, ClaudeReply } from "./claude";
 import type { OptionPosition } from "./options";
 import { analyse, historicalVol, positionAt } from "./pricing";
@@ -35,6 +36,8 @@ export interface Store {
   botKeyMadeAt(): Promise<string | null>;
   /** Make a new bot key (replacing any old one); returned once, never stored here. */
   makeBotKey(): Promise<string>;
+  /** The heartbeat from the PC that runs the signed-in person's bot, or null if none has come yet. */
+  pcStatus(): Promise<PcStatus | null>;
   /** Whether Claude is switched on for the signed-in person (it costs Ben's Anthropic account). */
   claudeAllowed(): Promise<boolean>;
 
@@ -168,6 +171,12 @@ export class SupabaseStore implements Store {
       throw new Error(detail?.error ?? error.message);
     }
     return (data as { key: string }).key;
+  }
+
+  async pcStatus() {
+    const me = (await this.sb.auth.getSession()).data.session?.user.id;
+    const rows = this.check(await this.sb.from("pc_status").select("*").eq("owner", me ?? "")) as PcStatus[];
+    return rows[0] ?? null;
   }
 
   async claudeAllowed() {
@@ -543,6 +552,10 @@ export class DemoStore implements Store {
   async botKeyMadeAt() { return null; }
   async makeBotKey() { return "swbot1.made-up-key-for-the-demo"; }
   async claudeAllowed() { return true; }
+  async pcStatus(): Promise<PcStatus | null> {
+    return { updated_at: new Date().toISOString(), host: "DEMO-PC", bot_state: "connected", bot_detail: "Connected, paper account DU…000",
+      data_state: "off", data_detail: null, tws_open: true, version: "demo" };
+  }
   async signOut() { this.user = null; this.listeners.forEach((f) => f(null)); }
 
   async symbols(): Promise<SymbolInfo[]> {
