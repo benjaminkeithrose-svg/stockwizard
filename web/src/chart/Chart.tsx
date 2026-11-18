@@ -22,6 +22,7 @@ import type { Candles, Timeframe } from "../data/candles";
 import type { Drawing, IndicatorInstance } from "../data/model";
 import { daysToExpiry, expiryLabel, legName, OptionPosition, structureLabel, todayNY } from "../data/options";
 import { REGISTRY, unavailable } from "../indicators";
+import { cssVar, THEME_EVENT } from "../theme";
 
 export type TapMode = "none" | "level" | "trend" | "anchor";
 
@@ -84,19 +85,29 @@ export default function Chart({ candles, timeframe, indicators, drawings, viewKe
 
   // Create the chart once.
   useEffect(() => {
+    // Colours from the stylesheet's variables, so the chart follows light or dark (theme.ts).
+    const colours = () => ({
+      layout: {
+        background: { type: ColorType.Solid, color: cssVar("--surface", "#FFFFFF") },
+        textColor: cssVar("--ink-2", "#4D4D4F"),
+        panes: { separatorColor: cssVar("--line-2", "#E3E3E3") },
+      },
+      grid: { vertLines: { color: cssVar("--sunk", "#F2F7FA") }, horzLines: { color: cssVar("--sunk", "#F2F7FA") } },
+      rightPriceScale: { borderColor: cssVar("--line-2", "#E3E3E3") },
+      timeScale: { borderColor: cssVar("--line-2", "#E3E3E3") },
+    });
+    const base = colours();
     const c = createChart(box.current!, {
       autoSize: true,
       layout: {
-        background: { type: ColorType.Solid, color: "#FFFFFF" },
-        textColor: "#4D4D4F",
+        ...base.layout,
         fontFamily: "Roboto, Arial, 'Helvetica Neue', Helvetica, sans-serif",
         attributionLogo: true,
-        panes: { separatorColor: "#E3E3E3" },
       },
-      grid: { vertLines: { color: "#F2F7FA" }, horzLines: { color: "#F2F7FA" } },
-      rightPriceScale: { borderColor: "#E3E3E3" },
+      grid: base.grid,
+      rightPriceScale: base.rightPriceScale,
       timeScale: {
-        borderColor: "#E3E3E3",
+        ...base.timeScale,
         timeVisible: true,
         tickMarkFormatter: (t: Time, type: number) => {
           const d = new Date((t as number) * 1000);
@@ -185,7 +196,10 @@ export default function Chart({ candles, timeframe, indicators, drawings, viewKe
     window.addEventListener("pointercancel", drop);
     if (still) c.applyOptions({ handleScroll: false, handleScale: false, crosshair: { mode: 2 } });
     chart.current = c;
+    const recolour = () => c.applyOptions(colours());
+    window.addEventListener(THEME_EVENT, recolour);
     return () => {
+      window.removeEventListener(THEME_EVENT, recolour);
       el.removeEventListener("click", click);
       el.removeEventListener("pointermove", hover);
       el.removeEventListener("pointerdown", hover);
