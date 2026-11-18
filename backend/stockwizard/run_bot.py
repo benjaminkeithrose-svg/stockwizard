@@ -315,7 +315,10 @@ def main(argv: list[str] | None = None) -> int:
             return 0
         time.sleep(a.loop)
         if broker is not None and not broker.connected():
-            print("IB Gateway disconnected: trading stopped. Waiting for it to come back...")
+            # ib_async doesn't reconnect by itself. Exit, so start-bot.bat starts a fresh bot a minute later:
+            # that connects again and reconciles orders and positions with IBKR before anything else.
+            print("Interactive Brokers disconnected (TWS or IB Gateway closed or restarted): trading stopped. Restarting to reconnect.")
+            return 1
 
 
 if __name__ == "__main__":
