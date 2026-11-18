@@ -6,8 +6,8 @@ own Windows PC, next to Interactive Brokers' trading program, and only ever
 trades your Interactive Brokers **paper** account (practice money). It
 refuses live accounts.
 
-You do steps 1 to 10 once. After that the bot starts by itself when you sign
-in to Windows.
+You do steps 1 to 10 once. After that Stock Wizard starts by itself when you
+sign in to Windows.
 
 ## Stock Wizard
 
@@ -20,13 +20,13 @@ From now on, sign in at https://benjaminkeithrose-svg.github.io/stockwizard/
 with your email and that password.
 
 ### 2. Set your limits
-1. In Stock Wizard, click the menu at the top right (three dots).
+1. In Stock Wizard, click **Menu** at the top right.
 2. Click **Safety and orders**.
 3. Under **Limits**, click the card, set each limit, and click **Done**.
    Until there's a daily loss limit, the bot refuses every order.
 
 ### 3. Make your bot key
-1. Click the menu at the top right (three dots), then **Bot key**.
+1. Click **Menu** at the top right, then **Bot key**.
 2. Click **Make a bot key**.
 3. Click **Copy the key**, and keep the page open: the key is shown only once.
 
@@ -68,56 +68,67 @@ with the paper account:
    **Yes**.
 3. Log out of TWS and back in to Paper Trading.
 
-## The bot
+## Stock Wizard on your PC
 
 ### 9. Install it
 1. Download **StockWizardBotSetup.exe** from
    https://github.com/benjaminkeithrose-svg/stockwizard/releases/latest
+   (under **Assets**).
 2. Double-click it.
 3. If Windows says **Windows protected your PC**, click **More info**, then
    **Run anyway**. (The installer isn't signed with a paid certificate.)
 4. Click **Next**. Paste your bot key from step 3 and click **Next**.
-5. Choose **TWS (Trader Workstation)** and click **Next**.
+5. Choose **TWS (Trader Workstation): paper port 7497** and click **Next**.
 6. Tick the box only if you skipped step 8, then click **Next**.
-7. Leave **Start the bot when I sign in to Windows** ticked. Click **Install**.
-8. Leave **Start the bot now** ticked and click **Finish**.
+7. Leave **Start Stock Wizard when I sign in to Windows** ticked. Click
+   **Install**.
+8. Leave **Open Stock Wizard now** ticked and click **Finish**.
 
 No administrator rights are needed, and it installs nothing else.
 
 ### 10. Check it's connected
-1. A window called **Stock Wizard bot** opens.
-2. With TWS logged in to Paper Trading, it says **Connected to Interactive
-   Brokers, paper account DU…** within a minute. Paper account numbers start DU.
-3. Leave the window open. Minimised is fine.
+1. Stock Wizard opens in its own window, and an **S** in a circle appears by
+   the clock (click the small **^** arrow if you can't see it).
+2. With TWS logged in to Paper Trading, the circle turns **green** within a
+   minute. Amber means it's waiting for TWS; red means it stopped.
+3. In the app, the line under the header says **PC: bot running**.
+4. Closing the window is fine: trading keeps running behind the icon.
+   **Quit** on the icon stops it.
 
 ## Each day
 - Keep the PC on and awake through the US session (overnight in Australia),
-  with TWS logged in to **Paper Trading**.
-- TWS restarts once a day and may ask you to log in again. The bot waits, then
-  reconnects by itself and checks its orders against Interactive Brokers
+  with TWS logged in to **Paper Trading**. To stop the PC sleeping: Start,
+  **Power & sleep settings**, set **When plugged in, PC goes to sleep after**
+  to **Never**.
+- TWS restarts once a day and may ask you to log in again. Stock Wizard waits,
+  then reconnects by itself and checks its orders against Interactive Brokers
   before trading again.
 - Close TWS with **File**, then **Exit**, so it keeps its settings.
-- Orders, approvals and the kill switch are in the app: menu, **Safety and
-  orders**.
+- Orders, approvals and the kill switch are in the app: **Menu**, **Safety
+  and orders**.
 
 ## Changing things
-- **Settings**: Start menu, **Stock Wizard Bot settings**. Change a line, save,
-  then close the bot's window and open **Stock Wizard Bot** from the Start menu.
-- **A new bot key**: make it in the app (step 3), then put it in the settings
-  on the **BOT_KEY=** line, with no spaces. The old key stops working.
-- **Phone notifications** (optional): install the free **ntfy** app, subscribe
-  to a hard-to-guess topic name, and add a line **NTFY_TOPIC=** with that name
-  to the settings.
-- **Updating**: close the bot's window, download the latest installer (step 9),
-  run it, and leave the bot key empty to keep yours.
+- **Settings**: right-click the icon by the clock, then **Settings** (or
+  Start menu, **Stock Wizard settings**). Change what you need and click
+  **Done**: Stock Wizard restarts trading with the new settings.
+- **A new bot key**: make it in the app (step 3) and paste it in Settings.
+  The old key stops working.
+- **Phone notifications** (optional): install the free **ntfy** app,
+  subscribe to a hard-to-guess topic name, and type that name in Settings.
+- **Updating**: when a new version is ready, a notice pops up by the clock.
+  Right-click the icon and click **Update to …**. Stock Wizard closes,
+  updates and opens again by itself, keeping your settings. It won't update
+  during the US session.
+- **Logs**: right-click the icon, then **Logs**.
 - **Removing it**: Windows **Settings**, **Apps**, **Stock Wizard Bot**,
   **Uninstall**.
 
 ## If something's wrong
-| The bot says | What to do |
+| You see | What to do |
 |---|---|
-| API connection failed, or connection refused | TWS isn't running or isn't logged in, or its API is off: steps 6 and 7. The bot tries again every minute. |
-| isn't a paper account | TWS is logged in to your live account. Log out and choose **Paper Trading**. |
-| The bot key was refused | The key was replaced. Make a new one (step 3) and put it in the settings. |
-| The bot's settings are missing | Run the installer again and paste your bot key. |
-| Port 7496 is a live-trading port | The settings say 7496. Change **IB_PORT=** to **7497**. |
+| Amber icon, or "TWS isn't taking connections" | TWS isn't running, isn't logged in, or its API is off: steps 6 and 7. Stock Wizard tries again every minute. Check Settings says TWS (port 7497). |
+| "isn't a paper account" | TWS is logged in to your live account. Log out and choose **Paper Trading**. |
+| "The bot key was refused" | The key was replaced. Make a new one (step 3) and paste it in Settings. |
+| It asks for a key when it opens | Its settings are missing: paste your bot key in the Settings window. |
+| "Port 7496 is a live-trading port" | Settings say a live port. Choose **TWS (port 7497)** in Settings. |
+| Something else | Right-click the icon, **Logs**, and send Ben the last lines of `bot.log`. |

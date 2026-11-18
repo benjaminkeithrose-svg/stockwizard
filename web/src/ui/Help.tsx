@@ -1,7 +1,7 @@
-// Help (⋯ menu): a guide in plain English. Getting started first, then each
+// Help (Menu): a guide in plain English. Getting started first, then each
 // screen, the bot and its safety, what to do when something looks wrong, and
 // the terms. Each topic is folded so the page stays short; the search icon
-// opens a full-screen search over every topic. Baseline of 18 Nov 2026: Ben
+// opens a full-screen search over every topic. Refreshed 19 Nov 2026: Ben
 // asks for a refresh when he wants one (it isn't redone with every change).
 
 import { useState } from "react";
@@ -13,7 +13,7 @@ type Topic = [string, string[]];
 const START: Topic[] = [
   ["1. Sign in and get the latest version", [
     "Sign in with your email and password. Everything you set up is saved to your account and follows you between the phone and the PC.",
-    "⋯, then Get latest version, reloads the newest build. Do it after each change I tell you about. The build number is at the bottom of the ⋯ menu.",
+    "Menu (top right), then Get latest version, reloads the newest build. Do it after each change I tell you about. The build number is at the bottom of the menu. Menu → Light or dark switches the look.",
   ]],
   ["2. Set up a chart", [
     "The symbol button (top left of the toolbar) picks the symbol; the joined buttons pick the timeframe (5m to 1d).",
@@ -25,12 +25,12 @@ const START: Topic[] = [
     "Tap its chip above the chart for the analysis: profit or loss at every price, time decay, the Greeks and the chance of profit. All theoretical prices for now.",
   ]],
   ["4. Check what the history says", [
-    "Backtests (the flask icon) shows how rules and option structures did over 20 years. Read the held-back column: the years the rule never saw while it was being made.",
+    "Backtests (in the menu) shows how rules and option structures did over about 20 years. Read the held-back column: the years the rule never saw while it was being made.",
     "Each test also shows what $5,000 would have become, risking 2% a trade.",
   ]],
   ["5. Make a bot and let it trade on paper", [
     "On an option backtest or a 0DTE survivor you like, tap Make a bot, then Done. It's saved switched off.",
-    "Set your limits first: ⋯, Safety and orders, Change limits. With no daily loss limit, every order is refused.",
+    "Set your limits first: Menu, Safety and orders, Change limits. With no daily loss limit, every order is refused.",
     "Switch the bot on under Bots. At its entry time each trading day it proposes the trade; you approve it in Safety and orders (or let it run in Automatic mode, paper only). Your phone tells you when there's something to do.",
   ]],
   ["6. Each morning", [
@@ -41,6 +41,7 @@ const START: Topic[] = [
 const SCREENS: Topic[] = [
   ["The chart", [
     "Tabs along the top: each is a symbol and timeframe you've set up. The + adds one; ⋯ on a tab renames, duplicates or deletes it.",
+    "In US market hours the chart adds today's bars every 5 seconds. Live means real-time prices; Delayed means about 15 minutes late (no market data subscription).",
     "Indicators (with how many are on the chart) opens the list: tap one for its settings, the bin takes it off, the star keeps it as a favourite. Favourites sit under that list for one-tap adding, and the full list is below.",
     "Under the toolbar: the option structures on this chart, then your favourite structures (starred ones on every chart, and this symbol's own) to place in one tap. Draw adds levels and trendlines.",
     "Options places a call, put, spread, condor or fly. It goes one daily range out by default, with $5 wings. Its star makes a structure a favourite on every chart; the symbol button beside it, on this symbol only.",
@@ -64,15 +65,17 @@ const SCREENS: Topic[] = [
     "The bot saves the market numbers every cycle during the US session; between sessions you see the last session's.",
   ]],
   ["Chart pages", ["Up to 10 charts as cards on a page. On the PC, drag a card to move it and its corner to resize it; Tidy closes the gaps. Tap a card to open it full screen."]],
-  ["Scanner", ["The latest run of each scan, in tabs: squeeze on, squeeze fired, breakout, trend break, drawdown and RSI divergence. Scans run every US trading day after the close. Tap a result to open it on the chart."]],
+  ["Scanner", ["The latest run of each scan, in tabs: squeeze on, squeeze fired, breakout, trend break, drawdown and RSI divergence. Scans run on Ben's PC after each US close (about 8 to 9 am Sydney). Tap a result to open it on the chart."]],
   ["Backtests", [
     "Strategies: each stock rule's build years (2006–2021) and held-back years (the last 5) side by side. Only the held-back column stands for what to expect.",
+    "Backtests run on Ben's PC from its 20-year candle archive (Run backtests, on the icon by the clock). Runs that use Yahoo's old candles for the early years say so and carry the free-data warning.",
     "Options: option structures on SPY with modelled prices. The chips at the top pick a group: condors and flies, $1 wings, 0DTE methods, and monthly (credit and debit spreads, iron condors, call and put condors, each managed one way: held to expiry, take 50%, close at 21 days left, or a stop at twice the credit).",
     "0DTE: the same-day research. It shows how many strategies were tried, how many survived the false-discovery check, and whether they held up on data they weren't chosen on. Tap a dot or a card for the detail.",
     "Pattern lab: conditions that came before VIX spikes, every pattern counted and checked against luck.",
     "Each backtest also shows what $5,000 would have become, with every trade risking 2% of the balance. Trades too big for 2% at one contract are skipped and counted.",
   ]],
-  ["Watchlists", ["Lists of symbols (⋯, Watchlists). Tap a list, then a symbol, to open it on the chart."]],
+  ["Watchlists", ["Lists of symbols (Menu, Watchlists). Tap a list, then a symbol, to open it on the chart."]],
+  ["Getting around", ["Menu (top right) lists every screen. The path under the header shows where you are: tap any step to go back to it. The back arrow goes up one level; the house goes to the chart."]],
   ["Claude", ["The spark icon. Ask in plain words: run a test, explain a result, put an indicator on the chart. Claude can't place orders or change limits, and everything it does is recorded. Up to 100 questions a day."]],
 ];
 
@@ -101,15 +104,22 @@ const BOT: Topic[] = [
     "Limits: the most a trade or a day may lose, positions at once, capital at risk, how old prices may be, and Approve or Automatic.",
   ]],
   ["Phone notifications", ["Through the free ntfy app: an order waiting for you, filled, closed or stopped, and the daily loss limit reached. Each is told once. Open Stock Wizard's Safety and orders to act on it."]],
-  ["Where the bot runs", ["On your home PC, next to Interactive Brokers' IB Gateway (docs/PC-BOT.md has the set-up). Until that's running, a pretend broker runs every 10 minutes in US hours from GitHub, with made-up prices."]],
+  ["Where the bot runs", [
+    "In the Stock Wizard program on your Windows PC, next to Interactive Brokers' TWS logged in to Paper Trading. It runs behind the icon by the clock (an S in a circle: green connected, amber waiting, red stopped) and starts when you sign in to Windows.",
+    "The line under the header (PC: …) shows whether the PC's bot and market data are running, from its heartbeat every 30 seconds.",
+    "Right-click the icon for Settings, Logs, updates and, on Ben's PC, Run backtests. Closing the window keeps trading running; Quit on the icon stops it.",
+    "Setting up a PC: docs/SETUP-BOT.md on GitHub, or the setup guide in the Start menu.",
+  ]],
+  ["Bot key (invited people)", ["Menu, Bot key, Make a bot key: the key your PC's Stock Wizard signs in with. It can only touch your own orders. Making a new one stops the old one."]],
 ];
 
 const TROUBLE: Topic[] = [
-  ["The app looks out of date", ["⋯, then Get latest version. If it still looks old, close the app fully and open it again."]],
-  ["Today says no snapshot, or the numbers are old", ["The bot saves them only during the US session. If the session is open and they're more than 10 minutes old, the bot isn't running: check the bot window on the PC (or, before the PC is set up, the Actions tab on GitHub)."]],
+  ["The app looks out of date", ["Menu, then Get latest version. If it still looks old, close the app fully and open it again."]],
+  ["Today says no snapshot, or the numbers are old", ["The bot saves them only during the US session. If the session is open and they're more than 10 minutes old, the bot isn't running: look at the PC line under the header, then the icon by the clock on the PC."]],
+  ["The PC line says waiting or stopped", ["Usually TWS: it isn't open, isn't logged in to Paper Trading, or restarted overnight. Log in again; Stock Wizard reconnects within a minute. Right-click the icon by the clock, Logs, shows the full story."]],
   ["A bot didn't propose anything", ["Open Today: it shows the reason (outside its VIX range, no setup, a day it skips, a position still open). If it says the bot may not have run in time, the bot wasn't running at the entry time."]],
   ["Every order is refused", ["Open the order in Safety and orders: it lists every rail it failed. Most often the daily loss limit is empty, the trade risks more than the per-trade limit, or the prices are too old."]],
-  ["Charts have no candles", ["Candles are topped up every US trading day, around 8 to 9 am Sydney time. A new symbol needs loading first; ask me."]],
+  ["Charts have no candles, or yesterday is missing", ["Candles come from Interactive Brokers through Ben's PC, topped up after each US close (about 8 to 9 am Sydney). While that PC or TWS is off nothing updates; the next start fills the gap. A new symbol needs adding to the symbol list; ask me."]],
 ];
 
 const TERMS: [string, string][] = [
@@ -188,7 +198,7 @@ export default function HelpScreen() {
           {topics.map((t) => <TopicCard key={t[0]} topic={t} />)}
         </section>
       ))}
-      <p className="hint">A fuller guide and how everything runs: docs/GUIDE.md and docs/OPERATIONS.md in the repository on GitHub.</p>
+      <p className="hint">A fuller guide, how everything runs, and setting up a PC: docs/GUIDE.md, docs/OPERATIONS.md and docs/SETUP-BOT.md in the repository on GitHub.</p>
       {searching && <HelpSearch onClose={() => setSearching(false)} />}
     </div>
   );

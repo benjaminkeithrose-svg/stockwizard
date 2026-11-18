@@ -1,8 +1,8 @@
 # Stock Wizard: the guide
 
 What Stock Wizard does and how to use it, in plain English. The app's own
-Help (⋯ menu) has the short version of each screen; this page explains the
-thinking behind it. Baseline of 18 November 2026: refreshed when Ben asks.
+Help (Menu, Help) has the short version of each screen; this page explains
+the thinking behind it. Refreshed 19 November 2026: refreshed when Ben asks.
 
 The app: https://benjaminkeithrose-svg.github.io/stockwizard/
 
@@ -12,7 +12,7 @@ Five parts that build on each other:
 
 1. **Charts.** Candles, indicators, drawings and option structures laid on
    the price. They work the same on the phone and the PC.
-2. **The scanner.** Every US trading day after the close, six rules are run
+2. **The scanner.** After every US trading day's close, six rules are run
    over your symbols: squeeze on, squeeze fired, breakout, trend break,
    drawdown and RSI divergence.
 3. **Backtests.** How a rule or an option structure would have done over
@@ -20,7 +20,8 @@ Five parts that build on each other:
 4. **The pattern lab and the 0DTE research.** Searches across hundreds of
    combinations, with a check that throws out what looks good only by luck.
 5. **The bot.** It trades on **paper** at Interactive Brokers, only through
-   the safety rails, and only bots whose settings were backtested.
+   the safety rails, and only bots whose settings were backtested. It runs
+   in the Stock Wizard program on your Windows PC, next to TWS.
 
 Claude sits on top of all of it. Ask in plain words and it runs tests,
 explains results or sets up a chart. It cannot place orders or change limits.
@@ -31,11 +32,21 @@ explains results or sets up a chart. It cannot place orders or change limits.
    market is open, the market numbers, what each bot did overnight, and the
    day's result against your loss limit.
 2. **When your phone buzzes:** the ntfy app tells you an order is waiting, a
-   trade filled, closed or stopped, or the daily limit was hit. Open ⋯ →
+   trade filled, closed or stopped, or the daily limit was hit. Open Menu →
    Safety and orders to act on it.
 3. **When you have an idea:** set it up on a chart, open its analysis, find
    the nearest backtest, and if the held-back years support it, tap **Make a
    bot**.
+
+## Market data
+
+Candles come from Interactive Brokers, through the Stock Wizard program on
+Ben's PC. It keeps every candle in an archive on that PC (daily back to 1990
+for some symbols) and puts the recent part in Supabase for the app: daily for
+5 years, hourly for 2 years, 5-minute for 60 days. In US hours the charts add
+today's bars every 5 seconds, marked **Live** or **Delayed** (about 15 minutes
+late without a market data subscription). While Ben's PC or TWS is off,
+nothing updates; the next start fills the gap.
 
 ## Charts
 
@@ -63,6 +74,11 @@ The aim is to know what to expect, not to find something that looks good.
 - **No look-ahead.** Every signal uses only what was known at the time.
   Each rule passes a "truncation test": cut the data off at any day and
   every earlier result stays the same.
+- **Twenty years of history.** Backtests run on Ben's PC, on the archive:
+  IBKR's candles, with Yahoo's older ones only for the years IBKR doesn't
+  reach (the VIX before October 2005). Those runs keep the free-data
+  warning. A few misplaced-decimal prices in IBKR's old candles are
+  repaired as they're read.
 - **Build years and held-back years.** Rules are made on 2006 to 2021. The
   last five years are held back, and **only the held-back column stands
   for what to expect**. Held-back years can be used once. Change a rule
@@ -151,6 +167,7 @@ changed.
 How everything runs, what to do when something goes wrong, and the
 accounts involved: [OPERATIONS.md](OPERATIONS.md).
 
-Setting up the bot on the PC: [PC-BOT.md](PC-BOT.md).
+Setting up Stock Wizard on a PC: [SETUP-BOT.md](SETUP-BOT.md). What Ben's PC
+does as well (market data, the archive, backtests): [PC-BOT.md](PC-BOT.md).
 
 The 0DTE research report: [research/0DTE-RESEARCH.md](research/0DTE-RESEARCH.md).
