@@ -327,3 +327,36 @@ def test_the_pretend_broker_records_nothing():
     r, _ = runner(s)
     r.cycle()
     assert not s.tables.get("option_quotes")
+
+
+def test_when_tws_goes_away_the_bot_exits_so_start_bot_restarts_it(monkeypatch, capsys):
+    """ib_async doesn't reconnect by itself: the bot exits, and start-bot.bat starts a fresh one that reconnects and reconciles."""
+    import stockwizard.broker.ibkr as ibkr
+    import stockwizard.run_bot as rb
+    import stockwizard.strategy_runner as sr
+
+    class Broker:
+        account = "DU0000001"
+        up = [True, False]          # connected after the first cycle, gone after the second sleep
+        def __init__(self, **kw):
+            pass
+        def connected(self):
+            return self.up.pop(0) if self.up else False
+
+    cycles = []
+    class Runner:
+        def __init__(self, *a, **kw):
+            pass
+        def cycle(self):
+            cycles.append(1)
+            return []
+
+    monkeypatch.setattr(ibkr, "IBKRBroker", Broker)
+    monkeypatch.setattr(sr, "IBKRMarket", lambda broker, store: None)
+    monkeypatch.setattr(rb, "SupabaseStore", lambda: None)
+    monkeypatch.setattr(rb, "BotRunner", Runner)
+    monkeypatch.setattr(rb.Notifier, "from_env", staticmethod(lambda: None))
+    monkeypatch.setattr(rb.time, "sleep", lambda s: None)
+    assert rb.main(["--broker", "ibkr", "--port", "7497", "--loop", "30", "--owner", OWNER]) == 1
+    assert len(cycles) == 2, "one cycle while connected, then it stops instead of looping on"
+    assert "Restarting to reconnect" in capsys.readouterr().out
