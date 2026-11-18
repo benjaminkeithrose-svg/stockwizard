@@ -517,6 +517,20 @@ const DEMO_ORDER: PaperOrder = {
   quantity: 1, limit_price: 4.6, price_kind: "credit", max_loss: 40, status: "proposed", refusals: [],
   reason: "Made-up: squeeze on, inside the opening range", pnl: null,
 };
+/** The demo's made-up trades: the order waiting above, one open and one closed (for Trading). */
+const DEMO_ORDERS: PaperOrder[] = [
+  DEMO_ORDER,
+  { id: 2, created_at: "2026-11-16T15:10:00Z", symbol: "DEMO", structure: "bull_put", expiry: "2026-12-18",
+    legs: [{ right: "P", side: "sell", strike: 115, qty: 1 }, { right: "P", side: "buy", strike: 110, qty: 1 }],
+    quantity: 1, limit_price: 0.85, price_kind: "credit", max_loss: 415, status: "filled", refusals: [], fill_price: 0.85,
+    reason: "Made-up: above VWAP", pnl: null, updated_at: "2026-11-16T15:12:00Z" },
+  { id: 3, created_at: "2026-11-12T15:05:00Z", symbol: "DEMO", structure: "iron_condor", expiry: "2026-11-14",
+    legs: [{ right: "P", side: "buy", strike: 110, qty: 1 }, { right: "P", side: "sell", strike: 115, qty: 1 },
+      { right: "C", side: "sell", strike: 130, qty: 1 }, { right: "C", side: "buy", strike: 135, qty: 1 }],
+    quantity: 1, limit_price: 1.4, price_kind: "credit", max_loss: 360, status: "closed", refusals: [], fill_price: 1.4,
+    close_price: 0.7, close_reason: "Made-up: took 50% of the credit", reason: "Made-up: inside the opening range", pnl: 68.7,
+    updated_at: "2026-11-13T18:30:00Z" },
+];
 
 export class DemoStore implements Store {
   readonly demo = true;
@@ -527,11 +541,11 @@ export class DemoStore implements Store {
   private load(): DemoData {
     try {
       const raw = localStorage.getItem(this.key);
-      if (raw) return { views: [], positions: [], settings: { favourites: DEFAULT_FAVOURITES }, limits: DEFAULT_LIMITS, orders: [structuredClone(DEMO_ORDER)], requests: [], strategies: [], ...JSON.parse(raw) };
+      if (raw) return { views: [], positions: [], settings: { favourites: DEFAULT_FAVOURITES }, limits: DEFAULT_LIMITS, orders: structuredClone(DEMO_ORDERS), requests: [], strategies: [], ...JSON.parse(raw) };
     } catch {
       /* storage blocked: start empty */
     }
-    return { workspaces: [], views: [], positions: [], settings: { favourites: DEFAULT_FAVOURITES }, limits: DEFAULT_LIMITS, orders: [structuredClone(DEMO_ORDER)], requests: [], strategies: [],
+    return { workspaces: [], views: [], positions: [], settings: { favourites: DEFAULT_FAVOURITES }, limits: DEFAULT_LIMITS, orders: structuredClone(DEMO_ORDERS), requests: [], strategies: [],
       watchlists: [{ id: "demo-1", name: "Made-up list", is_universe: false, symbols: ["DEMO", "TEST"] }] };
   }
 

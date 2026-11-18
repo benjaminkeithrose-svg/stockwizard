@@ -175,3 +175,16 @@ Follows on from the one-tap option structures above.
 - Results: profit and loss over time against targets and limits, by
   strategy, and against what its backtest expected.
 - All in one Trading group in the menu.
+
+## A joint account, two people (19 Nov 2026)
+
+- Ben may open a joint account at Interactive Brokers (to check: whether a
+  joint account comes with its own paper account).
+- Two people working the same account, each with full say: the same
+  automated strategies, orders, limits and results, but their own chart
+  layouts and screens (each on their own install).
+- How it would fit: today orders, strategies and limits belong to one
+  person. They'd belong to a shared trading account instead, with its
+  members listed; chart tabs, pages and favourites stay per person. Only one
+  PC may trade the account (one TWS login), so the other install shows and
+  approves but doesn't trade.

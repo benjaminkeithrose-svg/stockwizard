@@ -259,6 +259,11 @@ export interface PaperOrder {
   strategy_id?: string | null;
   updated_at?: string;
   fill_price?: number | null;
+  decided_at?: string | null;
+  /** A close sent to the broker (a real order); the position stays open until it fills. */
+  close_broker_id?: string | null;
+  close_price?: number | null;
+  close_reason?: string | null;
 }
 
 /** Ben's request to the bot from the app: order a chart structure (paper) or close a paper position. Not an order. */

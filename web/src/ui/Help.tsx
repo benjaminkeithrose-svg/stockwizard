@@ -60,6 +60,12 @@ const SCREENS: Topic[] = [
     "Send as a paper order passes it to Stock Wizard on your PC. It prices it, checks every limit, and it waits for you in Safety and orders.",
     "All prices here are theoretical (Black-Scholes) until Interactive Brokers supplies real ones.",
   ]],
+  ["Trading", [
+    "Menu, Trading. Now: the automated strategies switched on, orders waiting for you, and open positions with their value now (a theoretical estimate).",
+    "Orders, as a broker lists them: Working (waiting, approved, at the broker, or being closed), Filled (open), Closed (with profit or loss) and Not traded (refused, rejected, cancelled). Tap one for its legs, prices and times.",
+    "Results: the total, share won, average win and loss, today against the daily limit, the running total over time, and each strategy's results.",
+    "An Auto marker on a chart tab or page card means automated trading touches that symbol: a strategy switched on for it, or a position open.",
+  ]],
   ["Today", [
     "The morning checklist: whether the US market is open and when it opens in Sydney time, the latest SPY price, VIX, VIX1D, expected move to the close, opening range, VWAP and direction.",
     "Under it, each automated strategy that's switched on and what it did today, the orders waiting for you, today's profit or loss and how much of the daily limit is used. A Fed day or an expiration Friday is flagged at the top.",
