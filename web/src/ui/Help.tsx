@@ -118,6 +118,10 @@ const BOT: Topic[] = [
     "Right-click the icon for Settings, Logs, updates and, on Ben's PC, Run backtests. Closing the window keeps trading running; Quit on the icon stops it.",
     "Setting up a PC: docs/SETUP.md on GitHub, or the setup guide in the Start menu.",
   ]],
+  ["Setup (on the PC)", [
+    "Menu, Setup: connect this PC (one tap makes and saves its access key), turn on TWS's connection and check it, real-time or delayed prices, phone notifications, and what each monitor shows.",
+    "It opens by itself the first time Stock Wizard on a PC has nothing set up. Every step can be skipped and done later.",
+  ]],
   ["Access key (invited people)", ["Menu, Access key, Make an access key: the key your PC's Stock Wizard signs in with. It can only touch your own orders. Making a new one stops the old one."]],
 ];
 

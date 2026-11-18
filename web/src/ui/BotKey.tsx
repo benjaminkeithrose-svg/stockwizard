@@ -54,7 +54,7 @@ export default function BotKeyScreen({ store }: { store: Store }) {
           </div>
           <button className="ghost" style={{ marginTop: 8 }} onClick={copy}>{copied ? "Copied" : "Copy the key"}</button>
           <h2>Put it in Stock Wizard on your PC</h2>
-          <p className="hint">Not installed yet? Follow the <a href={GUIDE} target="_blank" rel="noreferrer">setup guide</a>: the installer asks for this key.</p>
+          <p className="hint">On a PC with the current Stock Wizard you don't need this: Menu, Setup, Connect this PC makes and saves the key for you. Not installed yet? Follow the <a href={GUIDE} target="_blank" rel="noreferrer">setup guide</a>.</p>
           <p className="hint">Already installed:</p>
           <ol className="steps">
             <li>On your PC, right-click the Stock Wizard icon by the clock and click <b>Settings</b>.</li>

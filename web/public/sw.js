@@ -1,6 +1,6 @@
 // Stock Wizard service worker. Bump CACHE with APP_BUILD in src/config.ts on
 // every change (a test checks they agree), or phones keep the old build.
-const CACHE = "stockwizard-sw-v37";
+const CACHE = "stockwizard-sw-v38";
 
 self.addEventListener("install", (e) => {
   // Cache the shell; each file on its own, so one failure cannot block the rest.

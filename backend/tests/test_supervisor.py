@@ -62,7 +62,7 @@ class Launcher:
 def sup(tmp_path, settings=None, data=False, beats=None):
     clock = {"t": 0.0}
     launch = Launcher()
-    s = Supervisor("python", settings or {"IB_PORT": "7497"}, data, tmp_path / "logs", popen=launch, clock=lambda: clock["t"],
+    s = Supervisor("python", settings or {"IB_PORT": "7497", "BOT_KEY": "swbot1.k"}, data, tmp_path / "logs", popen=launch, clock=lambda: clock["t"],
                    port_open=lambda: False, beat=(beats.append if beats is not None else None))
     return s, launch, clock
 
@@ -139,7 +139,8 @@ def settings_file(tmp_path, text):
 def test_the_settings_screen_shows_the_settings_but_never_the_key(tmp_path):
     f = settings_file(tmp_path, "BOT_KEY=swbot1.secret\nIB_PORT=4002\nIB_DELAYED=1\nNTFY_TOPIC=sw-abc\n")
     s = SettingsApi(f).load()
-    assert s == {"bot_key_set": True, "uses_secret_key": False, "connection": "gateway", "delayed": True, "ntfy_topic": "sw-abc", "run_data": None}
+    assert s == {"bot_key_set": True, "uses_secret_key": False, "connection": "gateway", "delayed": True, "ntfy_topic": "sw-abc", "run_data": None,
+                 "configured": True, "screens": {}}
     assert "swbot1.secret" not in str(s)
 
 
@@ -162,9 +163,27 @@ def test_a_new_key_replaces_the_old_and_a_wrong_one_is_refused(tmp_path):
     assert read_settings(f)["BOT_KEY"] == "swbot1.new"
 
 
-def test_no_key_at_all_asks_for_one(tmp_path):
-    f = settings_file(tmp_path, "")
-    assert "Paste your access key" in SettingsApi(f).save({"bot_key": "", "connection": "tws"})["error"]
+def test_no_key_yet_saves_and_waits_to_be_set_up(tmp_path):
+    f = settings_file(tmp_path, "IB_PORT=7497\n")
+    api = SettingsApi(f)
+    assert api.save({"bot_key": "", "connection": "tws"}) == {"ok": True}
+    assert api.load()["configured"] is False
+    s, launch, _ = sup(tmp_path, {"IB_PORT": "7497"})
+    s.poll()
+    assert launch.started == [] and s.child("bot").state == "setup" and "Menu, Setup" in s.child("bot").detail
+
+
+def test_the_app_hands_over_a_key_and_the_screens_keeping_the_rest(tmp_path):
+    f = settings_file(tmp_path, "IB_PORT=7497\nIB_DELAYED=1\nNTFY_TOPIC=sw-1\n")
+    saved = []
+    api = SettingsApi(f, on_saved=saved.append)
+    assert "isn't an access key" in api.set_key("sb_secret_nope")["error"]
+    assert api.set_key("swbot1.new") == {"ok": True}
+    assert api.set_screens({"0": "main", "1": "watch", "2": "nonsense"}) == {"ok": True}
+    v = read_settings(f)
+    assert v["BOT_KEY"] == "swbot1.new" and v["IB_DELAYED"] == "1" and v["NTFY_TOPIC"] == "sw-1" and v["SCREENS"] == "0:main,1:watch"
+    assert api.load()["screens"] == {"0": "main", "1": "watch"} and saved[-1]["SCREENS"] == "0:main,1:watch"
+    assert not callable(getattr(api, "on_saved", None)), "the page can't call the restart directly"
 
 
 def test_the_data_program_switch_is_only_for_the_pc_with_the_secret_key(tmp_path):
@@ -184,10 +203,10 @@ def test_an_odd_ntfy_topic_is_refused(tmp_path):
 
 
 def test_new_settings_restart_the_programs_with_them(tmp_path):
-    s, launch, _ = sup(tmp_path, {"IB_PORT": "7497"})
+    s, launch, _ = sup(tmp_path, {"IB_PORT": "7497", "BOT_KEY": "swbot1.k"})
     s.poll()
     first = launch.started[0][2]
-    s.reload({"IB_PORT": "4002", "IB_DELAYED": "1"}, run_data=False)
+    s.reload({"IB_PORT": "4002", "IB_DELAYED": "1", "BOT_KEY": "swbot1.k"}, run_data=False)
     assert first.terminated
     s.poll()
     args = launch.started[-1][0]
