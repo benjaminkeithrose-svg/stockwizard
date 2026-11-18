@@ -154,7 +154,7 @@ export default function StrategiesSection({ store, onError }: { store: Store; on
       )}
       {turningOn && (
         isTested(turningOn) ? <Sheet title="Switch on?" onClose={() => setTurningOn(null)}>
-          <p>Every trading day at {turningOn.config.entry} New York time, the bot checks <b>{turningOn.label}</b> and proposes the trade if the setup is there. The safety rails and approval mode decide every order.</p>
+          <p>Every trading day at {turningOn.config.entry} New York time, Stock Wizard on your PC checks <b>{turningOn.label}</b> and proposes the trade if the setup is there. The safety rails and approval mode decide every order.</p>
           <div style={{ display: "flex", gap: 10 }}>
             <button className="ghost" autoFocus onClick={() => setTurningOn(null)}>Cancel</button>
             <button className="ghost" onClick={() => { save({ ...turningOn, enabled: true }); setTurningOn(null); }}>Switch on</button>

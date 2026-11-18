@@ -13,8 +13,7 @@ export default function MakeBot({ store, draft }: { store: Store; draft: BotDraf
   if (!draft.ok) {
     return (
       <>
-        <button className="big" disabled>Automate this strategy</button>
-        <p className="hint">{draft.why}</p>
+        <p className="hint">Can't be automated: {draft.why}</p>
       </>
     );
   }

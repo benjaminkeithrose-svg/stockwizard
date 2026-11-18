@@ -91,7 +91,7 @@ export default function TodayScreen({ store, onSafety }: { store: Store; onSafet
             <div><span>VWAP <Info term="vwap" /></span><b>{snap.vwap?.toFixed(2) ?? "—"}</b></div>
             <div><span>Direction <Info term="direction" /></span><b className={snap.direction === "bullish" ? "up" : snap.direction === "bearish" ? "down" : ""}>{snap.direction ?? "—"}</b></div>
           </div>
-          <p className="hint">{snap.source === "ibkr" ? "From Interactive Brokers." : "From the free source's 5-minute candles, which can run a little behind."}</p>
+          <p className="hint">{snap.source === "ibkr" ? "From Interactive Brokers." : (snap.source === "made-up" ? "From the demo's made-up candles." : "From stored 5-minute candles, which can run a few minutes behind.")}</p>
         </>
       )}
 

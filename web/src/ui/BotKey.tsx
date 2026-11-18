@@ -70,12 +70,12 @@ export default function BotKeyScreen({ store }: { store: Store }) {
 
       <h2>What the key does <Info term="accesskey" /></h2>
       <p className="hint">
-        Your bot runs on your own PC, next to Interactive Brokers' TWS or IB Gateway, and trades only your paper account.
-        With this key it signs in to Stock Wizard as your bot: it can read your limits and bots and place and update your
+        Stock Wizard on your own PC trades only your paper account, next to Interactive Brokers' TWS or IB Gateway.
+        With this key it signs in to Stock Wizard: it can read your limits and automated strategies and place and update your
         orders, and nothing else of yours or anyone else's. Keep it private, like a password.
       </p>
       <p className="hint">Setting up for the first time: the <a href={GUIDE} target="_blank" rel="noreferrer">setup guide</a> covers
-        Interactive Brokers, TWS and installing the bot, step by step.</p>
+        Interactive Brokers, TWS and installing Stock Wizard, step by step.</p>
 
       {confirm && (
         <Sheet title="Make a new access key?" onClose={() => setConfirm(false)}>

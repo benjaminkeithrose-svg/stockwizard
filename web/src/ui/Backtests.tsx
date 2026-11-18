@@ -106,7 +106,7 @@ export function BacktestsScreen(props: { store: Store; onOpen: (id: string) => v
         );
       })}
       {state === "ok" && strategies.length > 0 && (
-        <p className="hint">Tap a strategy for the full results, the 3-year windows and every trade. Runs are made on the server and saved; each can be repeated exactly.</p>
+        <p className="hint">Tap a strategy for the full results, the 3-year windows and every trade. Runs are made on Ben's PC from its 20-year archive and saved; each can be repeated exactly.</p>
       )}
     </div>
   );

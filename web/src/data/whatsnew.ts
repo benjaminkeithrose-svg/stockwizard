@@ -5,6 +5,12 @@
 export interface News { build: string; date: string; items: string[] }
 
 export const WHATS_NEW: News[] = [
+  { build: "sw-v41", date: "19 Nov 2026", items: [
+    "The menu sits in two columns, so it fits a phone screen without scrolling.",
+    "An option backtest's page shows its name in the header.",
+    "A strategy that can't be automated says why, instead of showing a greyed-out button.",
+    "Tidied wording left over from the free data source and the word \"bot\".",
+  ] },
   { build: "sw-v40", date: "19 Nov 2026", items: [
     "Stock Wizard on the PC has its own icon, the same as the phone's, in the Start menu, the taskbar and the installer.",
     "What's new (this screen). On the PC it also shows Stock Wizard's version, checks for an update each time it opens, and updates with one press.",
