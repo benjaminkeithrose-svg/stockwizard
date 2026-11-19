@@ -8,7 +8,8 @@
 
 const BUSTER = "fresh";
 
-export async function getLatestVersion(): Promise<void> {
+/** Throw away Stock Wizard's own saved copy and service worker (no reload): the next load fetches everything fresh. */
+export async function clearAppCaches(): Promise<void> {
   try {
     const keys = await caches.keys();
     await Promise.all(keys.filter((k) => k.startsWith("stockwizard-")).map((k) => caches.delete(k)));
@@ -18,6 +19,10 @@ export async function getLatestVersion(): Promise<void> {
     const regs = await navigator.serviceWorker.getRegistrations();
     await Promise.all(regs.filter((r) => r.scope === scope).map((r) => r.unregister()));
   } catch { /* no service workers */ }
+}
+
+export async function getLatestVersion(): Promise<void> {
+  await clearAppCaches();
   // A unique address makes sure the browser's own cache can't answer either.
   const url = new URL(location.href);
   url.searchParams.set(BUSTER, Date.now().toString(36));

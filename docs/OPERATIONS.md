@@ -67,7 +67,7 @@ python -m stockwizard.run_data --deepen
 
 ### The app shows old screens or old numbers
 1. Tap **Menu** (top right).
-2. Tap **Get latest version**.
+2. Tap **Updates and what's new**, then **Update**.
 3. If it still looks old, close the app fully and open it again.
 
 ### The PC line says waiting or stopped

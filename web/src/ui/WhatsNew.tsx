@@ -1,54 +1,48 @@
-// What's new (Menu, What's new): the version, updates, and what changed lately. Inside the
-// PC program it shows Stock Wizard's own version and installs an update with one press (the
-// same as Update on the icon by the clock); in a browser or on the phone, Get latest version.
+// Updates and what's new (Menu): one Update button for everything (Ben, 19 Nov 2026), then what
+// changed lately. It checks both pieces each time it opens: the app (a newer build published?)
+// and, inside the PC program, Stock Wizard itself (a newer release?), and updates whichever is
+// behind with one press (data/updating.ts). The PC program's update waits for the US close.
 
 import { useEffect, useState } from "react";
 import { APP_BUILD } from "../config";
-import { pcBridge, PcUpdates } from "../data/pc";
-import { getLatestVersion } from "../update";
+import { checkUpdates, plan, updateEverything, UpdateState } from "../data/updating";
 import { WHATS_NEW } from "../data/whatsnew";
 
-type Bridge = NonNullable<Awaited<ReturnType<typeof pcBridge>>>;
-
 export default function WhatsNewScreen() {
-  const [pc, setPc] = useState<Bridge | null | undefined>(undefined);
-  const [up, setUp] = useState<PcUpdates | null>(null);
+  const [state, setState] = useState<UpdateState | null>(null);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ kind: "ok" | "err" | "info"; text: string } | null>(null);
-  useEffect(() => { pcBridge().then((b) => { setPc(b); b?.updates().then(setUp).catch(() => {}); }); }, []);
 
   const check = async () => {
-    if (!pc) return;
     setBusy(true);
+    setMsg(null);
     try {
-      const u = await pc.check_updates();
-      setUp(u);
-      setMsg(u.error ? { kind: "err", text: `Couldn't reach GitHub: ${u.error}` } : u.available ? null : { kind: "ok", text: "Stock Wizard is up to date." });
+      const s = await checkUpdates();
+      setState(s);
+      if (s.pc?.error) setMsg({ kind: "err", text: `Couldn't check Stock Wizard's updates: ${s.pc.error}` });
     } finally { setBusy(false); }
   };
-  const install = async () => {
-    if (!pc) return;
+  useEffect(() => { check(); }, []);
+
+  const p = state ? plan(state) : null;
+  const go = async () => {
+    if (!state) return;
     setBusy(true);
-    const r = await pc.install_update();
+    const err = await updateEverything(state);
     setBusy(false);
-    setMsg(r.error ? { kind: "err", text: r.error } : { kind: "info", text: "Updating: Stock Wizard closes, installs the update and opens again by itself in a minute or so." });
+    setMsg(err ? { kind: "err", text: err } : { kind: "info", text: p?.note ?? "Updating…" });
   };
 
   return (
     <div className="list">
-      {pc && up && up.available ? (
-        <button className="big" disabled={busy || !up.can_apply} onClick={install}>
-          {up.can_apply ? `Update to ${up.available}` : `Update to ${up.available} after the US close`}
-        </button>
-      ) : pc ? (
-        <button className="big" disabled={busy} onClick={check}>{busy ? "Checking…" : "Check for updates"}</button>
-      ) : (
-        <button className="big" onClick={() => getLatestVersion()}>Get latest version</button>
-      )}
+      {!p ? <button className="big" disabled>Checking for updates…</button>
+        : p.can ? <button className="big" disabled={busy} onClick={go}>{p.label}</button>
+        : <button className="big" disabled={busy} onClick={check}>{busy ? "Checking…" : `${p.label} · check again`}</button>}
+      {p?.note && !msg && <p className="hint">{p.note}</p>}
       {msg && <div className={`msg ${msg.kind}`} style={{ marginTop: 10 }}>{msg.text}</div>}
       <p className="hint">
-        App build {APP_BUILD}{pc && up?.current ? ` · Stock Wizard ${up.current} on this PC` : ""}.
-        {pc ? " The PC checks for updates each time it opens and every 6 hours; updates wait until the US market closes." : ""}
+        App build {APP_BUILD}{state?.pc?.current ? ` · Stock Wizard ${state.pc.current} on this PC` : ""}.
+        {state?.pc ? " On the PC, both the app and Stock Wizard update with this one button." : " The app checks for a newer build each time this opens."}
       </p>
       {WHATS_NEW.map((n) => (
         <section key={n.build}>

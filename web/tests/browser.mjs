@@ -14,6 +14,8 @@ let failed = 0;
 const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if (!ok) failed++; };
 // Every screen is in the full-screen Menu (18 Nov 2026: cues from Financial Vault).
 const menuItem = (page, name) => page.getByRole("navigation", { name: "Screens" }).getByRole("button", { name, exact: true });
+const menuItemCount = async (page, name) => { await page.getByRole('button', { name: 'Menu', exact: true }).click(); const n = await page.locator('.navmenu button', { hasText: name }).count(); await page.keyboard.press('Escape'); return n; };
+
 const openFromMenu = async (page, name) => { await page.getByRole("button", { name: "Menu", exact: true }).click(); await menuItem(page, name).click(); };
 
 try {
@@ -315,15 +317,10 @@ try {
   await page.getByRole("button", { name: "Back", exact: true }).click();
   check(await page.getByRole("heading", { name: "Chart pages" }).isVisible(), "Back returns to the page");
 
-  // Get latest version sits in the ⋯ menu
-  await page.getByRole("button", { name: "Menu", exact: true }).click();
-  check(await menuItem(page, "Get latest version").isVisible(), "Get latest version is in the menu");
-  await menuItem(page, "Get latest version").click();
-  await page.waitForURL(/fresh=/, { timeout: 2000 }).catch(() => {});
-  await page.waitForSelector("header");
-  await page.waitForTimeout(600);
-  check(!page.url().includes("fresh="), "the address is tidied after updating");
-  check(await page.getByText(/Up to date: build/).isVisible(), "it says it is up to date");
+  // One place for updates: Updates and what's new, with one Update button (up to date in the test)
+  await openFromMenu(page, "Updates and what's new");
+  check(await page.getByRole("button", { name: /Up to date/ }).isVisible(), "the one update button says it's up to date");
+  check(!(await menuItemCount(page, "Get latest version")), "no separate Get latest version");
   await page.getByRole("button", { name: "Home" }).click().catch(() => {});
 
   // The Lab: Ideas, Backtested, Paper trading; verdicts from the held-back years; Start paper trading
