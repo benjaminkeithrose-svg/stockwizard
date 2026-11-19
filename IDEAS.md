@@ -131,18 +131,6 @@ Follows on from the one-tap option structures above.
 - Needed to narrow the search: the combinations grow very fast, so the
   false-discovery check and the held-back years matter more.
 
-## Test this structure, from the chart (19 Nov 2026)
-
-- Put a structure on a chart (a debit butterfly on SPY, say) and ask: how
-  often has this exact position, placed the same way, made money in the past?
-  Optionally only on days like today across the linked symbols (VIX level,
-  NVIDIA's trend and so on).
-- The answer: the historical chance of profit, the average result, the worst
-  case. Run on Ben's PC from the archive (not instant, but minutes), with the
-  result shown on the structure's analysis.
-- Why: a check before pressing the button, which may save money on trades
-  that history says don't work.
-
 ## Chart workspace: one symbol control, one toolbar, movable (19 Nov 2026)
 
 - The tab's name (IWM) and the symbol button under it are the same thing:
