@@ -117,6 +117,13 @@ Follows on from the one-tap option structures above.
   the rest) and how they combine.
 - Market internals as well: NYSE TICK (upticks minus downticks), advance and
   decline, TRIN.
+  Parked (Ben, 19 Nov 2026): IBKR lists TICK-NYSE, TRIN-NYSE and AD-NYSE
+  (index, exchange NYSE), but the account has no market data permission for
+  NYSE indexes ("No market data permissions for NYSE IND"), so no history or
+  live feed. Needs Ben to add that subscription; then check how far back the
+  history goes (the Lab needs years). TICK goes below zero, so the candle
+  checks (candles.py and the candles table's price > 0 constraints) need a
+  change for it.
 - Each pattern detected only from what's known at the bar's close (a chart
   pattern counts only once it's confirmed), truncation-tested like every
   other rule, and usable as a condition in the lab.
