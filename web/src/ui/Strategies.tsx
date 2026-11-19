@@ -73,7 +73,7 @@ export function BotSheet(props: { strategy: BotStrategy | null; onDone: (s: BotS
             : <>Tested: {source.label}{source.held_back ? `. Held back: ${source.held_back.trades} trades, ${pct(source.held_back.win_rate)} won, ${money(source.held_back.expectancy)} a trade.` : "."}</>}
         </div>
       )}
-      {!source && <div className="msg warn">Set up by hand: untested, so it can't be switched on. Use Automate this strategy on a backtest page to start from tested settings.</div>}
+      {!source && <div className="msg warn">Set up by hand: untested, so it can't be switched on. Use Start paper trading on a backtest page in the Lab to start from tested settings.</div>}
       {!props.strategy && (
         <>
           <h2>Start from</h2>
@@ -147,7 +147,7 @@ export default function StrategiesSection({ store, onError }: { store: Store; on
             onClick={() => (s.enabled ? save({ ...s, enabled: false }) : setTurningOn(s))}>{s.enabled ? "On" : "Off"}</button>
         </div>
       ))}
-      <p className="hint">Automate a strategy from its backtest: Backtests, open one, then Automate this strategy. Only a tested one can be switched on. Each card compares its paper results with what its backtest expected.</p>
+      <p className="hint">Start one from the Lab: open a backtest that held up, then Start paper trading. Only a tested one can be switched on. Each card compares its paper results with what its backtest expected.</p>
       {open && (
         <BotSheet strategy={open === "new" ? null : open} onClose={() => setOpen(null)} onDone={save}
           onDelete={() => open !== "new" && store.deleteBotStrategy(open.id).then(reload).catch((e) => onError(String(e.message ?? e)))} />
@@ -162,7 +162,7 @@ export default function StrategiesSection({ store, onError }: { store: Store; on
         </Sheet>
         : <Sheet title="Can't switch on" onClose={() => setTurningOn(null)}>
           <p><b>{turningOn.label}</b> {turningOn.source ? "has been changed from the settings its backtest tested" : "was set up by hand, so nothing has tested it"}. Only tested settings can run.</p>
-          <p className="hint">{turningOn.source ? "Open it and tap Put them back, or automate one from a backtest." : "Open a backtest in Backtests and tap Automate this strategy."}</p>
+          <p className="hint">{turningOn.source ? "Open it and tap Put them back, or automate one from a backtest." : "Open a backtest in the Lab and tap Start paper trading."}</p>
           <button className="ghost" autoFocus onClick={() => setTurningOn(null)}>OK</button>
         </Sheet>
       )}

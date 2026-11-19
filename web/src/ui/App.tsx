@@ -160,7 +160,7 @@ function SignedIn({ store, user }: { store: Store; user: User }) {
   const parent = trail.length >= 2 ? trail[trail.length - 2] : structuralParent(screen);
   const back = parent ? () => go(parent) : undefined;
   const titleOf = (s: Screen): string => s.name === "chart" ? "Stock Wizard" : s.name === "scanner" ? "Scanner"
-    : s.name === "pages" ? "Chart pages" : s.name === "backtests" ? "Backtests"
+    : s.name === "pages" ? "Chart pages" : s.name === "backtests" ? "Lab"
     : s.name === "backtest" ? (strategyLabels[s.id] ?? "Backtest") : s.name === "card" ? (ws.active?.name ?? "Chart")
     : s.name === "watchlists" ? "Watchlists" : s.name === "optbacktest" ? (optionLabels[s.id] ?? "Option backtest") : s.name === "safety" ? "Safety and limits" : s.name === "trading" ? "Trading" : s.name === "setup" ? "Setup" : s.name === "whatsnew" ? "What's new" : s.name === "botkey" ? "Access key" : s.name === "help" ? "Help" : s.name === "today" ? "Today"
     : s.name === "analysis" ? (() => { const p = pos.list.find((x) => x.id === s.id); return p ? `${structureLabel(p.structure)} · ${p.symbol}` : "Analysis"; })()
@@ -186,7 +186,7 @@ function SignedIn({ store, user }: { store: Store; user: User }) {
   const entry = (s: Screen, label = titleOf(s)) => ({ key: screenKey(s), label, onPick: () => go(s, true) });
   const groups: MenuGroup[] = [
     { label: "Charts", entries: [entry({ name: "chart" }, "Chart"), entry({ name: "today" }), entry({ name: "pages" })] },
-    { label: "Research", entries: [entry({ name: "scanner" }), entry({ name: "backtests" }), entry({ name: "watchlists" })] },
+    { label: "Research", entries: [entry({ name: "backtests" }), entry({ name: "scanner" }), entry({ name: "watchlists" })] },
     { label: "Trading", entries: [entry({ name: "trading" }), entry({ name: "safety" })] },
     { label: "Settings and help", entries: [
       entry({ name: "setup" }),

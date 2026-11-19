@@ -17,8 +17,11 @@ Five parts that build on each other:
    drawdown and RSI divergence.
 3. **Backtests.** How a rule or an option structure would have done over
    about 20 years, judged honestly (see "How a backtest is judged").
-4. **The pattern lab and the 0DTE research.** Searches across hundreds of
-   combinations, with a check that throws out what looks good only by luck.
+4. **The Lab.** One place from an idea to a strategy trading on paper: Ideas
+   (the pattern lab and the 0DTE research, searches across hundreds of
+   combinations with a check that throws out what looks good only by luck),
+   Backtested (each with a verdict from its held-back years) and Paper
+   trading.
 5. **Automated trading.** It trades on **paper** at Interactive Brokers, only through
    the safety rails, and only automated strategies whose settings were backtested. It runs
    in the Stock Wizard program on your Windows PC, next to TWS.
@@ -114,7 +117,7 @@ What the results say so far (all modelled, none of it evidence yet):
 An automated strategy is a rule Stock Wizard on your PC runs by itself every
 trading day.
 
-- **Made from a backtest.** Tap **Automate this strategy** on an option backtest page or
+- **Made from a backtest.** Tap **Start paper trading** on an option backtest page in the Lab or
   a 0DTE survivor. It copies the tested settings exactly: structure,
   expiry, strike placement, wings, management, VIX filter and signal.
 - **Tested or untested.** Only one whose settings still equal the tested
