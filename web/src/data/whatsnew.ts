@@ -5,6 +5,9 @@
 export interface News { build: string; date: string; items: string[] }
 
 export const WHATS_NEW: News[] = [
+  { build: "sw-v51", date: "19 Nov 2026", items: [
+    "Claude can now read 1-minute candles, and 15- and 30-minute candles again (built from the 5-minute ones, the same way the chart builds them).",
+  ] },
   { build: "sw-v50", date: "19 Nov 2026", items: [
     "Test a structure against the past: tap a structure's chip, then History, Test it against the past. It shows how often the same shape, placed the same way and held to expiry, made money on every past day, with the average, the middle, the worst and the best.",
     "Only days like today: chips keep just the days when the VIX was near today's, or when SPY, QQQ, NVIDIA and the rest were trending the same way as now.",
