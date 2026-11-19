@@ -5,6 +5,10 @@
 export interface News { build: string; date: string; items: string[] }
 
 export const WHATS_NEW: News[] = [
+  { build: "sw-v46", date: "19 Nov 2026", items: [
+    "Fixed: on the phone, tapping the chart to start a replay (or to place a level or trendline) did nothing. A quick tap now counts.",
+    "On the phone, the replay controls are one strip across the top of the chart (swipe it sideways for Buy, Sell and Exit), so the chart stays visible.",
+  ] },
   { build: "sw-v45", date: "19 Nov 2026", items: [
     "Bar replay: Replay on the chart's toolbar, tap a day, and everything after it is hidden. Step a candle at a time or play at up to 10×.",
     "Practise trading in a replay with Buy, Sell and Close, scored at the replayed prices. Practice trades are never paper orders.",

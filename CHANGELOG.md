@@ -5,6 +5,8 @@ on GitHub (#number). Kept up when Ben asks for a documentation refresh.
 
 ## 19 November 2026
 
+- #68 Fixed: taps on the chart did nothing on the phone (replay, levels, trendlines); the replay controls fit a phone
+
 - #67 Bar replay: hide everything after a chosen day, step or play at up to 10×, practise trades scored at the replayed prices
 
 - #66 Traditional patterns and linked symbols in the Lab: 18 candlestick and chart patterns, QQQ, IWM, NVIDIA, Apple and Tesla, and three questions (SPY up, SPY down, VIX spike)

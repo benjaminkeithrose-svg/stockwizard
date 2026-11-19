@@ -500,3 +500,14 @@ ul.steps { margin: 6px 0 0; padding-left: 22px; line-height: 1.6; }
 .cardtop { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .replaybar .adjbtn { background: var(--surface); color: var(--act); border: 1px solid var(--act); min-height: 36px; min-width: 40px; font-size: 15px; }
 .replaybar .adjbtn:disabled { opacity: .4; cursor: default; }
+
+/* On a phone: the tap note is a thin strip across the top, and the replay bar one row that scrolls sideways, so the chart stays visible. */
+@media (max-width: 560px) {
+  .tapbanner { left: 6px; right: 6px; transform: none; border-radius: var(--r-sm); font-size: 12px; justify-content: space-between; }
+  .replaybar { right: 6px; flex-wrap: nowrap; overflow-x: auto; padding: 4px 6px; gap: 6px; }
+  .replaybar .replayday { min-width: 0; white-space: nowrap; font-size: 12px; }
+  .replaybar .replaybtns { flex-wrap: nowrap; }
+  .replaybar .replaybtns + .replaybtns { margin-left: 0; }
+  .replaybar .replaysum { white-space: nowrap; }
+  .replaybar > * { flex-shrink: 0; }
+}
