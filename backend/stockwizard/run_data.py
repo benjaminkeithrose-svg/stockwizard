@@ -107,8 +107,12 @@ class DataRunner:
         from stockwizard.scan import Scanner  # noqa: PLC0415
         for line in Scanner(self.store).run():
             self.log(f"scan {line}")
-        where = self.archive.backup()
-        self.log(f"Archive: {self.archive.count():,} candles" + (f", backed up to {where}" if where else ", no backup folder (OneDrive not found)")
+        try:
+            where = self.archive.backup()
+        except RuntimeError as e:   # a damaged archive is never copied over the good backup
+            where = None
+            self.log(f"Archive NOT backed up: {e}")
+        self.log(f"Archive: {self.archive.count():,} candles" + (f", backed up to {where}" if where else ", no backup made")
                  + (f"; {failed} failed" if failed else ""))
 
 

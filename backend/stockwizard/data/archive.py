@@ -8,11 +8,21 @@ A backup copy goes to OneDrive (made with SQLite's own backup, safe while the
 archive is open), so a failed disk loses at most a day. Most of it can be
 fetched from IBKR again; the recorded option quotes can't, which is why the
 backup matters.
+
+Guarded since 19 Nov 2026 (Ben's archive was found damaged, "database disk image is
+malformed", and the nightly backup had copied the damage over the good backup):
+- On opening, SQLite's own check runs. A damaged archive is moved aside
+  (archive.damaged-<date>.sqlite, never deleted) and the OneDrive backup is put in its
+  place if that one checks out; otherwise it starts empty and the data program fetches
+  the history from IBKR again.
+- A backup is made only from an archive that checks out, and checked again before it
+  replaces the last one; the one before is kept as archive.previous.sqlite.
 """
 
 from __future__ import annotations
 
 import os
+import shutil
 import sqlite3
 from pathlib import Path
 
@@ -44,11 +54,46 @@ def default_backup_dir() -> Path | None:
     return Path(od) / "StockWizard" if od else None
 
 
+def healthy(path: Path) -> bool:
+    """SQLite's own quick check: True when the file is a sound database (a missing file counts as sound)."""
+    if not path.exists():
+        return True
+    try:
+        con = sqlite3.connect(str(path), timeout=30)
+        try:
+            return con.execute("pragma quick_check").fetchone()[0] == "ok"
+        finally:
+            con.close()
+    except sqlite3.DatabaseError:
+        return False
+
+
+def set_aside(path: Path, log=print) -> Path:
+    """Move a damaged archive (and its -wal/-shm files) aside, dated, never deleted."""
+    stamp = pd.Timestamp.now(tz="UTC").strftime("%Y-%m-%d-%H%M")
+    dest = path.with_name(f"archive.damaged-{stamp}.sqlite")
+    os.replace(path, dest)
+    for x in ("-wal", "-shm"):
+        side = Path(str(path) + x)
+        if side.exists():
+            os.replace(side, Path(str(dest) + x))
+    log(f"The archive was damaged: moved aside to {dest.name}.")
+    return dest
+
+
 class Archive:
-    def __init__(self, path: Path | str | None = None):
+    def __init__(self, path: Path | str | None = None, backup_dir: Path | None = None, log=print):
         self.path = Path(path or os.environ.get("ARCHIVE_PATH") or DEFAULT_PATH)
         if str(self.path) != ":memory:":
             self.path.parent.mkdir(parents=True, exist_ok=True)
+            if not healthy(self.path):
+                set_aside(self.path, log)
+                spare = (backup_dir or default_backup_dir() or Path("/nonexistent")) / "archive.sqlite"
+                if spare.exists() and healthy(spare):
+                    shutil.copyfile(spare, self.path)
+                    log(f"Put the backup from {spare.parent} in its place; anything newer is fetched from IBKR again.")
+                else:
+                    log("No sound backup: starting an empty archive; the history is fetched from IBKR again.")
         self.db = sqlite3.connect(str(self.path), timeout=30)   # the data program and a backtest can share it
         self.db.execute("pragma journal_mode=wal")
         self.db.executescript(SCHEMA)
@@ -95,6 +140,8 @@ class Archive:
         folder = folder or default_backup_dir()
         if folder is None:
             return None
+        if self.db.execute("pragma quick_check").fetchone()[0] != "ok":
+            raise RuntimeError("The archive fails SQLite's check: not backed up, so the last good backup is kept")
         folder.mkdir(parents=True, exist_ok=True)
         dest = folder / "archive.sqlite"
         tmp = folder / "archive.sqlite.part"
@@ -103,6 +150,11 @@ class Archive:
             self.db.backup(out)
         finally:
             out.close()
+        if not healthy(tmp):
+            tmp.unlink(missing_ok=True)
+            raise RuntimeError("The new backup failed SQLite's check: the last good backup is kept")
+        if dest.exists():
+            os.replace(dest, folder / "archive.previous.sqlite")
         os.replace(tmp, dest)
         return dest
 
