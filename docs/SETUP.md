@@ -9,6 +9,11 @@ refuses live accounts.
 You do steps 1 to 10 once (most take a minute). After that Stock Wizard starts by itself when you
 sign in to Windows.
 
+**Joining someone's joint account?** You only need step 1. Once they've
+shared their account with you (they need you to have signed in once), you see
+and work it from the app on your phone or browser. You don't need Interactive
+Brokers, TWS or Stock Wizard on your PC: their PC does the trading.
+
 ## Stock Wizard
 
 ### 1. Accept the invitation
@@ -122,11 +127,15 @@ No administrator rights are needed, and it installs nothing else.
 - **Phone notifications** (optional): install the free **ntfy** app,
   subscribe to a hard-to-guess topic name, and type that name in Setup,
   **Prices**.
-- **Updating**: when a new version is ready, a notice pops up by the clock.
-  Right-click the icon and click **Update to …**. Stock Wizard closes,
-  updates and opens again by itself, keeping your settings. It won't update
-  during the US session.
+- **Updating**: in Stock Wizard, **Menu**, **Updates and what's new**,
+  **Update**. One button updates the app and Stock Wizard on this PC.
+  Stock Wizard closes, updates and opens again by itself, keeping your
+  settings. It won't update during the US session; it waits for the close.
+  (Right-clicking the icon, **Update to …**, still works too.)
 - **Logs**: right-click the icon, then **Logs**.
+- **A joint account**: **Menu**, **Joint account**, type the other person's
+  sign-in email, **Share with them**. Both of you then have full say on your
+  trading account; only your PC trades it.
 - **Removing it**: Windows **Settings**, **Apps**, **Stock Wizard**,
   **Uninstall**.
 

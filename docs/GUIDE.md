@@ -2,7 +2,7 @@
 
 What Stock Wizard does and how to use it, in plain English. The app's own
 Help (Menu, Help) has the short version of each screen; this page explains
-the thinking behind it. Refreshed 19 November 2026: refreshed when Ben asks.
+the thinking behind it. Refreshed 19 November 2026 (through #77): refreshed when Ben asks.
 
 The app: https://benjaminkeithrose-svg.github.io/stockwizard/
 
@@ -30,7 +30,8 @@ Five parts that build on each other:
    in the Stock Wizard program on your Windows PC, next to TWS.
 
 Claude sits on top of all of it. Ask in plain words and it runs tests,
-explains results or sets up a chart. It cannot place orders or change limits.
+explains results or sets up a chart, reading candles from 1-minute to daily.
+It cannot place orders or change limits.
 
 ## A normal week
 
@@ -49,7 +50,8 @@ explains results or sets up a chart. It cannot place orders or change limits.
 Candles come from Interactive Brokers, through the Stock Wizard program on
 Ben's PC. It keeps every candle in an archive on that PC (daily back to 1990
 for some symbols) and puts the recent part in Supabase for the app: daily for
-5 years, hourly for 2 years, 5-minute for 60 days. In US hours the charts add
+5 years, hourly for 2 years, 5-minute for 60 days, 1-minute for 7 days. 15-
+and 30-minute charts are built from the 5-minute candles. In US hours the charts add
 today's bars every 5 seconds, marked **Live** or **Delayed** (about 15 minutes
 late without a market data subscription). While Ben's PC or TWS is off,
 nothing updates; the next start fills the gap.
@@ -62,6 +64,15 @@ nothing updates; the next start fills the gap.
   indicators on this chart, your favourites for one-tap adding, and the
   full list. The indicator maths is identical in the app and in the
   backtests: a test compares them number by number.
+- **Patterns on the chart** (at the end of Indicators) marks any of the 18
+  candlestick and chart patterns on the candle where each became complete:
+  green below for bullish, red above for bearish. They're found exactly as
+  the Lab finds them.
+- **Replay** hides everything after a candle you tap, then steps or plays
+  forward at up to 10 candles a second. Practice trades are scored at the
+  replayed prices and are never real orders.
+- **The toolbar** sits along the top, down the side, floating, or hidden,
+  per device. The open tab is the symbol control.
 - **Options** places a structure one daily range from the price with $5
   wings. Drag the lines to adjust it. Starred structures sit above the
   chart on every chart; the symbol button keeps one to that symbol only.
@@ -70,6 +81,14 @@ nothing updates; the next start fills the gap.
   the chance of profit and the expected move, and can compare up to three
   structures. Prices are theoretical (Black-Scholes, with the VIX for SPY)
   until Interactive Brokers supplies real ones.
+- **History** on the analysis (**Test it against the past**) places the same
+  shape on every past day in the last 5 years of daily candles: strikes the
+  same number of daily ranges from that day's close, the same days to
+  expiry, held to expiry. It shows how often it made money, the average, the
+  worst and the best. Chips keep only days like today: the VIX near today's,
+  or SPY, QQQ, NVIDIA and others trending the same way. It's a rough check on
+  modelled prices, not a tested strategy: the days overlap and none are held
+  back.
 - **Automated trades** show in teal: open positions as lines, an arrow where a
   trade opened and a dot with its result where it closed.
 
@@ -129,7 +148,8 @@ trading day.
   hand is untested.
 - **What can't be automated yet:** stock strategies and pattern lab results
   (stock signals; automated trading places options), the same-day methods tested on
-  hourly candles, and call or put condors.
+  IBKR's hourly candles (entering at the open or 10:00), and call or put
+  condors.
 - **Each day.** In the 15 minutes after its entry time (New York) Stock Wizard
   checks the setup. That covers the VIX range, the signal at the previous
   close, and direction for directional strategies. It then picks the strikes and
@@ -147,6 +167,28 @@ Two known differences from the option backtests:
 - An automated strategy enters at 10:00 New York; the test enters at the open.
 - An automated strategy checks its exits every 30 seconds; the test checks them at each daily
   close.
+
+## A joint account
+
+Two people can work one trading account, each with full say (Menu, Joint
+account). The owner shares it with someone already invited, by their sign-in
+email.
+
+- **Both have full say:** orders, approvals and closes, the kill switch, the
+  limits and the automated strategies. Every action is logged with who did it.
+- **Only the owner's PC trades it** (one TWS login). Stock Wizard on the
+  partner's PC sees it's a partner and doesn't trade; the partner doesn't
+  need TWS at all and can work the account from the phone.
+- **The partner's own trading is set aside** while they're on it, not
+  deleted. Charts, pages, favourites and structures stay each person's own;
+  a structure on the partner's chart can still be ordered, and the owner's
+  PC places it.
+- **Either can end it:** Stop sharing, or Leave this account. Nothing is
+  deleted.
+- If the owner's PC or TWS is off, nothing trades for either person, and
+  approvals wait until it's back.
+- Trade the account only through Stock Wizard: trades placed directly in TWS
+  or on IBKR's website show up as positions Stock Wizard didn't open.
 
 ## The safety rails
 

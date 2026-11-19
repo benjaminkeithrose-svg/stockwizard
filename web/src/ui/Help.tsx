@@ -17,7 +17,7 @@ const START: Topic[] = [
     "Menu (top right), then Updates and what's new: one Update button brings everything up to date. The app also checks each time it opens and says when an update is ready. The build number is at the bottom of the menu. Menu → Light or dark switches the look.",
   ]],
   ["2. Set up a chart", [
-    "Tap the open tab (it has a ▾) to change its symbol; the joined buttons pick the timeframe (5m to 1d).",
+    "Tap the open tab (it has a ▾) to change its symbol; the joined buttons pick the timeframe (1m to 1d; a week of 1-minute candles).",
     "Indicators adds moving averages, Bollinger bands, the squeeze, RSI and the rest. Star the ones you use: they wait under Favourites for one tap next time.",
     "The + at the end of the tabs adds another chart. Chart pages (the grid icon) shows several at once.",
   ]],
