@@ -189,7 +189,7 @@ Follows on from the one-tap option structures above.
   PC may trade the account (one TWS login), so the other install shows and
   approves but doesn't trade.
 
-## Bar replay (19 Nov 2026)
+## Bar replay (19 Nov 2026) — built 19 Nov 2026
 
 - Like TradingView's bar replay: pick a day on the chart, everything after it
   is hidden, then step forward one candle at a time (or play at a chosen

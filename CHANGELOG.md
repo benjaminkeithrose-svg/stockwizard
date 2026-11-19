@@ -5,6 +5,8 @@ on GitHub (#number). Kept up when Ben asks for a documentation refresh.
 
 ## 19 November 2026
 
+- #67 Bar replay: hide everything after a chosen day, step or play at up to 10×, practise trades scored at the replayed prices
+
 - #66 Traditional patterns and linked symbols in the Lab: 18 candlestick and chart patterns, QQQ, IWM, NVIDIA, Apple and Tesla, and three questions (SPY up, SPY down, VIX spike)
 
 - #65 The Lab: Ideas, Backtested and Paper trading in one place; a verdict and a progress line on every backtest; Start paper trading; Run backtests from the app on Ben's PC
