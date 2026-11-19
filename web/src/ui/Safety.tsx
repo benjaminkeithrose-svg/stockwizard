@@ -1,25 +1,18 @@
-// Safety: phase 5's controls. The kill switch first, then the orders waiting
-// for Ben, then the limits. The bot checks every limit again before sending
-// anything; this screen only sets them and records Ben's decisions. There is
-// no live-trading switch here, or anywhere in the app.
+// Safety and limits: phase 5's controls. The kill switch, then the limits (Ben, 19 Nov 2026:
+// orders and automated strategies moved to Trading, the one place for them). Stock Wizard on
+// the PC checks every limit again before sending anything; this screen only sets them. There
+// is no live-trading switch here, or anywhere in the app.
 
 import type { TermKey } from "../data/glossary";
 import { useEffect, useState } from "react";
-import { BotRequest, PaperOrder, SafetyLimits } from "../data/model";
+import { SafetyLimits } from "../data/model";
 import type { Store } from "../data/store";
-import { expiryLabel, legName, structureLabel, Structure } from "../data/options";
 import { Sheet, Info } from "./parts";
-import StrategiesSection from "./Strategies";
 import PcStatusLine from "./PcStatusLine";
 
 const money = (v: number | null | undefined) => (v === null || v === undefined ? "—" : `$${v.toLocaleString(undefined, { maximumFractionDigits: 2 })}`);
-const STATUS: Record<PaperOrder["status"], string> = {
-  proposed: "Waiting for you", refused: "Refused by the rails", approved: "Approved, checking again", rejected: "Rejected",
-  sent: "Sent (paper)", filled: "Filled (paper)", cancelled: "Cancelled", closed: "Closed", failed: "Broker failed",
-};
-const label = (s: string) => structureLabel(s as Structure);
 
-function Confirm(props: { title: string; body: string; yes: string; danger?: boolean; onYes: () => void; onNo: () => void }) {
+export function Confirm(props: { title: string; body: string; yes: string; danger?: boolean; onYes: () => void; onNo: () => void }) {
   return (
     <Sheet title={props.title} onClose={props.onNo}>
       <p style={{ margin: "4px 0 14px" }}>{props.body}</p>
@@ -27,41 +20,6 @@ function Confirm(props: { title: string; body: string; yes: string; danger?: boo
         <button className="ghost" autoFocus onClick={props.onNo}>Cancel</button>
         <button className="ghost" style={props.danger ? { color: "var(--warn)", borderColor: "var(--warn)" } : undefined} onClick={props.onYes}>{props.yes}</button>
       </div>
-    </Sheet>
-  );
-}
-
-function OrderSheet(props: { order: PaperOrder; killed: boolean; onDecide: (approve: boolean) => void; onClose: () => void; onClose2: () => void }) {
-  const o = props.order;
-  const [closing, setClosing] = useState(false);
-  return (
-    <Sheet title={`${label(o.structure)} on ${o.symbol}`} onClose={props.onClose}>
-      {o.status === "proposed" && (
-        props.killed
-          ? <p className="msg err">The kill switch is on: nothing can be approved.</p>
-          : <button className="big" onClick={() => props.onDecide(true)}>Approve (paper)</button>
-      )}
-      <p className="hint">{STATUS[o.status]}{o.reason ? ` · ${o.reason}` : ""}</p>
-      <div className="kv">
-        <div><span>Expiry</span><b>{expiryLabel(o.expiry)}</b></div>
-        <div><span>Quantity</span><b>{o.quantity}</b></div>
-        <div><span>Limit price</span><b>{money(o.limit_price)} {o.price_kind}</b></div>
-        <div><span>Most it can lose</span><b>{money(o.max_loss)}</b></div>
-        {o.pnl !== null && <div><span>Profit or loss</span><b>{money(o.pnl)}</b></div>}
-      </div>
-      <h2>Legs</h2>
-      {o.legs.map((l, i) => <div key={i} className="hint" style={{ margin: "2px 0" }}>{legName(l)} × {l.qty * o.quantity}</div>)}
-      {o.refusals.length > 0 && <><h2>Why it was refused</h2>{o.refusals.map((r, i) => <p key={i} className="msg warn">{r.why}</p>)}</>}
-      {o.status === "proposed" && (
-        <button className="link" style={{ marginTop: 14 }} onClick={() => props.onDecide(false)}>Reject</button>
-      )}
-      {o.status === "filled" && <button className="ghost" style={{ marginTop: 14 }} onClick={() => setClosing(true)}>Close (paper)</button>}
-      {closing && (
-        <Confirm title="Close this position?" yes="Close it"
-          body={`Your PC closes the ${label(o.structure)} on ${o.symbol} at its current theoretical price, the next time it runs. The profit or loss counts towards today's limit.`}
-          onYes={() => { setClosing(false); props.onClose2(); }} onNo={() => setClosing(false)} />
-      )}
-      <p className="hint">Approving doesn't send it straight away: your PC checks every limit again first, and refuses it if anything has changed.</p>
     </Sheet>
   );
 }
@@ -112,25 +70,20 @@ function LimitsSheet(props: { limits: SafetyLimits; onDone: (l: SafetyLimits) =>
   );
 }
 
-export default function SafetyScreen({ store }: { store: Store }) {
+export default function SafetyScreen({ store, onTrading }: { store: Store; onTrading: () => void }) {
   const [limits, setLimits] = useState<SafetyLimits | null>(null);
-  const [orders, setOrders] = useState<PaperOrder[]>([]);
-  const [requests, setRequests] = useState<BotRequest[]>([]);
-  const [tab, setTab] = useState<"waiting" | "history">("waiting");
-  const [open, setOpen] = useState<PaperOrder | null>(null);
+  const [waiting, setWaiting] = useState(0);
   const [editing, setEditing] = useState(false);
   const [confirm, setConfirm] = useState<"kill" | "resume" | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const reload = () => Promise.all([store.safetyLimits(), store.paperOrders(), store.botRequests()])
-    .then(([l, o, q]) => { setLimits(l); setOrders(o); setRequests(q.filter((x) => x.status === "waiting")); setError(null); })
+  const reload = () => Promise.all([store.safetyLimits(), store.paperOrders()])
+    .then(([l, o]) => { setLimits(l); setWaiting(o.filter((x) => x.status === "proposed").length); setError(null); })
     .catch((e) => setError(String(e.message ?? e)));
   useEffect(() => { reload(); }, [store]); // eslint-disable-line react-hooks/exhaustive-deps
   const act = (p: Promise<unknown>) => p.then(reload).catch((e) => setError(String(e.message ?? e)));
 
   if (!limits) return <div className="list">{error ? <div className="msg err">{error}</div> : <p className="empty">Loading…</p>}</div>;
-  const waiting = orders.filter((o) => o.status === "proposed");
-  const shown = tab === "waiting" ? waiting : orders.filter((o) => o.status !== "proposed");
 
   return (
     <div className="list">
@@ -145,32 +98,6 @@ export default function SafetyScreen({ store }: { store: Store }) {
       )}
       {error && <div className="msg err" style={{ marginTop: 8 }}>{error}</div>}
 
-      <div className="seg wide" role="tablist" aria-label="Orders" style={{ marginTop: 14 }}>
-        <button role="tab" aria-selected={tab === "waiting"} className={tab === "waiting" ? "on" : ""} onClick={() => setTab("waiting")}>Waiting ({waiting.length})</button>
-        <button role="tab" aria-selected={tab === "history"} className={tab === "history" ? "on" : ""} onClick={() => setTab("history")}>History</button>
-      </div>
-      <div style={{ marginTop: 10 }}>
-        {tab === "waiting" && requests.map((q) => (
-          <div key={`q${q.id}`} className="card order requested">
-            <div className="cmain" style={{ cursor: "default" }}>
-              <div className="t">{q.kind === "open" ? `Order request · ${q.quantity} contract${q.quantity === 1 ? "" : "s"}` : `Close request · order ${q.order_id}`}</div>
-              <div className="meta">Waiting for your PC to pick it up</div>
-            </div>
-          </div>
-        ))}
-        {!shown.length && !(tab === "waiting" && requests.length) && <p className="empty">{tab === "waiting" ? "Nothing waiting." : "No orders yet."}</p>}
-        {shown.map((o) => (
-          <div key={o.id} className={`card order ${o.status}`}>
-            <button className="cmain" onClick={() => setOpen(o)}>
-              <div className="t">{label(o.structure)} · {o.symbol} · {expiryLabel(o.expiry)}</div>
-              <div className="meta">{STATUS[o.status]} · can lose {money(o.max_loss)}</div>
-            </button>
-          </div>
-        ))}
-      </div>
-
-      <StrategiesSection store={store} onError={setError} />
-
       <h2>Limits <Info term="maxday" /></h2>
       <div className="card">
         <button className="cmain" onClick={() => setEditing(true)} aria-label="Change limits">
@@ -181,17 +108,13 @@ export default function SafetyScreen({ store }: { store: Store }) {
         </button>
       </div>
       {limits.max_loss_per_day === null && <p className="msg warn">The daily loss limit isn't set, so every order is refused. Set it before trading: tap the card above.</p>}
+      <p className="hint">Orders waiting for you, automated strategies and results: <button className="link" onClick={onTrading}>Trading</button>.</p>
       <p className="hint">Paper trading only. Live trading is disabled and can't be turned on from the app. Claude can't change anything on this screen.</p>
 
-      {open && (
-        <OrderSheet order={open} killed={limits.kill_switch} onClose={() => setOpen(null)}
-          onClose2={() => { act(store.requestClose(open.id)); setOpen(null); }}
-          onDecide={(approve) => { act(store.decideOrder(open.id, approve)); setOpen(null); }} />
-      )}
       {editing && <LimitsSheet limits={limits} onClose={() => setEditing(false)} onDone={(l) => act(store.saveSafetyLimits(l))} />}
       {confirm === "kill" && (
         <Confirm title="Stop all trading?" yes="Stop all trading" danger
-          body={`Blocks every new order and drops ${waiting.length} order${waiting.length === 1 ? "" : "s"} waiting for you; anything working at the broker is cancelled. Recorded in the audit log.`}
+          body={`Blocks every new order and drops ${waiting} order${waiting === 1 ? "" : "s"} waiting for you; anything working at the broker is cancelled. Recorded in the audit log.`}
           onYes={() => { act(store.killSwitch()); setConfirm(null); }} onNo={() => setConfirm(null)} />
       )}
       {confirm === "resume" && (

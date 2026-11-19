@@ -28,7 +28,7 @@ const ago = (ms: number) => {
 
 /** The line to show, and how it should look: ok (green), warn (amber) or err (red). */
 export function describePc(s: PcStatus | null, now: Date): { kind: "ok" | "warn" | "err"; text: string } {
-  if (!s) return { kind: "warn", text: "PC: no word yet. Install Stock Wizard on your PC (Menu, Access key, setup guide) and open it." };
+  if (!s) return { kind: "warn", text: "PC: no word yet. Install Stock Wizard on your PC and open it: Menu, Setup shows how." };
   const age = now.getTime() - Date.parse(s.updated_at);
   const where = s.host ? ` (${s.host})` : "";
   if (age > STALE_MS) return { kind: "err", text: `PC${where}: last heard ${ago(age)}. Is the PC on, with Stock Wizard running?` };

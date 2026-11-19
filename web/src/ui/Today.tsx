@@ -118,12 +118,11 @@ export default function TodayScreen({ store, onSafety }: { store: Store; onSafet
 
       <h2>Orders and today's result</h2>
       <div className="kv">
-        <div><span>Waiting for you</span><b>{waiting}</b></div>
+        <button className="kvtap" onClick={onSafety} aria-label={`${waiting} waiting for you: open Trading`}><span>Waiting for you ›</span><b>{waiting}</b></button>
         <div><span>Today's profit or loss</span><b className={pnl >= 0 ? "up" : "down"}>{money(pnl)}</b></div>
         <div><span>Daily limit used</span><b>{limits?.max_loss_per_day ? `$${lossToday.toFixed(0)} of $${limits.max_loss_per_day}` : "No limit set"}</b></div>
         <div><span>Approval</span><b>{limits?.approval_mode === "automatic" ? "Automatic (paper)" : "You approve each"}</b></div>
       </div>
-      <button className="ghost" onClick={onSafety}>Open Safety and orders</button>
     </div>
   );
 }

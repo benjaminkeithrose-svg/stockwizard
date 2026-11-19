@@ -51,7 +51,7 @@ export const GLOSSARY = {
   positions: { title: "Open positions at once", text: "The most structures open at the same time. A new order is refused when you're already at it." },
   capital: { title: "Capital at risk", text: "The total worst case of everything open, plus the new order. Refused if it would go over this." },
   dataage: { title: "Oldest prices allowed", text: "An order is refused if its prices are older than this. Delayed prices (no market data subscription) count as 15 minutes old: 900 seconds." },
-  approval: { title: "I approve each one / Automatic", text: "Approve: every order waits for you in Safety and orders. Automatic (paper only): an order that passes every limit is sent straight away. Either way every limit is checked." },
+  approval: { title: "I approve each one / Automatic", text: "Approve: every order waits for you in Trading. Automatic (paper only): an order that passes every limit is sent straight away. Either way every limit is checked." },
   accesskey: { title: "Access key", text: "What Stock Wizard on your PC signs in with. It can only see the shared market data and touch your own orders. It's shown once when made; making a new one stops the old one." },
   pcline: { title: "The PC line", text: "What Stock Wizard on your PC is doing, from the heartbeat it sends every 30 seconds: whether trading is connected to TWS, and on Ben's PC whether market data is running. Red or old means the PC is off, asleep, or TWS isn't logged in." },
   live: { title: "Live / Delayed", text: "In US market hours the chart adds today's bars every 5 seconds. Live means real-time prices; Delayed means about 15 minutes late, when there's no market data subscription." },

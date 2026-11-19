@@ -5,6 +5,13 @@
 export interface News { build: string; date: string; items: string[] }
 
 export const WHATS_NEW: News[] = [
+  { build: "sw-v42", date: "19 Nov 2026", items: [
+    "Trading is the one place for trading: approve or reject waiting orders, close open positions, and switch automated strategies on and off, all under Trading, Now.",
+    "Safety and orders is now Safety and limits: the kill switch and your limits.",
+    "On Today, tap Waiting for you to open Trading.",
+    "Access key has moved into Setup (Connect this PC makes it for you).",
+    "Setting up an automated strategy by hand is in its ⋯ menu.",
+  ] },
   { build: "sw-v41", date: "19 Nov 2026", items: [
     "The menu sits in two columns, so it fits a phone screen without scrolling.",
     "An option backtest's page shows its name in the header.",

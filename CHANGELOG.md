@@ -5,6 +5,8 @@ on GitHub (#number). Kept up when Ben asks for a documentation refresh.
 
 ## 19 November 2026
 
+- #64 Trading is the one place to approve, reject, close and switch strategies; Safety and limits keeps the kill switch and limits; Access key moves into Setup; Today's Waiting for you opens Trading
+
 - #63 Ease of use, round 1: the menu in two columns, option backtests named in the header, no greyed-out Automate button, stale wording tidied
 
 - #62 Stock Wizard's own icon on Windows (the phone's); What's new with Check for updates and Update; an Updated note after a new build

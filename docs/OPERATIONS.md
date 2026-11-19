@@ -24,7 +24,7 @@ The repository is public, so no keys or personal data are ever in it.
 | Key | Kept in | Used by |
 |---|---|---|
 | Supabase secret key | GitHub secret `SUPABASE_SECRET_KEY`; Ben's PC settings, encrypted | The GitHub jobs; Ben's trading, market data and backtests |
-| Access key (invited people) | Their PC's settings, encrypted; made in the app (Menu, Access key) | Their trading, limited to their own orders |
+| Access key (invited people) | Their PC's settings, encrypted; made by Setup in the app (Menu, Setup, Connect this PC) | Their trading, limited to their own orders |
 | ntfy topic name | GitHub secret `NTFY_TOPIC`; the PC settings | Phone notifications |
 | Anthropic key | Supabase secret `ANTHROPIC_API_KEY` | Claude in the app |
 | Interactive Brokers login | Only in TWS on the PC | Trading and the market data |
@@ -88,7 +88,7 @@ python -m stockwizard.run_data --deepen
    plugged in, PC goes to sleep after** to **Never**.
 
 ### Every order is refused
-1. Open **Menu**, then **Safety and orders**.
+1. Open **Menu**, then **Trading**, **Orders**, **Not traded**.
 2. Tap the order: it lists every rail it failed.
 3. The usual causes:
    - the daily loss limit is empty
