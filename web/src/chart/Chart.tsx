@@ -121,17 +121,37 @@ export default function Chart({ candles, timeframe, indicators, drawings, viewKe
     // The browser's own clicks: the library's click handler swallows the second of two quick taps
     // as a double-click, and a trendline needs exactly two taps.
     const el = box.current!;
-    const click = (e: MouseEvent) => {
+    const tapAt = (clientX: number, clientY: number) => {
       const s = priceSeries.current;
       if (!s || !tap.current) return;
       const r = el.getBoundingClientRect();
-      const x = e.clientX - r.left, y = e.clientY - r.top;
+      const x = clientX - r.left, y = clientY - r.top;
       if (y > c.panes()[0].getHeight()) return; // taps in the indicator panes don't place drawings
       const time = c.timeScale().coordinateToTime(x);
       const price = s.coordinateToPrice(y);
       if (time !== null && price !== null) tap.current(time as number, price);
     };
+    // On a phone the library takes over touches (to pan), so the browser never turns a tap into a click:
+    // a quick touch that hardly moves is a tap (Ben, 19 Nov 2026: replay and drawing taps did nothing on the phone).
+    let touch: { x: number; y: number; at: number } | null = null;
+    let touchTapAt = 0;
+    const down = (e: PointerEvent) => { touch = e.pointerType === "mouse" ? null : { x: e.clientX, y: e.clientY, at: Date.now() }; };
+    const up = (e: PointerEvent) => {
+      const t = touch;
+      touch = null;
+      if (!t || e.pointerType === "mouse") return;
+      if (Math.hypot(e.clientX - t.x, e.clientY - t.y) <= 10 && Date.now() - t.at <= 500) {
+        touchTapAt = Date.now();
+        tapAt(e.clientX, e.clientY);
+      }
+    };
+    const click = (e: MouseEvent) => {
+      if (Date.now() - touchTapAt < 700) return; // the same tap, already handled as a touch
+      tapAt(e.clientX, e.clientY);
+    };
     el.addEventListener("click", click);
+    el.addEventListener("pointerdown", down, true);
+    el.addEventListener("pointerup", up, true);
 
     // Touch or hover on an option line shows what it is; the line itself carries only ▲ (call) or ▼ (put).
     const nearestLeg = (clientX: number, clientY: number, reach: number) => {
@@ -203,6 +223,8 @@ export default function Chart({ candles, timeframe, indicators, drawings, viewKe
     return () => {
       window.removeEventListener(THEME_EVENT, recolour);
       el.removeEventListener("click", click);
+      el.removeEventListener("pointerdown", down, true);
+      el.removeEventListener("pointerup", up, true);
       el.removeEventListener("pointermove", hover);
       el.removeEventListener("pointerdown", hover);
       el.removeEventListener("pointerleave", leave);
