@@ -5,6 +5,9 @@
 export interface News { build: string; date: string; items: string[] }
 
 export const WHATS_NEW: News[] = [
+  { build: "sw-v53", date: "19 Nov 2026", items: [
+    "Help mentions the 1-minute timeframe. The user guides are refreshed for everything up to the joint account.",
+  ] },
   { build: "sw-v52", date: "19 Nov 2026", items: [
     "Joint account: Menu, Joint account shares your trading account with someone you've invited. Both of you get full say on its orders, limits and automated strategies, each on your own install, with your own charts.",
     "Only the owner's PC trades it; the partner's Stock Wizard shows and approves. Every approval, close and change says who did it.",
