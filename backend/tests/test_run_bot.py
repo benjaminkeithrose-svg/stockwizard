@@ -566,3 +566,62 @@ def test_the_next_open_skips_weekends_and_holidays():
     assert next_open(datetime(2026, 11, 18, 15, 0, tzinfo=timezone.utc)) is None                       # Wed 10:00 New York: open
     assert next_open(datetime(2026, 11, 20, 22, 0, tzinfo=timezone.utc)).date().isoformat() == "2026-11-23"   # Fri evening → Mon
     assert next_open(datetime(2026, 11, 25, 22, 0, tzinfo=timezone.utc)).date().isoformat() == "2026-11-27"   # Thanksgiving skipped
+
+
+# --- working the price (Ben, 19 Nov 2026) ---
+
+def _working_order(**limits):
+    s = FakeStore()
+    s.set_limits(**{**LIMITS, "approval_mode": "automatic", "max_loss_per_trade": 100, **limits})
+    market(s)
+    request(s, kind="open", position_id="pos-1", quantity=1)
+    clock = {"t": NOW}
+    b = MarketBroker(credit=0.85)
+    r = BotRunner(s, OWNER, clock=lambda: clock["t"], broker=b)
+    tick = lambda m: (clock.__setitem__("t", NOW + timedelta(minutes=m)), setattr(b, "as_of", clock["t"]), r.cycle())  # noqa: E731
+    tick(0)
+    return s, r, b, tick
+
+
+def test_an_unfilled_order_steps_towards_its_worst_price():
+    s, r, b, tick = _working_order()
+    o = order(s)
+    assert o["status"] == "sent" and o["limit_price"] == 0.85 and o["work_worst"] == 0.75   # $1 wide: up to 10c less
+    tick(15)
+    assert order(s)["limit_price"] == 0.80 and ("modify", o["broker_id"]) in b.calls
+    tick(31)
+    assert order(s)["limit_price"] == 0.75
+    tick(40)
+    assert order(s)["limit_price"] == 0.75, "held at the worst price"
+    assert any(a["action"] == "order_repriced" for a in s.tables["audit_log"])
+
+
+def test_an_order_still_unfilled_at_the_end_of_its_window_is_cancelled_and_said_so():
+    s, r, b, tick = _working_order()
+    tick(56)
+    o = order(s)
+    assert o["status"] == "cancelled" and ("cancel", o["broker_id"]) in b.calls
+    assert any(a["action"] == "order_unfilled" for a in s.tables["audit_log"])
+    from stockwizard.notify import message
+    p = next(iter(r.bot.orders.values()))
+    assert message("cancelled", p)[0] == "Order didn't fill"
+
+
+def test_a_step_a_rail_refuses_is_not_taken():
+    # $1-wide condor: max loss is (1 - credit) × 100, so 0.85 risks $15 and 0.80 risks $20.
+    s, r, b, tick = _working_order(max_loss_per_trade=18, max_capital_at_risk=18)
+    tick(15)
+    assert order(s)["limit_price"] == 0.85
+    assert any(a["action"] == "reprice_refused" for a in s.tables["audit_log"])
+
+
+def test_a_restart_carries_on_working_the_price():
+    s, r, b, tick = _working_order()
+    tick(15)
+    clock = {"t": NOW + timedelta(minutes=31)}
+    b.as_of = clock["t"]
+    r2 = BotRunner(s, OWNER, clock=lambda: clock["t"], broker=b)
+    p = next(iter(r2.bot.orders.values()))
+    assert p.work is not None and p.work.worst == 0.75
+    r2.cycle()
+    assert order(s)["limit_price"] == 0.75

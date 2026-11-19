@@ -23,6 +23,11 @@ const SYD = "Australia/Sydney";
 const when = (iso: string | null | undefined) => (iso ? new Intl.DateTimeFormat("en-AU", { timeZone: SYD, day: "numeric", month: "short", hour: "numeric", minute: "2-digit" }).format(new Date(iso)) : "—");
 const money = (v: number | null | undefined, signed = true) => (typeof v === "number"
   ? `${signed ? (v > 0 ? "+" : v < 0 ? "−" : "") : v < 0 ? "−" : ""}$${Math.abs(v).toLocaleString(undefined, { maximumFractionDigits: 0 })}` : "—");
+const nyTime = (iso: string) => new Date(iso).toLocaleTimeString("en-US", { timeZone: "America/New_York", hour: "numeric", minute: "2-digit" }).toLowerCase();
+/** A working order's price plan, in a line: where it is now, how far it may go, until when. */
+export const working = (o: PaperOrder) => (o.status === "sent" && o.work_worst != null && o.work_until
+  ? `working the price: now ${o.limit_price.toFixed(2)}, ${o.price_kind === "credit" ? "down" : "up"} to ${o.work_worst.toFixed(2)} at most, until ${nyTime(o.work_until)} New York`
+  : null);
 const price = (o: PaperOrder, v: number | null | undefined) => (typeof v === "number" ? `${v.toFixed(2)} ${o.price_kind}` : "—");
 const label = (o: PaperOrder) => `${structureLabel(o.structure as Structure)} · ${o.symbol} · ${expiryLabel(o.expiry)}`;
 const STATUS: Record<string, string> = {
@@ -76,6 +81,7 @@ function OrderInfo(props: {
         <div><span>From</span><b>{o.strategy_id ? props.labels[o.strategy_id] ?? "An automated strategy" : "The chart (by hand)"}</b></div>
         <div><span>Contracts</span><b>{o.quantity}</b></div>
         <div><span>Limit price</span><b>{price(o, o.limit_price)}</b></div>
+        {o.work_worst != null && <div><span>Worst allowed <Info term="workprice" /></span><b>{price(o, o.work_worst)}</b></div>}
         <div><span>Filled at</span><b>{price(o, o.fill_price)}</b></div>
         {o.close_price != null && <div><span>Closed at</span><b>{o.close_price.toFixed(2)}</b></div>}
         <div><span>Most it can lose</span><b>{money(o.max_loss, false)}</b></div>
@@ -85,6 +91,8 @@ function OrderInfo(props: {
       </div>
       <h2>Legs</h2>
       <p style={{ margin: "4px 0" }}>{o.legs.map((l) => `${l.side === "buy" ? "Buy" : "Sell"} ${l.qty} ${l.strike} ${l.right === "C" ? "call" : "put"}`).join(" · ")}</p>
+      {working(o) && <p className="hint">At the broker, {working(o)}. Unfilled by then, it's cancelled and your phone is told.</p>}
+      {o.status === "cancelled" && o.work_worst != null && <p className="hint">Didn't fill: offered down to {price(o, o.limit_price)} before its window ended.</p>}
       {o.reason && <p className="hint">Why: {o.reason}</p>}
       {o.close_reason && <p className="hint">Closed because: {o.close_reason}</p>}
       {o.refusals.length > 0 && <>{o.refusals.map((r, i) => <p key={i} className="msg warn">{r.why}</p>)}</>}
@@ -143,6 +151,7 @@ export default function TradingScreen(props: { store: Store; onSafety: () => voi
             {closing(o) && orderTab === "working" ? "Closing · " : `${STATUS[o.status] ?? o.status} · `}
             {o.quantity} × {price(o, o.fill_price ?? o.limit_price)}
             {o.status === "closed" ? ` · ${money(o.pnl)} · closed ${when(closedAt(o))}` : ` · ${when(o.created_at)}`}
+            {o.status === "sent" && o.work_worst != null && ` · may go to ${o.work_worst.toFixed(2)}`}
             {mv && <> · now {money(mv.pnl)} <span className="badge est">estimate</span></>}
           </div>
         </button>

@@ -54,6 +54,7 @@ class FakeIB:
     accounts: list = field(default_factory=lambda: ["DU1234567"])
     up: bool = True
     placed: list = field(default_factory=list)
+    modified: list = field(default_factory=list)
     cancelled: list = field(default_factory=list)
     held: list = field(default_factory=list)
     mids: dict = field(default_factory=dict)
@@ -89,6 +90,10 @@ class FakeIB:
                                 strikes=[float(k) for k in range(580, 621)])]
 
     def placeOrder(self, contract, order):
+        mine = next((t for t in self.placed if t.order is order and getattr(order, "orderId", 0)), None)
+        if mine is not None:   # as IBKR does: the same order id placed again changes that order
+            self.modified.append(order.orderId)
+            return mine
         self.next_id += 1
         order.orderId = self.next_id
         t = SimpleNamespace(contract=contract, order=order, orderStatus=SimpleNamespace(status="Submitted", avgFillPrice=0.0))
@@ -172,6 +177,15 @@ def test_a_condor_goes_as_one_combo_limit_order_with_a_negative_price_for_a_cred
     assert [l.action for l in t.contract.comboLegs] == ["BUY", "SELL", "SELL", "BUY"]
     assert t.order.orderType == "LMT" and t.order.action == "BUY" and t.order.lmtPrice == -4.6 and t.order.tif == "DAY"
     assert t.order.account == "DU1234567"
+
+
+def test_working_the_price_changes_the_same_order_not_a_new_one():
+    from dataclasses import replace as _replace
+    b, ib = broker()
+    bid = b.place(req())
+    b.modify(bid, _replace(req(), limit_price=4.40))
+    assert len(ib.placed) == 1 and ib.modified == [101]
+    assert ib.placed[0].order.lmtPrice == -4.4, "still a credit: a negative price"
 
 
 def test_a_debit_is_a_positive_price():

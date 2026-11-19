@@ -20,6 +20,8 @@ from typing import Callable
 
 from stockwizard.broker.base import Broker, LiveTradingDisabled
 from stockwizard.rails import Book, Limits, OrderRequest, Refusal, check, max_loss
+from stockwizard import working
+from stockwizard.working import Plan
 
 Audit = Callable[[str, str, dict], None]
 
@@ -38,6 +40,9 @@ class Proposal:
     close_id: str | None = None      # the close order at the broker while it works; the position stays 'filled' until it fills
     close_price: float | None = None # its limit price per share, in the same credit/debit sense as the opening
     close_why: str | None = None
+    work: Plan | None = None         # working the price from the midpoint towards the worst allowed (working.py)
+    work_held: bool = False          # a step a rail refused: the price stays where it was
+    unfilled: bool = False           # cancelled at the end of its window without filling
 
 
 def _describe(req: OrderRequest) -> dict:
@@ -72,8 +77,8 @@ class Bot:
         lim = self._limits()
         return replace(lim, kill_switch=lim.kill_switch or self.killed)
 
-    def book(self) -> Book:
-        live = [p for p in self.orders.values() if p.status in ("sent", "filled")]
+    def book(self, exclude: int | None = None) -> Book:
+        live = [p for p in self.orders.values() if p.status in ("sent", "filled") and p.id != exclude]
         return Book(
             realised_loss_today=self.realised_loss_today,
             open_max_losses=[p.max_loss or 0.0 for p in live],
@@ -148,9 +153,58 @@ class Bot:
             self.audit("bot", "order_failed", {"order": p.id, "error": str(e)})
             return p
         p.status = "sent"
+        if p.work is None and p.request.limit_price is not None:
+            p.work = working.plan(p.request.limit_price, p.request.price_kind, p.request.legs, self.clock())
         self._changed(p)
-        self.audit("bot", "order_sent", {"order": p.id, "broker_id": p.broker_id, "approved_by": approved_by})
+        self.audit("bot", "order_sent", {"order": p.id, "broker_id": p.broker_id, "approved_by": approved_by,
+                                         **({"worst_price": p.work.worst, "until": p.work.until.isoformat()} if p.work else {})})
         return p
+
+    def work(self) -> list[tuple[Proposal, str]]:
+        """Each cycle: move each working opening order's price a step towards its worst price, every rail
+        checked again at the new price; cancel it unfilled at the end of its window (working.py)."""
+        out: list[tuple[Proposal, str]] = []
+        now = self.clock()
+        for p in [p for p in self.orders.values() if p.status == "sent" and p.work is not None]:
+            if working.expired(p.work, now):
+                try:
+                    self.broker.cancel(p.broker_id)
+                except Exception as e:  # noqa: BLE001 - recorded; the broker cancels a day order at the close anyway
+                    self.audit("bot", "cancel_failed", {"order": p.id, "error": str(e)})
+                    continue
+                p.status, p.unfilled = "cancelled", True
+                self._changed(p)
+                self.audit("bot", "order_unfilled", {"order": p.id, "last_price": p.request.limit_price, "worst_price": p.work.worst})
+                out.append((p, "unfilled"))
+                continue
+            fresh = None
+            if self.requote:
+                try:
+                    # The pretend broker answers with the price it's given, so it's given the starting midpoint.
+                    fresh = self.requote(replace(p.request, limit_price=p.work.start))
+                except Exception:  # noqa: BLE001 - no quote this cycle: keep stepping from the starting midpoint
+                    fresh = None
+            mid_now = fresh.limit_price if fresh is not None and fresh.price_kind == p.request.price_kind else None
+            target = working.price_now(p.work, p.request.price_kind, now, mid_now)
+            if target == p.request.limit_price:
+                continue
+            new = replace(p.request, limit_price=target, prices_as_of=fresh.prices_as_of if fresh is not None else p.request.prices_as_of)
+            refusals = check(new, self.limits(), self.book(exclude=p.id), now)
+            if refusals:
+                if not p.work_held:
+                    p.work_held = True
+                    self.audit("bot", "reprice_refused", {"order": p.id, "price": target, "refusals": [asdict(r) for r in refusals]})
+                continue
+            try:
+                self.broker.modify(p.broker_id, new)
+            except Exception as e:  # noqa: BLE001 - the order keeps its old price
+                self.audit("bot", "reprice_failed", {"order": p.id, "price": target, "error": str(e)})
+                continue
+            p.request, p.max_loss, p.work_held = new, max_loss(new), False
+            self._changed(p)
+            self.audit("bot", "order_repriced", {"order": p.id, "price": target, "worst_price": p.work.worst})
+            out.append((p, "repriced"))
+        return out
 
     def record_fill(self, order_id: int, price: float) -> None:
         p = self.orders[order_id]

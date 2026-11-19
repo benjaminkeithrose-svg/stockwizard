@@ -264,6 +264,10 @@ export interface PaperOrder {
   close_broker_id?: string | null;
   close_price?: number | null;
   close_reason?: string | null;
+  /** Working the price (19 Nov 2026): started at this midpoint, may go to the worst price, cancelled unfilled at work_until. */
+  work_start?: number | null;
+  work_worst?: number | null;
+  work_until?: string | null;
 }
 
 /** Ben's request to the bot from the app: order a chart structure (paper) or close a paper position. Not an order. */

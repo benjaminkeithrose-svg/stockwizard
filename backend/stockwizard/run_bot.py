@@ -48,6 +48,7 @@ from stockwizard.data.store import SupabaseStore
 from stockwizard.pricing import historical_vol, limit_price, net_value, years_left
 from stockwizard.notify import Notifier, limit_message, message
 from stockwizard.zerodte import calendar
+from stockwizard.working import Plan
 from stockwizard.rails import Leg, Limits, OrderRequest, request_from_dict, request_to_dict
 
 NY = ZoneInfo("America/New_York")
@@ -69,6 +70,20 @@ def find_owner(store: SupabaseStore) -> str:
     if len(owners) != 1:
         raise SystemExit(f"Found {len(owners)} people using Stock Wizard: add STOCKWIZARD_OWNER=<your user id> to stockwizard.env (or pass --owner)")
     return owners.pop()
+
+
+def plan_to_row(w: Plan | None) -> dict:
+    if w is None:
+        return {}
+    return {"work_start": w.start, "work_worst": w.worst, "work_began": w.began.isoformat(), "work_until": w.until.isoformat()}
+
+
+def plan_from_row(r: dict) -> Plan | None:
+    """An order's price plan from the database, so a restart keeps working it where it was."""
+    if r.get("work_start") is None or r.get("work_until") is None:
+        return None
+    when = lambda v: datetime.fromisoformat(str(v).replace("Z", "+00:00"))  # noqa: E731
+    return Plan(float(r["work_start"]), float(r["work_worst"]), when(r["work_began"]), when(r["work_until"]))
 
 
 def joint_owner(store, owner: str) -> dict | None:
@@ -121,7 +136,8 @@ class BotRunner:
             p = Proposal(0, request_from_dict(r), "proposed" if r["status"] == "approved" else r["status"],
                          num(r.get("max_loss")), broker_id=r.get("broker_id"), reason=r.get("reason"),
                          fill_price=num(r.get("fill_price")), close_id=r.get("close_broker_id"),
-                         close_price=num(r.get("close_price")), close_why=r.get("close_reason"))
+                         close_price=num(r.get("close_price")), close_why=r.get("close_reason"),
+                         work=plan_from_row(r))
             if p.close_id:
                 self.broker.remember_close(p.close_id, p.broker_id, p.close_price)
             self.bot.adopt(p)
@@ -159,7 +175,8 @@ class BotRunner:
         req = request_to_dict(p.request)
         row = {**req, "max_loss": p.max_loss, "status": p.status, "refusals": [asdict(r) for r in p.refusals],
                "reason": p.reason, "broker_id": p.broker_id, "fill_price": p.fill_price, "pnl": p.pnl,
-               "close_broker_id": p.close_id, "close_price": p.close_price, "close_reason": p.close_why}
+               "close_broker_id": p.close_id, "close_price": p.close_price, "close_reason": p.close_why,
+               **plan_to_row(p.work)}
         if p.id in self.db_ids:
             self.store.update("paper_orders", {"id": f"eq.{self.db_ids[p.id]}"}, row)
         else:
@@ -356,6 +373,12 @@ class BotRunner:
             except Exception as e:  # noqa: BLE001 - the snapshot is a display, never a reason to stop trading
                 said.append(f"Couldn't save the market snapshot: {e}")
             said += self.strategies.propose_due(now)
+        for p, what in self.bot.work():
+            if what == "unfilled":
+                said.append(f"Order {self.db_ids[p.id]}: not filled by the end of its window (last ${p.request.limit_price:.2f}, "
+                            f"worst allowed ${p.work.worst:.2f}): cancelled")
+            else:
+                said.append(f"Order {self.db_ids[p.id]}: price moved to ${p.request.limit_price:.2f} (worst allowed ${p.work.worst:.2f})")
         if isinstance(self.broker, PretendBroker):
             self.broker.step()   # the pretend market: working orders fill straight away, at their limit price
         pretend = " (pretend)" if isinstance(self.broker, PretendBroker) else ""

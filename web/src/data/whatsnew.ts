@@ -5,6 +5,11 @@
 export interface News { build: string; date: string; items: string[] }
 
 export const WHATS_NEW: News[] = [
+  { build: "sw-v55", date: "19 Nov 2026", items: [
+    "Your PC works the price of each order: it starts at the midpoint and moves a little every half minute towards the worst price allowed (the midpoint less 10% of the spread's width), so orders placed while you sleep still fill at a fair price.",
+    "Not filled after 55 minutes (10:30 am New York for an order sent overnight), it's cancelled and your phone is told. Every limit is checked again at each new price.",
+    "Automated strategies now start at the midpoint too, instead of the natural price. Stops and expiry closes still go at the natural price to get out quickly.",
+  ] },
   { build: "sw-v54", date: "19 Nov 2026", items: [
     "An order sent while the US market is shut now waits for the next open (9:35 am New York, about 1:35 am Sydney) instead of failing. Trading shows when it will go.",
     "Requests that couldn't be done now show in Trading for a day, with the reason, instead of disappearing.",

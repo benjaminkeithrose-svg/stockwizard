@@ -68,6 +68,7 @@ const SCREENS: Topic[] = [
     "+ Compare puts up to 3 structures on one graph, with a table side by side.",
     "History, Test it against the past: how often the same shape, placed the same way and held to expiry, made money on every past day in the daily candles, with the average, worst and best. Chips keep only days like today (the VIX near today's, or SPY, QQQ, NVIDIA and others trending the same way). A rough check on modelled prices, not a tested strategy.",
     "Send as a paper order passes it to Stock Wizard on your PC. It prices it, checks every limit, and it waits for you in Trading. Sent while the US market is shut, it waits for the next open (9:35 am New York) and goes then.",
+    "Your PC works the price for you: it starts at the midpoint, moves a little each half minute towards the worst price allowed (the midpoint less 10% of the spread's width), and cancels it if it hasn't filled after 55 minutes (10:30 am New York for an order sent overnight). Automated strategies' entries are worked the same way.",
     "All prices here are theoretical (Black-Scholes) until Interactive Brokers supplies real ones.",
   ]],
   ["Joint account", [

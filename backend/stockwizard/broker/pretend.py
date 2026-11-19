@@ -48,6 +48,13 @@ class PretendBroker(Broker):
             o.status = "cancelled"
         self.calls.append(("cancel", broker_id))
 
+    def modify(self, broker_id: str, order: OrderRequest) -> None:
+        o = self.orders[broker_id]
+        if o.status != "working":
+            raise ValueError(f"{broker_id} is {o.status}, not working")
+        o.request = order
+        self.calls.append(("modify", broker_id))
+
     def close(self, broker_id: str, price: float) -> str:
         """A working close order; it fills at `price` on the next `step` (or `fill`), and the position goes."""
         if not self._up:

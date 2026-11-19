@@ -108,6 +108,15 @@ class IBKRBroker(Broker):
             raise ValueError(f"{broker_id} wasn't placed in this session; cancel it in IB Gateway")
         self.ib.cancelOrder(trade.order)
 
+    def modify(self, broker_id: str, order: OrderRequest) -> None:
+        """A new limit price on the same order (IBKR changes an order placed again with its own order id)."""
+        trade = self._find(broker_id)
+        if trade is None:
+            raise ValueError(f"{broker_id} wasn't placed in this session")
+        trade.order.lmtPrice = self._limit(order.limit_price, cash_in=order.price_kind == "credit").lmtPrice
+        self.ib.placeOrder(trade.contract, trade.order)
+        self._requests[broker_id] = order
+
     def close(self, broker_id: str, price: float) -> str:
         req = self._requests.get(broker_id)
         if req is None:
