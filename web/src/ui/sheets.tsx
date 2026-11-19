@@ -1,5 +1,6 @@
 // The chart's pop-up sheets: symbol search, indicators and drawings.
 
+import { PatternSection } from "./PatternPicker";
 import { useMemo, useState } from "react";
 import type { Timeframe } from "../data/candles";
 import { Drawing, Favourite, indicator, IndicatorInstance, MAX_FAVOURITES, sameIndicator, SymbolInfo } from "../data/model";
@@ -168,6 +169,7 @@ export function IndicatorSheet(props: {
           </div>
         </div>
       ))}
+      <PatternSection />
     </Sheet>
   );
 }

@@ -5,6 +5,8 @@ on GitHub (#number). Kept up when Ben asks for a documentation refresh.
 
 ## 19 November 2026
 
+- #73 Pattern markers on the chart: the 18 candlestick and chart patterns, chosen in Indicators, found exactly as the Lab finds them
+
 - #72 1-minute candles and charts; 15- and 30-minute charts built from the 5-minute candles (they were empty since the move to IBKR)
 - #71 Same-day backtests on IBKR's hourly candles; the second entry moves from 10:30 to 10:00
 
