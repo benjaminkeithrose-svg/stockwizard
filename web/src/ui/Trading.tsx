@@ -11,7 +11,7 @@ import type { Candles } from "../data/candles";
 import { BotRequest, BotStrategy, PaperOrder, SafetyLimits } from "../data/model";
 import { expiryLabel, Structure, structureLabel } from "../data/options";
 import { historicalVol } from "../data/pricing";
-import { cachedCandles, Store } from "../data/store";
+import { cachedCandles, JointAccount, Store } from "../data/store";
 import { byTab, closedAt, closing, OrderTab, openValue, results } from "../data/trading";
 import Graph from "./Graph";
 import PcStatusLine from "./PcStatusLine";
@@ -109,6 +109,8 @@ export default function TradingScreen(props: { store: Store; onSafety: () => voi
   const [requests, setRequests] = useState<BotRequest[]>([]);
   const [open, setOpen] = useState<PaperOrder | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [joint, setJoint] = useState<JointAccount | null>(null);
+  useEffect(() => { store.jointAccount().then(setJoint).catch(() => setJoint(null)); }, [store]);
 
   const load = () => Promise.all([store.paperOrders(), store.botStrategies(), store.safetyLimits(), store.botRequests()])
     .then(([o, s, l, q]) => { setOrders(o); setStrategies(s); setLimits(l); setRequests(q.filter((x) => x.status === "waiting")); setError(null); })
@@ -155,6 +157,7 @@ export default function TradingScreen(props: { store: Store; onSafety: () => voi
           <button key={k} role="tab" aria-selected={tab === k} className={tab === k ? "on" : ""} onClick={() => setTab(k)}>{l}</button>
         ))}
       </div>
+      {joint && <p className="hint" style={{ margin: "8px 0 0" }}>Joint account: {joint.role === "owner" ? `shared with ${joint.partnerEmail}` : `${joint.ownerEmail}'s, worked together`}.</p>}
       {error && <div className="msg err" style={{ marginTop: 8 }}>{error}</div>}
       {orders === null && !error && <p className="empty">Loading…</p>}
 

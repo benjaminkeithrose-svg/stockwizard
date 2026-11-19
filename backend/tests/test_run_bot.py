@@ -247,6 +247,32 @@ def test_a_request_the_rails_refuse_says_why():
     assert q["status"] == "done" and "refused" in q["result"] and "limit per trade" in q["result"]
 
 
+def test_a_joint_partners_structure_can_be_ordered_but_no_one_elses():
+    s = FakeStore()
+    s.set_limits(**{**LIMITS, "max_loss_per_trade": 100})
+    market(s)
+    mine = next(p for p in s.tables["option_positions"] if p["id"] == "pos-1")
+    s.tables["option_positions"].append({**mine, "id": "partners", "owner": "partner-1"})
+    s.tables["option_positions"].append({**mine, "id": "strangers", "owner": "stranger"})
+    s.tables["trading_partners"] = [{"partner": "partner-1", "owner": OWNER, "owner_email": "owner@example.test"}]
+    ok = request(s, kind="open", position_id="partners", quantity=1)
+    no = request(s, kind="open", position_id="strangers", quantity=1)
+    r, _ = runner(s)
+    r.cycle()
+    assert ok["status"] == "done" and "waiting for your approval" in ok["result"]
+    assert no["status"] == "failed"
+
+
+def test_a_partners_pc_does_not_trade(monkeypatch):
+    s = FakeStore()
+    s.tables["trading_partners"] = [{"partner": OWNER, "owner": "owner-1", "owner_email": "owner@example.test"}]
+    from stockwizard import run_bot
+    assert run_bot.joint_owner(s, OWNER)["owner_email"] == "owner@example.test"
+    monkeypatch.setattr(run_bot, "SupabaseStore", lambda: s)
+    monkeypatch.setattr(run_bot, "BotRunner", lambda *a, **k: (_ for _ in ()).throw(AssertionError("a partner's PC must not trade")))
+    assert run_bot.main(["--owner", OWNER]) == 0
+
+
 def test_a_request_for_a_deleted_structure_fails_plainly():
     s = FakeStore()
     s.set_limits(**LIMITS)
@@ -353,7 +379,7 @@ def test_when_tws_goes_away_the_bot_exits_so_start_bot_restarts_it(monkeypatch, 
 
     monkeypatch.setattr(ibkr, "IBKRBroker", Broker)
     monkeypatch.setattr(sr, "IBKRMarket", lambda broker, store: None)
-    monkeypatch.setattr(rb, "SupabaseStore", lambda: None)
+    monkeypatch.setattr(rb, "SupabaseStore", FakeStore)   # no joint account
     monkeypatch.setattr(rb, "BotRunner", Runner)
     monkeypatch.setattr(rb.Notifier, "from_env", staticmethod(lambda: None))
     monkeypatch.setattr(rb.time, "sleep", lambda s: None)

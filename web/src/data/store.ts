@@ -22,6 +22,9 @@ export interface User {
   email: string;
 }
 
+/** A joint account (19 Nov 2026): the owner's PC trades it; the partner works it from their own install. */
+export interface JointAccount { role: "owner" | "partner"; ownerEmail: string; partnerEmail: string; since: string }
+
 export interface Store {
   readonly demo: boolean;
   currentUser(): Promise<User | null>;
@@ -41,6 +44,12 @@ export interface Store {
   pcStatus(): Promise<PcStatus | null>;
   /** Whether Claude is switched on for the signed-in person (it costs Ben's Anthropic account). */
   claudeAllowed(): Promise<boolean>;
+  /** The joint account this person is on (as owner or partner), or null. */
+  jointAccount(): Promise<JointAccount | null>;
+  /** Share this person's trading account with someone already invited, by their sign-in email. */
+  addPartner(email: string): Promise<void>;
+  /** End the joint account: the owner stops sharing, or the partner leaves. */
+  endJoint(): Promise<void>;
 
   symbols(): Promise<SymbolInfo[]>;
   candles(symbol: string, tf: Timeframe): Promise<Candles>;
@@ -176,9 +185,25 @@ export class SupabaseStore implements Store {
   }
 
   async pcStatus() {
-    const me = (await this.sb.auth.getSession()).data.session?.user.id;
-    const rows = this.check(await this.sb.from("pc_status").select("*").eq("owner", me ?? "")) as PcStatus[];
+    // The PC that trades the account worked: your own, or on a joint account the owner's (the database decides which).
+    const rows = this.check(await this.sb.from("pc_status").select("*")) as PcStatus[];
     return rows[0] ?? null;
+  }
+
+  async jointAccount(): Promise<JointAccount | null> {
+    const me = (await this.sb.auth.getSession()).data.session?.user.id;
+    const rows = this.check(await this.sb.from("trading_partners").select("owner,partner,owner_email,partner_email,added_at")) as
+      { owner: string; partner: string; owner_email: string; partner_email: string; added_at: string }[];
+    const r = rows[0];
+    return r ? { role: r.owner === me ? "owner" : "partner", ownerEmail: r.owner_email, partnerEmail: r.partner_email, since: r.added_at } : null;
+  }
+
+  async addPartner(email: string) {
+    this.check(await this.sb.rpc("add_partner", { email }));
+  }
+
+  async endJoint() {
+    this.check(await this.sb.rpc("remove_partner"));
   }
 
   async claudeAllowed() {
@@ -570,6 +595,9 @@ export class DemoStore implements Store {
   async botKeyMadeAt() { return null; }
   async makeBotKey() { return "swbot1.made-up-key-for-the-demo"; }
   async claudeAllowed() { return true; }
+  async jointAccount(): Promise<JointAccount | null> { return null; }
+  async addPartner(): Promise<void> { throw new Error("Joint accounts need a real sign-in: not in the demo."); }
+  async endJoint(): Promise<void> { /* the demo has none */ }
   async pcStatus(): Promise<PcStatus | null> {
     return { updated_at: new Date().toISOString(), host: "DEMO-PC", bot_state: "connected", bot_detail: "Connected, paper account DU…000",
       data_state: "off", data_detail: null, tws_open: true, version: "demo" };
