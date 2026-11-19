@@ -171,7 +171,7 @@ Follows on from the one-tap option structures above.
   strategy, and against what its backtest expected.
 - All in one Trading group in the menu.
 
-## A joint account, two people (19 Nov 2026)
+## A joint account, two people (19 Nov 2026) — built 19 Nov 2026
 
 - Ben may open a joint account at Interactive Brokers (to check: whether a
   joint account comes with its own paper account).

@@ -70,6 +70,12 @@ def find_owner(store: SupabaseStore) -> str:
     return owners.pop()
 
 
+def joint_owner(store, owner: str) -> dict | None:
+    """The account this person is a partner on (Ben, 19 Nov 2026: joint accounts), or None: then their PC doesn't trade."""
+    rows = store.select("trading_partners", {"select": "owner,owner_email", "partner": f"eq.{owner}"})
+    return rows[0] if rows else None
+
+
 class BotRunner:
     def __init__(self, store, owner: str, clock=lambda: datetime.now(timezone.utc), broker=None, market=None, notifier: Notifier | None = None):
         self.store, self.owner, self.clock = store, owner, clock
@@ -189,7 +195,9 @@ class BotRunner:
         return said
 
     def _open(self, q: dict) -> str:
-        rows = self.store.select("option_positions", {"select": "*", "id": f"eq.{q['position_id']}", "owner": f"eq.{self.owner}"})
+        # A joint account's partner orders from their own chart: their structures count as the account's.
+        owners = [self.owner] + [r["partner"] for r in self.store.select("trading_partners", {"select": "partner", "owner": f"eq.{self.owner}"})]
+        rows = self.store.select("option_positions", {"select": "*", "id": f"eq.{q['position_id']}", "owner": f"in.({','.join(owners)})"})
         if not rows:
             raise ValueError("that structure has been deleted")
         pos = rows[0]
@@ -351,6 +359,18 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--delayed", action="store_true", help="delayed market data (no subscription): quotes count as 15 minutes old")
     a = ap.parse_args(argv)
     store = SupabaseStore()
+    owner = a.owner or find_owner(store)
+    joint = joint_owner(store, owner)
+    if joint:
+        # Only one PC trades a joint account (one TWS login): the owner's. This one waits, and starts
+        # trading again (through the supervisor's restart) if the joint account ends.
+        print(f"Joint account: trading runs on {joint['owner_email']}'s PC. This PC shows and approves only.")
+        while joint_owner(store, owner):
+            if not a.loop:
+                return 0
+            time.sleep(60)
+        print("The joint account has ended: restarting to trade your own account.")
+        return 1
     broker = None
     if a.broker == "ibkr":
         from stockwizard.broker.ibkr import IBKRBroker  # noqa: PLC0415 - needs ib_async, only on the PC
@@ -358,7 +378,7 @@ def main(argv: list[str] | None = None) -> int:
         print(f"Connected to Interactive Brokers, paper account {broker.account}.")
     from stockwizard.strategy_runner import IBKRMarket, PretendMarket  # noqa: PLC0415
     market = IBKRMarket(broker, store) if broker is not None else PretendMarket(store)
-    runner = BotRunner(store, a.owner or find_owner(store), broker=broker, market=market, notifier=Notifier.from_env())
+    runner = BotRunner(store, owner, broker=broker, market=market, notifier=Notifier.from_env())
     if a.practice:
         p = runner.practice()
         print(f"Practice order {runner.db_ids[p.id]}: {p.status}" + (f" ({'; '.join(r.why for r in p.refusals)})" if p.refusals else " — waiting for Ben"))

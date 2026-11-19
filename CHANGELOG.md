@@ -5,6 +5,7 @@ on GitHub (#number). Kept up when Ben asks for a documentation refresh.
 
 ## 19 November 2026
 
+- #77 Joint account: two people working one trading account, each with full say
 - #76 Claude reads 1-minute candles, and builds 15- and 30-minute ones from the 5-minute candles like the chart
 - #75 Market internals parked until NYSE index data is added
 - #74 Test a structure against the past from its analysis, optionally only on days like today

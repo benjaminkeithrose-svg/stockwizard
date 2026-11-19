@@ -70,6 +70,11 @@ const SCREENS: Topic[] = [
     "Send as a paper order passes it to Stock Wizard on your PC. It prices it, checks every limit, and it waits for you in Trading.",
     "All prices here are theoretical (Black-Scholes) until Interactive Brokers supplies real ones.",
   ]],
+  ["Joint account", [
+    "Menu, Joint account: share your trading account with someone already invited to Stock Wizard, by their sign-in email. Both of you then have full say on it: orders, approvals, closes, the kill switch, the limits and the automated strategies.",
+    "Only the owner's PC trades it (one TWS login). Stock Wizard on the partner's PC shows and approves but doesn't trade. Charts, pages and favourites stay each person's own.",
+    "Either of you can end it: Stop sharing, or Leave this account. Nothing is deleted.",
+  ]],
   ["Trading", [
     "Menu, Trading. Now: the automated strategies switched on, orders waiting for you, and open positions with their value now (a theoretical estimate).",
     "Orders, as a broker lists them: Working (waiting, approved, at the broker, or being closed), Filled (open), Closed (with profit or loss) and Not traded (refused, rejected, cancelled). Tap one for its legs, prices and times.",

@@ -5,6 +5,10 @@
 export interface News { build: string; date: string; items: string[] }
 
 export const WHATS_NEW: News[] = [
+  { build: "sw-v52", date: "19 Nov 2026", items: [
+    "Joint account: Menu, Joint account shares your trading account with someone you've invited. Both of you get full say on its orders, limits and automated strategies, each on your own install, with your own charts.",
+    "Only the owner's PC trades it; the partner's Stock Wizard shows and approves. Every approval, close and change says who did it.",
+  ] },
   { build: "sw-v51", date: "19 Nov 2026", items: [
     "Claude can now read 1-minute candles, and 15- and 30-minute candles again (built from the 5-minute ones, the same way the chart builds them).",
   ] },
