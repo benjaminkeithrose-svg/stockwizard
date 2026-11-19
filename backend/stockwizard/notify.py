@@ -62,6 +62,9 @@ def message(status: str, p, why: str | None = None) -> tuple[str, str, str, str]
     if status == "filled":
         fill = f"${p.fill_price:.2f}" if p.fill_price is not None else price
         return "Order filled", f"{what} at {fill}.", "default", "white_check_mark"
+    if status == "cancelled" and getattr(p, "unfilled", False):
+        return ("Order didn't fill", f"{what}: offered down to {price} until its window ended, then cancelled. Nothing was bought or sold.",
+                "default", "hourglass")
     if status == "closed":
         pnl = p.pnl or 0.0
         money = f"{'+' if pnl >= 0 else '−'}${abs(pnl):,.2f}"

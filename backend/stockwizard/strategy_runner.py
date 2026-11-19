@@ -5,8 +5,8 @@ what the bot trades follows the same rules the research tests. Each cycle:
 
 1. Propose: in the 15 minutes after a switched-on strategy's entry time, once
    a day, read today's bars, work out the signals, choose the strikes by delta,
-   price the trade at the natural side (sell at the bid, buy at the ask), and
-   hand it to the bot. The safety rails decide; in approval mode it waits for
+   price the trade at the legs' midpoints (since 19 Nov 2026; the natural side before), and
+   hand it to the bot, which works the price towards the worst allowed (working.py). The safety rails decide; in approval mode it waits for
    Ben. A day with no setup is recorded once, with the reason.
 2. Manage: for each filled strategy trade, check its exits (profit target,
    stop, short strike breached, delta, time) against fresh quotes; close it
@@ -39,7 +39,7 @@ from stockwizard.data.base import select_preferred
 from stockwizard.rails import Leg as RailLeg
 from stockwizard.rails import OrderRequest
 from stockwizard.zerodte import calendar, signals
-from stockwizard.zerodte.engine import _close_price, _intrinsic, _mid_value, _open_price
+from stockwizard.zerodte.engine import _close_price, _intrinsic, _mid_value
 from stockwizard.zerodte.instruments import INSTRUMENTS
 from stockwizard.zerodte.quotes import ModelQuotes
 from stockwizard.zerodte.strategy import Config, Leg, legs_for, resolve
@@ -291,7 +291,8 @@ class StrategyRunner:
             legs = legs_for(cfg, structure, chain, sig.price, inst.step) if chain else None
         if legs is None:
             return self._no_trade(st, "the strikes it needs aren't quoted")
-        paid = _open_price(legs, chain, cfg.slippage)
+        # From the midpoint (Ben, 19 Nov 2026): the bot then works the price towards the worst allowed (working.py).
+        paid = _mid_value(legs, chain)
         credit = -paid
         if structure in ("bull_call_debit", "bear_put_debit"):
             price, kind = _tick(paid, inst.tick, down=False), "debit"

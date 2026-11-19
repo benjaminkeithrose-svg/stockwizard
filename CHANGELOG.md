@@ -5,6 +5,7 @@ on GitHub (#number). Kept up when Ben asks for a documentation refresh.
 
 ## 19 November 2026
 
+- #80 Your PC works each order's price from the midpoint towards the worst allowed, and cancels it unfilled at 10:30 New York; strategies start at the midpoint
 - #79 Orders sent while the market is shut wait for the open; failed requests show in Trading for a day
 - #78 The guides refreshed: pattern markers, replay, test it against the past, 1-minute candles, the archive guard, one Update button, the joint account
 - #77 Joint account: two people working one trading account, each with full say

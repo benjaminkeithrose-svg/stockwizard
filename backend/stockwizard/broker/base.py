@@ -41,6 +41,10 @@ class Broker(ABC):
     @abstractmethod
     def open_orders(self) -> list[BrokerOrder]: ...
 
+    def modify(self, broker_id: str, order: OrderRequest) -> None:
+        """Change a working order's limit price (working the price towards a fill)."""
+        raise NotImplementedError("This broker can't change a working order")
+
     @abstractmethod
     def close(self, broker_id: str, price: float) -> str:
         """Send one combo limit order closing a filled structure at `price` per share; return the close order's id.
