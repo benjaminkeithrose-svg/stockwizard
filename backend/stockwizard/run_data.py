@@ -36,9 +36,9 @@ from stockwizard.load import read_symbols
 
 NY = ZoneInfo("America/New_York")
 UNIVERSE = Path(__file__).resolve().parents[1] / "data" / "universe.csv"
-TIMEFRAMES = ["1d", "1h", "5m"]
-DEPTH = {"1d": timedelta(days=365 * 36), "1h": timedelta(days=365 * 2), "5m": timedelta(days=60)}   # first fetch, into the archive
-WINDOW = {"1d": timedelta(days=365 * 5), "1h": timedelta(days=365 * 2), "5m": timedelta(days=60)}   # kept in Supabase
+TIMEFRAMES = ["1d", "1h", "5m", "1m"]   # 1m since 19 Nov 2026 (Ben); 15m and 30m are built from 5m in the app
+DEPTH = {"1d": timedelta(days=365 * 36), "1h": timedelta(days=365 * 2), "5m": timedelta(days=60), "1m": timedelta(days=7)}   # first fetch, into the archive
+WINDOW = {"1d": timedelta(days=365 * 5), "1h": timedelta(days=365 * 2), "5m": timedelta(days=60), "1m": timedelta(days=7)}   # kept in Supabase
 OVERLAP = timedelta(days=5)
 AFTER_CLOSE = (16, 20)   # New York time the day's candles are fetched
 

@@ -43,6 +43,24 @@ export function bucket(t: number, tf: Timeframe): number {
   return midnight + start * 60;
 }
 
+/** Candles of a longer timeframe built from shorter ones (15m and 30m from 5m), on IBKR's grid from 9:30. */
+export function resample(c: Candles, tf: Timeframe): Candles {
+  const out: Candles = { time: [], open: [], high: [], low: [], close: [], volume: [], source: c.source };
+  for (let i = 0; i < c.time.length; i++) {
+    const t = bucket(c.time[i], tf);
+    const n = out.time.length - 1;
+    if (n >= 0 && out.time[n] === t) {
+      out.high[n] = Math.max(out.high[n], c.high[i]);
+      out.low[n] = Math.min(out.low[n], c.low[i]);
+      out.close[n] = c.close[i];
+      out.volume[n] += c.volume[i];
+    } else {
+      out.time.push(t); out.open.push(c.open[i]); out.high.push(c.high[i]); out.low.push(c.low[i]); out.close.push(c.close[i]); out.volume.push(c.volume[i]);
+    }
+  }
+  return out;
+}
+
 /** The chart's candles with today's live bars folded in after the last stored candle.
  *  Stored candles are always finished ones, so a live bar inside a stored candle's period is already
  *  counted and is skipped; later live bars build the candles still to come, the last one still forming. */

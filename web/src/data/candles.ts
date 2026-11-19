@@ -1,8 +1,8 @@
 // Candles in the browser: one array per field, times in UTC seconds (candle OPEN time).
 
-export type Timeframe = "5m" | "15m" | "30m" | "1h" | "1d";
-export const TIMEFRAMES: Timeframe[] = ["5m", "15m", "30m", "1h", "1d"];
-export const TIMEFRAME_MINUTES: Record<Timeframe, number> = { "5m": 5, "15m": 15, "30m": 30, "1h": 60, "1d": 1440 };
+export type Timeframe = "1m" | "5m" | "15m" | "30m" | "1h" | "1d";
+export const TIMEFRAMES: Timeframe[] = ["1m", "5m", "15m", "30m", "1h", "1d"];
+export const TIMEFRAME_MINUTES: Record<Timeframe, number> = { "1m": 1, "5m": 5, "15m": 15, "30m": 30, "1h": 60, "1d": 1440 };
 
 export interface Candles {
   time: number[];

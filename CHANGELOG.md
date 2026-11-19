@@ -5,6 +5,8 @@ on GitHub (#number). Kept up when Ben asks for a documentation refresh.
 
 ## 19 November 2026
 
+- #72 1-minute candles and charts; 15- and 30-minute charts built from the 5-minute candles (they were empty since the move to IBKR)
+
 - #70 One Update button (Menu, Updates and what's new) for the app and Stock Wizard on the PC; checked each time the app opens
 
 - #69 The candle archive guards itself: a damaged archive is set aside and the backup put back; a damaged archive is never backed up

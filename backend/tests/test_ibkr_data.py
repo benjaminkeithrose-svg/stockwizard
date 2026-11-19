@@ -130,7 +130,7 @@ class FakeSource:
         self.asked.append((symbol, timeframe, start))
         if symbol in self.fail:
             raise ValueError("no data")
-        freq = {"1d": "1D", "1h": "1h", "5m": "5min"}[timeframe]
+        freq = {"1d": "1D", "1h": "1h", "5m": "5min", "1m": "1min"}[timeframe]
         first = pd.Timestamp(start).tz_localize("America/New_York").tz_convert("UTC")
         return frame(first, int((NOW - first) / pd.Timedelta(freq)), freq)
 
@@ -183,7 +183,7 @@ def test_supabase_is_trimmed_to_the_window_for_ibkr_candles_only(tmp_path):
 def test_one_symbol_failing_doesnt_stop_the_rest(tmp_path):
     store = FakeStore()
     r = DataRunner(FakeSource(fail={"^VIX"}), Archive(tmp_path / "a.sqlite"), store, SYMS, clock=lambda: NOW, log=lambda *_: None)
-    assert r.catch_up() == 3
+    assert r.catch_up() == 4, "the failing symbol fails once per timeframe (1d, 1h, 5m, 1m)"
     assert ("SPY", "1d") in store.candles
 
 
