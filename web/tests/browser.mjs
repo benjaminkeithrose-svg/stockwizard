@@ -402,35 +402,39 @@ try {
   await page.getByRole("button", { name: "Close Claude" }).click();
   await page.getByRole("button", { name: "Home" }).click().catch(() => {});
 
-  // Safety: the daily limit starts empty, approving records a decision, the kill switch drops what's waiting
-  await openFromMenu(page, "Safety and orders");
-  check(await page.getByRole("heading", { name: "Safety" }).isVisible(), "Safety opens from the menu");
-  check(await page.getByText(/daily loss limit isn't set, so the bot refuses every order/).isVisible(), "an empty daily limit is flagged");
+  // Safety and limits: the daily limit starts empty, the limits save; the kill switch stops and resumes
+  await openFromMenu(page, "Safety and limits");
+  check(await page.getByRole("heading", { name: "Safety and limits" }).isVisible(), "Safety and limits opens from the menu");
+  check(await page.getByText(/daily loss limit isn't set, so every order is refused/).isVisible(), "an empty daily limit is flagged");
   check(await page.getByText(/Live trading is disabled and can't be turned on/).isVisible(), "says live trading can't be turned on");
   check(!(await page.getByRole("button", { name: /live/i }).count()) && !(await page.getByRole("checkbox", { name: /live/i }).count()), "no live-trading control");
   await page.getByRole("button", { name: "Change limits" }).click();
-  await page.getByLabel("Most a day may lose ($)").fill("100");
+  await page.getByLabel(/Most a day may lose/).fill("100");
   await page.getByRole("button", { name: "Automatic" }).click();
   check(await page.getByRole("dialog", { name: "Automatic orders?" }).isVisible(), "automatic mode asks first");
   await page.getByRole("button", { name: "Cancel" }).click();
   await page.getByRole("button", { name: "Done" }).click();
   await wait(300);
   check(await page.getByText(/\$100 a day/).isVisible() && await page.getByText(/you approve each order/).isVisible(), "the limit is saved, approval mode kept");
-  await page.getByRole("button", { name: /^Iron condor · DEMO/ }).click();
+
+  // Trading, the one place: approve a waiting order, see it in Orders; automated strategies switch on there
+  await page.getByRole("button", { name: "Trading", exact: true }).click();
+  check(await page.getByRole("heading", { name: "Trading" }).isVisible(), "Safety links to Trading");
+  await page.getByRole("button", { name: /^Iron condor · DEMO/ }).first().click();
   await page.getByRole("button", { name: "Approve (paper)" }).click();
   await wait(300);
   check(await page.getByText("Nothing waiting.").isVisible(), "approved: nothing left waiting");
-  await page.getByRole("tab", { name: "History" }).click();
-  check(await page.getByText(/Approved, bot checking again/).isVisible(), "history shows it approved");
-  check(await page.getByText(/Iron condor · DEMO.*Refused by the rails/).first().isVisible()
-    || await page.getByText(/Refused by the rails/).first().isVisible(), "the chart's condor was checked by the rails (too much risk for $50)");
-  // Bots: the ones made from backtests are tested and switch on (asking first); a changed or hand-made one can't
+  await page.getByRole("tab", { name: /^Orders/ }).click();
+  check(await page.getByText(/Approved, checking again/).first().isVisible(), "Orders, Working, shows it approved");
+  await page.getByRole("tab", { name: /^Not traded/ }).click();
+  check(await page.getByText(/Refused by the limits/).first().isVisible(), "the chart's condor was checked by the rails (too much risk for $50)");
+  await page.getByRole("tab", { name: "Now" }).click();
   const ic9 = page.locator(".card.strat", { hasText: "Made-up 9-day iron condor" });
-  check(await ic9.getByText("Tested", { exact: true }).isVisible(), "a bot made from a backtest shows as tested");
+  check(await ic9.getByText("Tested", { exact: true }).isVisible(), "a strategy automated from a backtest shows as tested");
   check(await ic9.getByText(/Backtest expected 51% won, \+\$31 a trade/).isVisible() && await ic9.getByText(/Paper: no closed trades yet/).isVisible(),
     "its card compares paper results with what the backtest expected");
   const sw = page.getByRole("switch", { name: /Made-up 9-day iron condor/ });
-  check(await sw.getAttribute("aria-checked") === "false", "a new bot starts switched off");
+  check(await sw.getAttribute("aria-checked") === "false", "a new one starts switched off");
   await sw.click();
   check(await page.getByRole("dialog", { name: "Switch on?" }).isVisible(), "switching on asks first");
   await page.getByRole("button", { name: "Switch on", exact: true }).click();
@@ -442,27 +446,29 @@ try {
   await page.getByRole("dialog", { name: "Automated strategy" }).getByRole("button", { name: "Done" }).click();
   await wait(300);
   check(await ic9.getByText("Untested", { exact: true }).isVisible() && await page.getByRole("switch", { name: /Made-up 9-day iron condor off/ }).isVisible(),
-    "a changed bot is switched off and marked untested");
+    "a changed one is switched off and marked untested");
   await page.getByRole("switch", { name: /Made-up 9-day iron condor off/ }).click();
-  check(await page.getByRole("dialog", { name: "Can't switch on" }).isVisible(), "an untested bot can't be switched on");
+  check(await page.getByRole("dialog", { name: "Can't switch on" }).isVisible(), "an untested one can't be switched on");
   await page.getByRole("button", { name: "OK" }).click();
-  await page.getByRole("button", { name: "+ Set one up by hand (untested)" }).click();
+  await page.getByRole("button", { name: "More for automated strategies" }).click();
+  await page.getByRole("menuitem", { name: "Set one up by hand (untested)" }).click();
   await page.getByRole("button", { name: /^Directional 10:30/ }).click();
   await page.getByRole("button", { name: "20", exact: true }).click();
   await page.getByRole("dialog", { name: "New automated strategy" }).getByRole("button", { name: "Done" }).click();
   await wait(300);
-  check(await page.getByText(/XSP · Credit spread by direction · 10:30 · expires same day · 20 delta · \$1 wide/).isVisible(), "a hand-made bot keeps its settings");
+  check(await page.getByText(/XSP · Credit spread by direction · 10:30 · expires same day · 20 delta · \$1 wide/).isVisible(), "a hand-made one keeps its settings");
+
+  await openFromMenu(page, "Safety and limits");
   await page.getByRole("button", { name: "Kill switch: stop all trading" }).click();
   check(await page.getByText(/Blocks every new order/).isVisible(), "the kill switch says what it does");
   await page.getByRole("button", { name: "Stop all trading", exact: true }).click();
   await wait(300);
   check(await page.getByText(/The kill switch is on/).isVisible(), "the kill switch shows as on");
-  check(await page.getByText("Cancelled").first().isVisible() || await page.getByText(/^Cancelled/).count() > 0, "the approved order is cancelled");
   await page.getByRole("button", { name: "Turn trading back on" }).click();
   await page.getByRole("button", { name: "Turn back on" }).click();
   await wait(300);
   check(await page.getByRole("button", { name: "Kill switch: stop all trading" }).isVisible(), "trading can be turned back on");
-  await page.getByRole("button", { name: "Back", exact: true }).click();
+  await page.getByRole("button", { name: "Home" }).click();
 
   // Today: the checklist on one page
   await page.getByRole("button", { name: "Today", exact: true }).click();

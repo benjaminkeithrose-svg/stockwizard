@@ -33,7 +33,7 @@ explains results or sets up a chart. It cannot place orders or change limits.
    day's result against your loss limit.
 2. **When your phone buzzes:** the ntfy app tells you an order is waiting, a
    trade filled, closed or stopped, or the daily limit was hit. Open Menu →
-   Safety and orders to act on it.
+   Trading to act on it.
 3. **When you have an idea:** set it up on a chart, open its analysis, find
    the nearest backtest, and if the held-back years support it, tap **Automate this
    strategy**.
@@ -153,7 +153,7 @@ fresh price when it's approved.
 - **Positions open at once, and capital at risk.**
 - **Fresh prices.** Prices may not be older than your limit.
 - **Limit orders only.**
-- **The kill switch** (Safety and orders) stops everything at once.
+- **The kill switch** (Menu, Safety and limits) stops everything at once.
 - **Paper only.** Live trading can't be enabled from the app. Stock Wizard
   refuses Interactive Brokers' live ports and any account that isn't a
   paper account (DU…).

@@ -156,13 +156,13 @@ function SignedIn({ store, user }: { store: Store; user: User }) {
   // Back goes up the path you came down; with no path (opened from somewhere unusual), up the app's structure.
   const structuralParent = (s: Screen): Screen | null => s.name === "chart" ? null
     : s.name === "watchlist" ? { name: "watchlists" } : s.name === "card" ? { name: "pages" }
-    : s.name === "backtest" || s.name === "optbacktest" ? { name: "backtests" } : { name: "chart" };
+    : s.name === "backtest" || s.name === "optbacktest" ? { name: "backtests" } : s.name === "botkey" ? { name: "setup" } : { name: "chart" };
   const parent = trail.length >= 2 ? trail[trail.length - 2] : structuralParent(screen);
   const back = parent ? () => go(parent) : undefined;
   const titleOf = (s: Screen): string => s.name === "chart" ? "Stock Wizard" : s.name === "scanner" ? "Scanner"
     : s.name === "pages" ? "Chart pages" : s.name === "backtests" ? "Backtests"
     : s.name === "backtest" ? (strategyLabels[s.id] ?? "Backtest") : s.name === "card" ? (ws.active?.name ?? "Chart")
-    : s.name === "watchlists" ? "Watchlists" : s.name === "optbacktest" ? (optionLabels[s.id] ?? "Option backtest") : s.name === "safety" ? "Safety and orders" : s.name === "trading" ? "Trading" : s.name === "setup" ? "Setup" : s.name === "whatsnew" ? "What's new" : s.name === "botkey" ? "Access key" : s.name === "help" ? "Help" : s.name === "today" ? "Today"
+    : s.name === "watchlists" ? "Watchlists" : s.name === "optbacktest" ? (optionLabels[s.id] ?? "Option backtest") : s.name === "safety" ? "Safety and limits" : s.name === "trading" ? "Trading" : s.name === "setup" ? "Setup" : s.name === "whatsnew" ? "What's new" : s.name === "botkey" ? "Access key" : s.name === "help" ? "Help" : s.name === "today" ? "Today"
     : s.name === "analysis" ? (() => { const p = pos.list.find((x) => x.id === s.id); return p ? `${structureLabel(p.structure)} · ${p.symbol}` : "Analysis"; })()
     : s.list.name;
   const title = titleOf(screen);
@@ -187,7 +187,7 @@ function SignedIn({ store, user }: { store: Store; user: User }) {
   const groups: MenuGroup[] = [
     { label: "Charts", entries: [entry({ name: "chart" }, "Chart"), entry({ name: "today" }), entry({ name: "pages" })] },
     { label: "Research", entries: [entry({ name: "scanner" }), entry({ name: "backtests" }), entry({ name: "watchlists" })] },
-    { label: "Trading", entries: [entry({ name: "trading" }), entry({ name: "safety" }), entry({ name: "botkey" })] },
+    { label: "Trading", entries: [entry({ name: "trading" }), entry({ name: "safety" })] },
     { label: "Settings and help", entries: [
       entry({ name: "setup" }),
       entry({ name: "whatsnew" }),
@@ -238,13 +238,13 @@ function SignedIn({ store, user }: { store: Store; user: User }) {
       {toast && <div className="toast" role="status">{toast}</div>}
       {screen.name === "chart" && <ChartScreen store={store} ws={ws} pos={pos} fav={fav} symbols={symbols} firstSymbol={firstSymbol}
         onAnalyse={(id) => { setAdjust(null); setScreen({ name: "analysis", id }); }} adjust={adjust} />}
-      {screen.name === "safety" && <SafetyScreen store={store} />}
+      {screen.name === "safety" && <SafetyScreen store={store} onTrading={() => go({ name: "trading" })} />}
       {screen.name === "whatsnew" && <WhatsNewScreen />}
       {screen.name === "setup" && <SetupScreen store={store} onAccessKey={() => go({ name: "botkey" })} onFinish={() => go({ name: "chart" })} />}
       {screen.name === "trading" && <TradingScreen store={store} onSafety={() => go({ name: "safety" })} />}
       {screen.name === "botkey" && <BotKeyScreen store={store} />}
       {screen.name === "help" && <HelpScreen />}
-      {screen.name === "today" && <TodayScreen store={store} onSafety={() => setScreen({ name: "safety" })} />}
+      {screen.name === "today" && <TodayScreen store={store} onSafety={() => go({ name: "trading" })} />}
       {screen.name === "analysis" && (analysing
         ? <AnalysisScreen store={store} position={analysing} others={pos.list.filter((p) => p.symbol === analysing.symbol)}
             onAdjust={() => { setAdjust(analysing.id); setScreen({ name: "chart" }); }} />

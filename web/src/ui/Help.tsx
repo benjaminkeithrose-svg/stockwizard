@@ -31,8 +31,8 @@ const START: Topic[] = [
   ]],
   ["5. Automate a strategy and let it trade on paper", [
     "On an option backtest or a 0DTE survivor you like, tap Automate this strategy, then Done. It's saved switched off.",
-    "Set your limits first: Menu, Safety and orders, Change limits. With no daily loss limit, every order is refused.",
-    "Switch it on under Automated strategies (in Safety and orders). At its entry time each trading day it proposes the trade; you approve it in Safety and orders (or let it run in Automatic mode, paper only). Your phone tells you when there's something to do.",
+    "Set your limits first: Menu, Safety and limits, then tap the Limits card. With no daily loss limit, every order is refused.",
+    "Switch it on under Automated strategies (Menu, Trading). At its entry time each trading day it proposes the trade; you approve it in Trading (or let it run in Automatic mode, paper only). Your phone tells you when there's something to do.",
   ]],
   ["6. Each morning", [
     "Today (top of the chart screen) shows whether the US market is open, the market numbers, what each automated strategy did, and today's result against your limit.",
@@ -57,7 +57,7 @@ const SCREENS: Topic[] = [
     "The graph shows profit or loss at every price: the solid line at expiry, the dashed line at the date on the slider. Green is profit; red is loss. The shaded band is the expected move.",
     "Move the date slider to watch time decay, and the volatility slider to see what a calmer or wilder market does.",
     "+ Compare puts up to 3 structures on one graph, with a table side by side.",
-    "Send as a paper order passes it to Stock Wizard on your PC. It prices it, checks every limit, and it waits for you in Safety and orders.",
+    "Send as a paper order passes it to Stock Wizard on your PC. It prices it, checks every limit, and it waits for you in Trading.",
     "All prices here are theoretical (Black-Scholes) until Interactive Brokers supplies real ones.",
   ]],
   ["Trading", [
@@ -103,15 +103,18 @@ const BOT: Topic[] = [
   ["The safety rails", [
     "Every order must pass all of them, when proposed and again when approved: defined risk only (no naked options), the most a trade may lose, the most a day may lose, positions open at once, capital at risk, prices no older than your limit, limit orders only, and the kill switch off.",
     "While the daily loss limit is empty, every order is refused.",
-    "The kill switch (Safety and orders) stops all trading at once: it drops waiting orders and cancels anything working.",
+    "The kill switch (Menu, Safety and limits) stops all trading at once: it drops waiting orders and cancels anything working.",
     "Paper trading only. Live trading can't be turned on from the app, and Stock Wizard refuses live ports and accounts.",
   ]],
-  ["Safety and orders", [
-    "Waiting: orders proposed by an automated strategy or sent from a chart. Tap one to approve or reject it. Approving doesn't send it straight away: your PC gets a fresh price and checks every limit again first.",
-    "Automated strategies: switch one on (it asks first) or off. Each card shows Tested or Untested, its paper results so far, and what its backtest expected.",
-    "Limits: the most a trade or a day may lose, positions at once, capital at risk, how old prices may be, and Approve or Automatic.",
+  ["Approving, closing and switching on (Trading)", [
+    "Trading, Now: Waiting for you lists orders proposed by an automated strategy or sent from a chart. Tap one to approve or reject it. Approving doesn't send it straight away: your PC gets a fresh price and checks every limit again first.",
+    "Tap an open position to close it.",
+    "Automated strategies: switch one on (it asks first) or off. Each card shows Tested or Untested, its paper results so far, and what its backtest expected. Its ⋯ sets one up by hand (untested).",
   ]],
-  ["Phone notifications", ["Through the free ntfy app: an order waiting for you, filled, closed or stopped, and the daily loss limit reached. Each is told once. Open Stock Wizard's Safety and orders to act on it."]],
+  ["Safety and limits", [
+    "The kill switch, and the limits: the most a trade or a day may lose, positions at once, capital at risk, how old prices may be, and Approve or Automatic.",
+  ]],
+  ["Phone notifications", ["Through the free ntfy app: an order waiting for you, filled, closed or stopped, and the daily loss limit reached. Each is told once. Open Stock Wizard's Trading to act on it."]],
   ["Where trading runs", [
     "In the Stock Wizard program on your Windows PC, next to Interactive Brokers' TWS logged in to Paper Trading. It runs behind the icon by the clock (an S in a circle: green connected, amber waiting, red stopped) and starts when you sign in to Windows.",
     "The line under the header (PC: …) shows whether the PC's trading connection and market data are running, from its heartbeat every 30 seconds.",
@@ -126,7 +129,7 @@ const BOT: Topic[] = [
     "Menu, Setup: connect this PC (one tap makes and saves its access key), turn on TWS's connection and check it, real-time or delayed prices, phone notifications, and what each monitor shows.",
     "It opens by itself the first time Stock Wizard on a PC has nothing set up. Every step can be skipped and done later.",
   ]],
-  ["Access key (invited people)", ["Menu, Access key, Make an access key: the key your PC's Stock Wizard signs in with. It can only touch your own orders. Making a new one stops the old one."]],
+  ["Access key (invited people)", ["The key your PC's Stock Wizard signs in with. Menu, Setup, Connect this PC makes and saves it in one tap (on an older set-up, Setup links to making one by hand). It can only touch your own orders. Making a new one stops the old one."]],
 ];
 
 const TROUBLE: Topic[] = [
@@ -134,7 +137,7 @@ const TROUBLE: Topic[] = [
   ["Today says no snapshot, or the numbers are old", ["Your PC saves them only during the US session. If the session is open and they're more than 10 minutes old, Stock Wizard isn't running on the PC: look at the PC line under the header, then the icon by the clock on the PC."]],
   ["The PC line says waiting or stopped", ["Usually TWS: it isn't open, isn't logged in to Paper Trading, or restarted overnight. Log in again; Stock Wizard reconnects within a minute. Right-click the icon by the clock, Logs, shows the full story."]],
   ["An automated strategy didn't propose anything", ["Open Today: it shows the reason (outside its VIX range, no setup, a day it skips, a position still open). If it says your PC may not have been running, Stock Wizard wasn't running at the entry time."]],
-  ["Every order is refused", ["Open the order in Safety and orders: it lists every rail it failed. Most often the daily loss limit is empty, the trade risks more than the per-trade limit, or the prices are too old."]],
+  ["Every order is refused", ["Open the order in Trading (Orders, Not traded): it lists every rail it failed. Most often the daily loss limit is empty, the trade risks more than the per-trade limit, or the prices are too old."]],
   ["Charts have no candles, or yesterday is missing", ["Candles come from Interactive Brokers through Ben's PC, topped up after each US close (about 8 to 9 am Sydney). While that PC or TWS is off nothing updates; the next start fills the gap. A new symbol needs adding to the symbol list; ask me."]],
 ];
 

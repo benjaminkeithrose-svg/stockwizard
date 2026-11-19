@@ -180,7 +180,7 @@ export default function SetupScreen(props: { store: Store; onAccessKey: () => vo
         <h2>All set</h2>
         <ul className="steps">
           <li>{!pc ? "Connect a PC from Stock Wizard on Windows." : s?.configured ? "This PC is connected." : "This PC isn't connected yet (step 1): it won't trade."}</li>
-          <li>Set your limits before trading: Menu, Safety and orders, Limits.</li>
+          <li>Set your limits before trading: Menu, Safety and limits.</li>
           <li>Change any of this later: Menu, Setup.</li>
         </ul>
       </>}

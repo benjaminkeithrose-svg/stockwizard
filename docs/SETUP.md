@@ -21,7 +21,7 @@ with your email and that password.
 
 ### 2. Set your limits
 1. In Stock Wizard, click **Menu** at the top right.
-2. Click **Safety and orders**.
+2. Click **Safety and limits**.
 3. Under **Limits**, click the card, set each limit, and click **Done**.
    Until there's a daily loss limit, every order is refused.
 
@@ -111,8 +111,8 @@ No administrator rights are needed, and it installs nothing else.
   then reconnects by itself and checks its orders against Interactive Brokers
   before trading again.
 - Close TWS with **File**, then **Exit**, so it keeps its settings.
-- Orders, approvals and the kill switch are in the app: **Menu**, **Safety
-  and orders**.
+- Orders and approvals are in the app under **Menu**, **Trading**; the kill
+  switch and limits under **Menu**, **Safety and limits**.
 
 ## Changing things
 - **Settings**: in Stock Wizard, **Menu**, then **Setup**. (The icon's

@@ -10,7 +10,7 @@ import type { BotStrategy, PaperOrder, StrategyConfig } from "../data/model";
 import { isTested, paperResults, sameSettings } from "../data/bots";
 import type { Store } from "../data/store";
 import { Bin } from "./icons";
-import { Sheet, Info } from "./parts";
+import { Sheet, Info, MoreMenu } from "./parts";
 
 const PRESETS: { name: string; what: string; config: StrategyConfig }[] = [
   { name: "Directional", what: "10:30: bull put if bullish, bear call if bearish, nothing if neutral; take 50%, stop 2×, out by 15:00",
@@ -124,7 +124,8 @@ export default function StrategiesSection({ store, onError }: { store: Store; on
 
   return (
     <>
-      <h2>Automated strategies <Info term="tested" /></h2>
+      <div className="h2row"><h2>Automated strategies <Info term="tested" /></h2>
+        <MoreMenu className="icon" label="More for automated strategies" items={[{ label: "Set one up by hand (untested)", onPick: () => setOpen("new") }]} /></div>
       {!list.length && <p className="empty">None yet.</p>}
       {list.map((s) => (
         <div key={s.id} className="card strat" style={{ borderLeftColor: s.enabled ? "#237F35" : undefined }}>
@@ -146,8 +147,7 @@ export default function StrategiesSection({ store, onError }: { store: Store; on
             onClick={() => (s.enabled ? save({ ...s, enabled: false }) : setTurningOn(s))}>{s.enabled ? "On" : "Off"}</button>
         </div>
       ))}
-      <p className="hint">Automate a strategy from its backtest: Backtests, open one, then Automate this strategy. Only a tested one can be switched on. Each card compares its paper results with what its backtest expected. With the pretend broker the prices are made up.</p>
-      <button className="ghost" onClick={() => setOpen("new")}>+ Set one up by hand (untested)</button>
+      <p className="hint">Automate a strategy from its backtest: Backtests, open one, then Automate this strategy. Only a tested one can be switched on. Each card compares its paper results with what its backtest expected.</p>
       {open && (
         <BotSheet strategy={open === "new" ? null : open} onClose={() => setOpen(null)} onDone={save}
           onDelete={() => open !== "new" && store.deleteBotStrategy(open.id).then(reload).catch((e) => onError(String(e.message ?? e)))} />

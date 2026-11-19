@@ -477,3 +477,9 @@ ul.steps { margin: 6px 0 0; padding-left: 22px; line-height: 1.6; }
 .msg.notice { display: flex; align-items: center; gap: 10px; margin: 6px 12px 0; padding: 4px 4px 4px 12px; }
 .msg.notice span { flex: 1; }
 .navmenu section .navlink { margin-bottom: 0; }
+/* A number tile you can tap (Today: Waiting for you opens Trading). */
+.kv > .kvtap { background: var(--cyan-lt); border: 1px solid var(--cyan-dk); border-radius: var(--r-sm); padding: 8px 10px; display: flex;
+  flex-direction: column; gap: 2px; text-align: left; cursor: pointer; color: inherit; font: inherit; min-height: 40px; }
+.kv > .kvtap span { color: var(--cyan-dk); }
+.h2row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.h2row h2 { margin-bottom: 0; }

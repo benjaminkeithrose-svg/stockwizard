@@ -1,20 +1,23 @@
 // Trading (Menu, Trading; Ben, 19 Nov 2026): what's running in the market, the orders as a
 // broker lists them, and how it's going. Three tabs: Now (automated strategies switched on,
 // open positions with their value now), Orders (Working, Filled, Closed, Not traded) and
-// Results (profit and loss over time, by strategy). Approving, rejecting and closing stay
-// in Safety and orders. Values of open positions are theoretical (Black-Scholes) estimates.
+// Results (profit and loss over time, by strategy). Since 19 Nov 2026 it's the one place for
+// trading: approve, reject and close here, and switch automated strategies on and off; Safety
+// and limits keeps the kill switch and the limits. Values of open positions are theoretical
+// (Black-Scholes) estimates.
 
 import { useEffect, useMemo, useState } from "react";
 import type { Candles } from "../data/candles";
-import { BotStrategy, PaperOrder, SafetyLimits } from "../data/model";
+import { BotRequest, BotStrategy, PaperOrder, SafetyLimits } from "../data/model";
 import { expiryLabel, Structure, structureLabel } from "../data/options";
 import { historicalVol } from "../data/pricing";
 import { cachedCandles, Store } from "../data/store";
 import { byTab, closedAt, closing, OrderTab, openValue, results } from "../data/trading";
-import { isTested } from "../data/bots";
 import Graph from "./Graph";
 import PcStatusLine from "./PcStatusLine";
 import { Info, Sheet } from "./parts";
+import { Confirm } from "./Safety";
+import StrategiesSection from "./Strategies";
 
 const SYD = "Australia/Sydney";
 const when = (iso: string | null | undefined) => (iso ? new Intl.DateTimeFormat("en-AU", { timeZone: SYD, day: "numeric", month: "short", hour: "numeric", minute: "2-digit" }).format(new Date(iso)) : "—");
@@ -56,10 +59,18 @@ function useMarket(store: Store, symbols: string[]): Market {
   return m;
 }
 
-function OrderInfo(props: { order: PaperOrder; labels: Record<string, string>; onClose: () => void; onSafety: () => void }) {
+function OrderInfo(props: {
+  order: PaperOrder; labels: Record<string, string>; killed: boolean; onClose: () => void;
+  onDecide: (approve: boolean) => void; onCloseIt: () => void;
+}) {
   const o = props.order;
+  const [closingIt, setClosingIt] = useState(false);
   return (
     <Sheet title={label(o)} onClose={props.onClose}>
+      {o.status === "proposed" && (props.killed
+        ? <p className="msg err">The kill switch is on: nothing can be approved.</p>
+        : <button className="big" onClick={() => props.onDecide(true)}>Approve (paper)</button>)}
+      {o.status === "filled" && !closing(o) && <button className="big" onClick={() => setClosingIt(true)}>Close (paper)</button>}
       <div className="kv">
         <div><span>Status</span><b>{closing(o) ? "Closing: the close is at the broker" : STATUS[o.status] ?? o.status}</b></div>
         <div><span>From</span><b>{o.strategy_id ? props.labels[o.strategy_id] ?? "An automated strategy" : "The chart (by hand)"}</b></div>
@@ -77,7 +88,13 @@ function OrderInfo(props: { order: PaperOrder; labels: Record<string, string>; o
       {o.reason && <p className="hint">Why: {o.reason}</p>}
       {o.close_reason && <p className="hint">Closed because: {o.close_reason}</p>}
       {o.refusals.length > 0 && <>{o.refusals.map((r, i) => <p key={i} className="msg warn">{r.why}</p>)}</>}
-      <button className="ghost" style={{ marginTop: 10 }} onClick={props.onSafety}>Approve, reject or close it in Safety and orders</button>
+      {o.status === "proposed" && <button className="link" style={{ marginTop: 12 }} onClick={() => props.onDecide(false)}>Reject</button>}
+      {o.status === "proposed" && <p className="hint">Approving doesn't send it straight away: your PC checks every limit again first, and refuses it if anything has changed.</p>}
+      {closingIt && (
+        <Confirm title="Close this position?" yes="Close it"
+          body={`Your PC sends a close for the ${label(o)} at the current price, the next time it runs. The profit or loss counts towards today's limit.`}
+          onYes={() => { setClosingIt(false); props.onCloseIt(); }} onNo={() => setClosingIt(false)} />
+      )}
     </Sheet>
   );
 }
@@ -89,25 +106,26 @@ export default function TradingScreen(props: { store: Store; onSafety: () => voi
   const [orders, setOrders] = useState<PaperOrder[] | null>(null);
   const [strategies, setStrategies] = useState<BotStrategy[]>([]);
   const [limits, setLimits] = useState<SafetyLimits | null>(null);
+  const [requests, setRequests] = useState<BotRequest[]>([]);
   const [open, setOpen] = useState<PaperOrder | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  const load = () => Promise.all([store.paperOrders(), store.botStrategies(), store.safetyLimits(), store.botRequests()])
+    .then(([o, s, l, q]) => { setOrders(o); setStrategies(s); setLimits(l); setRequests(q.filter((x) => x.status === "waiting")); setError(null); })
+    .catch((e) => setError(String(e.message ?? e)));
   useEffect(() => {
-    const load = () => Promise.all([store.paperOrders(), store.botStrategies(), store.safetyLimits()])
-      .then(([o, s, l]) => { setOrders(o); setStrategies(s); setLimits(l); setError(null); })
-      .catch((e) => setError(String(e.message ?? e)));
     load();
     const t = window.setInterval(load, 30_000);
     return () => window.clearInterval(t);
-  }, [store]);
+  }, [store]); // eslint-disable-line react-hooks/exhaustive-deps
+  const act = (p: Promise<unknown>) => p.then(load).catch((e) => setError(String(e.message ?? e)));
 
   const labels = useMemo(() => Object.fromEntries(strategies.map((s) => [s.id, s.label])), [strategies]);
   const tabs = useMemo(() => byTab(orders ?? []), [orders]);
   const res = useMemo(() => results(orders ?? [], labels), [orders, labels]);
   const market = useMarket(store, [...new Set(tabs.filled.map((o) => o.symbol))]);
   const now = Date.now();
-  const running = strategies.filter((s) => s.enabled);
-  const waiting = (orders ?? []).filter((o) => o.status === "proposed").length;
+  const waitingOrders = (orders ?? []).filter((o) => o.status === "proposed");
   const todayKey = (iso: string) => new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York" }).format(new Date(iso));
   const today = todayKey(new Date().toISOString());
   const todayPnl = (orders ?? []).filter((o) => o.status === "closed" && typeof o.pnl === "number" && todayKey(closedAt(o)) === today)
@@ -142,26 +160,27 @@ export default function TradingScreen(props: { store: Store; onSafety: () => voi
 
       {orders !== null && tab === "now" && <>
         <div style={{ marginTop: 10 }}><PcStatusLine store={store} /></div>
-        {waiting > 0 && (
-          <div className="card" style={{ borderLeftColor: "var(--orange-dk)" }}>
-            <button className="cmain" onClick={props.onSafety}>
-              <div className="t">{waiting} order{waiting === 1 ? "" : "s"} waiting for you</div>
-              <div className="meta">Approve or reject in Safety and orders</div>
-            </button>
-          </div>
-        )}
-        <h2>Automated strategies running <Info term="entrytime" /></h2>
-        {!running.length ? <p className="empty">None switched on.</p> : running.map((s) => {
-          const mine = tabs.filled.filter((o) => o.strategy_id === s.id).length;
-          return (
-            <div key={s.id} className="card" style={{ borderLeftColor: "#0E7C86" }}>
-              <button className="cmain" onClick={props.onSafety}>
-                <div className="t">{s.label} <span className={`badge ${isTested(s) ? "ok" : "est"}`}>{isTested(s) ? "Tested" : "Untested"}</span></div>
-                <div className="meta">{s.config.instrument} · looks for its trade at {s.config.entry} New York · {mine ? `${mine} open` : "nothing open"}</div>
+        {limits?.kill_switch && <div className="msg err">The kill switch is on: no new orders. Turn it off in Safety and limits.</div>}
+        <h2>Waiting for you</h2>
+        {!waitingOrders.length && !requests.length ? <p className="empty">Nothing waiting.</p> : <>
+          {requests.map((q) => (
+            <div key={`q${q.id}`} className="card">
+              <div className="cmain" style={{ cursor: "default" }}>
+                <div className="t">{q.kind === "open" ? `Order request · ${q.quantity} contract${q.quantity === 1 ? "" : "s"}` : `Close request · order ${q.order_id}`}</div>
+                <div className="meta">Waiting for your PC to pick it up</div>
+              </div>
+            </div>
+          ))}
+          {waitingOrders.map((o) => (
+            <div key={o.id} className="card" style={{ borderLeftColor: "var(--orange-dk)" }}>
+              <button className="cmain" onClick={() => setOpen(o)}>
+                <div className="t">{label(o)}{o.strategy_id && <span className="badge info" style={{ marginLeft: 6 }}>Auto</span>}</div>
+                <div className="meta">Tap to approve or reject · {o.quantity} × {price(o, o.limit_price)} · can lose {money(o.max_loss, false)}</div>
               </button>
             </div>
-          );
-        })}
+          ))}
+        </>}
+        <StrategiesSection store={store} onError={setError} />
         <h2>Open positions</h2>
         {!tabs.filled.length ? <p className="empty">Nothing open.</p> : tabs.filled.map(orderCard)}
         {tabs.filled.length > 0 && <p className="hint">Value now: theoretical (Black-Scholes, from the last close and the VIX or recent moves), not a quote. <Info term="modelled" /></p>}
@@ -205,10 +224,12 @@ export default function TradingScreen(props: { store: Store; onSafety: () => voi
             </div>
           </div>
         ))}
-        <p className="hint">Paper trading: practice money. Each automated strategy's card in Safety and orders compares its results with its backtest.</p>
+        <p className="hint">Paper trading: practice money. Each automated strategy's card (Now) compares its results with its backtest.</p>
       </>}
 
-      {open && <OrderInfo order={open} labels={labels} onClose={() => setOpen(null)} onSafety={() => { setOpen(null); props.onSafety(); }} />}
+      {open && <OrderInfo order={open} labels={labels} killed={!!limits?.kill_switch} onClose={() => setOpen(null)}
+        onDecide={(approve) => { act(store.decideOrder(open.id, approve)); setOpen(null); }}
+        onCloseIt={() => { act(store.requestClose(open.id)); setOpen(null); }} />}
     </div>
   );
 }
