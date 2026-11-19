@@ -8,6 +8,7 @@
 
 import type { SupabaseClient } from "npm:@supabase/supabase-js@2.118.0";
 import type Anthropic from "npm:@anthropic-ai/sdk@1.4.0";
+import { resample } from "./lib/data/candles.ts";
 import type { Candles, Timeframe } from "./lib/data/candles.ts";
 import { compute, REGISTRY } from "./lib/indicators/index.ts";
 import { RULES } from "./lib/engine/scans.ts";
@@ -18,7 +19,9 @@ const START = "2006-01-02";
 const SPLIT = "2021-11-17"; // the last 5 years held back (Ben, 17 Nov 2026)
 const WARM_UP_DAYS = 500;
 const SOURCES = ["ibkr", "yahoo-unofficial"];
-const TIMEFRAMES = ["5m", "15m", "30m", "1h", "1d"];
+const TIMEFRAMES = ["1m", "5m", "15m", "30m", "1h", "1d"];
+// 15- and 30-minute candles aren't stored: they're built from the 5-minute ones, as the app does (19 Nov 2026).
+const BUILT: Record<string, number> = { "15m": 3, "30m": 6 };
 
 const obj = (properties: Record<string, unknown>, required: string[]) =>
   ({ type: "object", properties, required, additionalProperties: false }) as const;
@@ -106,6 +109,16 @@ function parseParams(json: string): Record<string, number> {
 }
 
 export async function readCandles(db: SupabaseClient, symbol: string, tf: string, opts: { count?: number; from?: string }): Promise<Candles> {
+  const k = BUILT[tf];
+  if (k) {
+    // Enough 5-minute candles for `count` built ones; the first built one may be short, so it's dropped.
+    const five = await readCandles(db, symbol, "5m", opts.count ? { count: (opts.count + 1) * k } : opts);
+    const built = resample(five, tf as Timeframe);
+    if (!opts.count) return built;
+    const keep = Math.min(opts.count, Math.max(0, built.time.length - 1));
+    const from = built.time.length - keep;
+    return { ...built, time: built.time.slice(from), open: built.open.slice(from), high: built.high.slice(from), low: built.low.slice(from), close: built.close.slice(from), volume: built.volume.slice(from) };
+  }
   for (const source of SOURCES) {
     const rows: { ts: string; open: number; high: number; low: number; close: number; volume: number }[] = [];
     for (let offset = 0; ; offset += 1000) {

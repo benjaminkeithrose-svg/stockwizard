@@ -85,3 +85,37 @@ export function madeUpCandles(tf: Timeframe, count = 600, seed = 1): Candles {
   });
   return out;
 }
+
+/** New York midnight of the trading date `t` falls on, in UTC seconds: where daily candles open. */
+export function nyMidnight(t: number): number {
+  const { minutes } = nyParts(t);
+  return t - (t % 60) - minutes * 60;
+}
+
+/** The open time of the `tf` candle a minute starting at `t` belongs to: IBKR's grid, from 9:30, then on the hour for 1h. */
+export function bucket(t: number, tf: Timeframe): number {
+  const midnight = nyMidnight(t);
+  if (tf === "1d") return midnight;
+  const m = nyParts(t).minutes;
+  const n = TIMEFRAME_MINUTES[tf];
+  const start = n === 60 && m < 600 ? 570 : Math.floor(m / n) * n;
+  return midnight + start * 60;
+}
+
+/** Candles of a longer timeframe built from shorter ones (15m and 30m from 5m), on IBKR's grid from 9:30. */
+export function resample(c: Candles, tf: Timeframe): Candles {
+  const out: Candles = { time: [], open: [], high: [], low: [], close: [], volume: [], source: c.source };
+  for (let i = 0; i < c.time.length; i++) {
+    const t = bucket(c.time[i], tf);
+    const n = out.time.length - 1;
+    if (n >= 0 && out.time[n] === t) {
+      out.high[n] = Math.max(out.high[n], c.high[i]);
+      out.low[n] = Math.min(out.low[n], c.low[i]);
+      out.close[n] = c.close[i];
+      out.volume[n] += c.volume[i];
+    } else {
+      out.time.push(t); out.open.push(c.open[i]); out.high.push(c.high[i]); out.low.push(c.low[i]); out.close.push(c.close[i]); out.volume.push(c.volume[i]);
+    }
+  }
+  return out;
+}
