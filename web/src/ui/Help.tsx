@@ -82,7 +82,7 @@ const SCREENS: Topic[] = [
     "Backtests run on Ben's PC from its 20-year candle archive (Run backtests on this PC at the top of the Lab, or on the icon by the clock). Runs that use Yahoo's old candles for the early years say so and carry the free-data warning.",
     "Option structures: on SPY with modelled prices. The chips at the top pick a group: condors and flies, $1 wings, 0DTE methods, and monthly (credit and debit spreads, iron condors, call and put condors, each managed one way: held to expiry, take 50%, close at 21 days left, or a stop at twice the credit).",
     "0DTE research (Ideas): the same-day research. It shows how many strategies were tried, how many survived the false-discovery check, and whether they held up on data they weren't chosen on. Tap a dot or a card for the detail.",
-    "Pattern lab (Ideas): conditions that came before VIX spikes, every pattern counted and checked against luck.",
+    "Pattern lab (Ideas): what came before three things: SPY rising 2% within 5 days, SPY falling 2%, and a VIX spike. It searches SPY's own measures, traditional candlestick and chart patterns (engulfing, hammers, stars, flags, double tops and bottoms, triangles, breakouts), the VIX, and the linked symbols (QQQ, IWM, NVIDIA, Apple, Tesla): their moves, trends and patterns, and how they move with SPY. Every pattern is counted and checked against luck; more patterns tried means a higher bar.",
     "Each backtest also shows what $5,000 would have become, with every trade risking 2% of the balance. Trades too big for 2% at one contract are skipped and counted.",
   ]],
   ["Watchlists", ["Lists of symbols (Menu, Watchlists). Tap a list, then a symbol, to open it on the chart."]],

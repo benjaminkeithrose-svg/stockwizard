@@ -5,6 +5,8 @@ on GitHub (#number). Kept up when Ben asks for a documentation refresh.
 
 ## 19 November 2026
 
+- #66 Traditional patterns and linked symbols in the Lab: 18 candlestick and chart patterns, QQQ, IWM, NVIDIA, Apple and Tesla, and three questions (SPY up, SPY down, VIX spike)
+
 - #65 The Lab: Ideas, Backtested and Paper trading in one place; a verdict and a progress line on every backtest; Start paper trading; Run backtests from the app on Ben's PC
 
 - #64 Trading is the one place to approve, reject, close and switch strategies; Safety and limits keeps the kill switch and limits; Access key moves into Setup; Today's Waiting for you opens Trading
