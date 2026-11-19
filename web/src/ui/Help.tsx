@@ -67,7 +67,7 @@ const SCREENS: Topic[] = [
     "Move the date slider to watch time decay, and the volatility slider to see what a calmer or wilder market does.",
     "+ Compare puts up to 3 structures on one graph, with a table side by side.",
     "History, Test it against the past: how often the same shape, placed the same way and held to expiry, made money on every past day in the daily candles, with the average, worst and best. Chips keep only days like today (the VIX near today's, or SPY, QQQ, NVIDIA and others trending the same way). A rough check on modelled prices, not a tested strategy.",
-    "Send as a paper order passes it to Stock Wizard on your PC. It prices it, checks every limit, and it waits for you in Trading.",
+    "Send as a paper order passes it to Stock Wizard on your PC. It prices it, checks every limit, and it waits for you in Trading. Sent while the US market is shut, it waits for the next open (9:35 am New York) and goes then.",
     "All prices here are theoretical (Black-Scholes) until Interactive Brokers supplies real ones.",
   ]],
   ["Joint account", [
