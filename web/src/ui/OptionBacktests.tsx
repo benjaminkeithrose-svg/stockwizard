@@ -4,6 +4,9 @@
 // profit or loss, and every trade. Only the held-back years stand for what to
 // expect, and every price here is modelled until real option fills exist.
 
+import { StageLine, VerdictBadge } from "./LabParts";
+import { stageOf, verdict } from "../data/lab";
+import type { BotStrategy } from "../data/model";
 import { Info } from "./parts";
 import { useEffect, useMemo, useState } from "react";
 import type { OptionMetrics, OptionRun, OptionStrategyDef, OptionTradeRow } from "../data/model";
@@ -46,7 +49,7 @@ function Notes({ run }: { run: OptionRun }) {
 // The families, in the order they were added; a chip row picks one so the list stays short.
 const FAMILIES: [string, string][] = [["spy_condor", "Condors and flies"], ["spy_fly_50", "$1 wings"], ["spy_0dte_methods", "0DTE methods"], ["spy_monthly", "Monthly"]];
 
-export function OptionBacktestList(props: { store: Store; onOpen: (id: string) => void }) {
+export function OptionBacktestList(props: { store: Store; onOpen: (id: string) => void; bots?: BotStrategy[] }) {
   const { strategies, runs, state } = useOptionBacktests(props.store);
   const [family, setFamily] = useState(() => { try { return localStorage.getItem("stockwizard.optionFamily") ?? "spy_condor"; } catch { return "spy_condor"; } });
   const pick = (f: string) => { setFamily(f); try { localStorage.setItem("stockwizard.optionFamily", f); } catch { /* the choice just isn't remembered */ } };
@@ -69,12 +72,14 @@ export function OptionBacktestList(props: { store: Store; onOpen: (id: string) =
         return (
           <div key={s.id} className="card opt" style={{ borderLeftColor: warn ? "var(--orange-dk)" : undefined }}>
             <button className="cmain" onClick={() => props.onOpen(s.id)}>
-              <div className="t">{s.label}</div>
+              <div className="cardtop"><div className="t">{s.label}</div>
+                <VerdictBadge v={!r ? "none" : verdict({ burned: r.held_back_burned, trades: r.report.held_back.trades, expectancy: r.report.held_back.expectancy })} /></div>
               {!r ? <div className="meta">Not run yet</div> : (
                 <div className="meta">
                   Build {pct(r.report.build.win_rate)} won, {dollars(r.report.build.expectancy)} a trade · Held back {pct(r.report.held_back.win_rate)} won, {dollars(r.report.held_back.expectancy)} a trade
                 </div>
               )}
+              <StageLine at={stageOf(s.id, props.bots ?? [])} />
             </button>
           </div>
         );

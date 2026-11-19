@@ -363,6 +363,17 @@ def run_desktop(sup: Supervisor, settings_path: Path, log_dir: Path, lock: socke
             update(state["icon"], None)
             return {"ok": True}
 
+        def run_backtests(self):
+            """The Lab's Run backtests button (Ben's PC only): the same as Run backtests on the icon by the clock."""
+            if not sup.settings.get("SUPABASE_SECRET_KEY"):
+                return {"error": "Backtests run only on Ben's PC (the one with the secret key)."}
+            if backtests["running"]:
+                return {"error": "The backtests are already running: a notice pops up by the clock when they're done."}
+            if state.get("icon") is None:
+                return {"error": "Not ready yet: try again in a moment"}
+            run_backtests(state["icon"], None)
+            return {"ok": True}
+
         def set_screens(self, screens):
             r = super().set_screens(screens)
             if r.get("ok"):

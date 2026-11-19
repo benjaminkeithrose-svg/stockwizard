@@ -5,6 +5,12 @@
 export interface News { build: string; date: string; items: string[] }
 
 export const WHATS_NEW: News[] = [
+  { build: "sw-v43", date: "19 Nov 2026", items: [
+    "The Lab (Menu, Lab) replaces Backtests: one place from an idea to a strategy trading on paper, in three tabs: Ideas, Backtested and Paper trading.",
+    "Every backtest has a plain verdict from its held-back years: Held up, Didn't hold up, Too few to tell or Burned, and a line showing how far it has come.",
+    "Start paper trading (was Automate this strategy) on a backtest that held up.",
+    "On Ben's PC, Run backtests on this PC at the top of the Lab.",
+  ] },
   { build: "sw-v42", date: "19 Nov 2026", items: [
     "Trading is the one place for trading: approve or reject waiting orders, close open positions, and switch automated strategies on and off, all under Trading, Now.",
     "Safety and orders is now Safety and limits: the kill switch and your limits.",

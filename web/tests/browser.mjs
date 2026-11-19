@@ -326,46 +326,53 @@ try {
   check(await page.getByText(/Up to date: build/).isVisible(), "it says it is up to date");
   await page.getByRole("button", { name: "Home" }).click().catch(() => {});
 
-  // Backtests: list shows build and held back side by side; detail has the table, windows and trades
-  await openFromMenu(page, "Backtests");
-  check(await page.getByRole("heading", { name: "Backtests" }).isVisible(), "backtests open from the menu");
+  // The Lab: Ideas, Backtested, Paper trading; verdicts from the held-back years; Start paper trading
+  await openFromMenu(page, "Lab");
+  check(await page.getByRole("heading", { name: "Lab" }).isVisible(), "the Lab opens from the menu");
+  await page.getByRole("tab", { name: "Backtested" }).click();
+  await page.getByRole("button", { name: "Stock signals" }).click();
   check(await page.getByText("Build 2006–2021").first().isVisible() && await page.getByText("Held back 2021–now").first().isVisible(),
     "build and held-back periods side by side");
+  check(await page.locator(".card", { hasText: "Made-up signal → +40%" }).locator(".badge").first().isVisible(), "each backtest has a verdict");
   await page.getByRole("button", { name: /Made-up signal → \+40%/ }).click();
   check(await page.getByRole("heading", { name: "Made-up signal → +40%" }).isVisible(), "a strategy opens its own page");
   check(await page.getByRole("cell", { name: /Reached target/ }).isVisible(), "results table shows the target rate");
   check(await page.getByRole("row", { name: /Likely range.*7–22/ }).isVisible(), "with the likely range for the next 100 trades");
   check(await page.getByText(/A signal study/).isVisible(), "the study note says the VIX index can't be traded");
   check(await page.getByText(/reached target · 10 days/).isVisible(), "trades are listed");
+  check(!(await page.getByRole("button", { name: "Start paper trading" }).count()) && await page.getByText(/Can't be automated: These are stock signals/).isVisible(),
+    "a stock strategy says why it can't be paper traded");
   await page.getByRole("button", { name: "Back", exact: true }).click();
-  check(await page.getByRole("heading", { name: "Backtests" }).isVisible(), "Back returns to the list");
+  check(await page.getByRole("heading", { name: "Lab" }).isVisible(), "Back returns to the Lab");
+  await page.getByRole("tab", { name: "Ideas" }).click();
   await page.getByRole("button", { name: "Pattern lab" }).click();
   check(await page.getByText("patterns tried").isVisible(), "the pattern lab shows how many patterns were tried");
   check(await page.getByText(/Sealed years \(blind backtest\)/).isVisible(), "survivors show their sealed-years result");
   check(await page.getByText(/Discovery \(saw the future\)/).first().isVisible(), "discovery numbers are labelled as having seen the future");
   check(await page.getByText(/needs 0.05 or less/).isVisible(), "near-misses say why they failed");
-  await page.getByRole("button", { name: "0DTE", exact: true }).click();
-  check(await page.getByText(/Modelled option prices: not evidence/).isVisible(), "the 0DTE tab says first that its prices are modelled");
+  await page.getByRole("button", { name: "0DTE research" }).click();
+  check(await page.getByText(/Modelled option prices: not evidence/).isVisible(), "the 0DTE research says first that its prices are modelled");
   check(await page.getByRole("img", { name: /Development against validation/ }).isVisible(), "the did-they-hold-up chart draws");
   await page.getByRole("button", { name: /^Made-up condor B/ }).click();
   check(await page.getByText("If you'd started with $5,000 (validation)").isVisible(), "a 0DTE survivor shows the $5,000 kitty");
   check(await page.getByRole("img", { name: /Walk-forward blocks/ }).isVisible() && await page.getByRole("table", { name: "By regime" }).isVisible(),
     "a survivor shows its walk-forward blocks and results by market conditions");
-  // Make a bot from a 0DTE survivor: its settings, already filled in and marked tested
-  await page.getByRole("dialog", { name: "Strategy" }).getByRole("button", { name: "Automate this strategy" }).click();
-  check(await page.getByRole("dialog", { name: "New automated strategy" }).getByText(/^Tested: Made-up/).isVisible(), "a survivor makes a bot marked tested");
+  await page.getByRole("dialog", { name: "Strategy" }).getByRole("button", { name: "Start paper trading" }).click();
+  check(await page.getByRole("dialog", { name: "New automated strategy" }).getByText(/^Tested: Made-up/).isVisible(), "a survivor starts marked tested");
   await page.getByRole("dialog", { name: "New automated strategy" }).getByRole("button", { name: "Done" }).click();
-  check(await page.getByText(/Saved in Automated strategies, switched off/).isVisible(), "the bot is saved, switched off");
+  check(await page.getByText(/Saved, switched off/).isVisible(), "it's saved, switched off");
   await page.getByRole("dialog", { name: "Strategy" }).getByRole("button", { name: "Close" }).click();
-  await page.getByRole("button", { name: "Options", exact: true }).click();
-  check(await page.getByText(/Build 64% won, \+\$39 a trade · Held back 51% won, \+\$31 a trade/).isVisible(), "the Options tab shows build and held back side by side");
+  await page.getByRole("tab", { name: "Backtested" }).click();
+  await page.getByRole("button", { name: "Option structures" }).click();
+  check(await page.getByText(/Build 64% won, \+\$39 a trade · Held back 51% won, \+\$31 a trade/).isVisible(), "option structures show build and held back side by side");
+  check(await page.locator(".card", { hasText: "Made-up 9-day iron condor" }).getByText("Held up").isVisible(), "a held-back profit reads Held up");
   await page.getByRole("button", { name: /^Made-up 9-day iron condor/ }).click();
-  check(await page.getByRole("heading", { name: "Option backtest" }).isVisible(), "an option strategy opens its own page");
-  const mk = page.getByRole("button", { name: "Automate this strategy" });
+  check(await page.getByRole("heading", { name: "Made-up 9-day iron condor" }).isVisible(), "an option strategy opens its own page, named");
+  const mk = page.getByRole("button", { name: "Start paper trading" });
   const [mkBox, firstRow] = [await mk.boundingBox(), await page.getByRole("table", { name: "Build and held back" }).boundingBox()];
-  check(mkBox && firstRow && mkBox.y < firstRow.y, "Make a bot sits at the top of a backtest page");
+  check(mkBox && firstRow && mkBox.y < firstRow.y, "Start paper trading sits at the top of a backtest page");
   await mk.click();
-  check(await page.getByText(/SPY · Iron condor · 10:00 · expires 9 days · shorts 1× daily range · \$5 wide/).first().isVisible(), "an option backtest maps to the bot's settings");
+  check(await page.getByText(/SPY · Iron condor · 10:00 · expires 9 days · shorts 1× daily range · \$5 wide/).first().isVisible(), "an option backtest maps to the strategy's settings");
   await page.getByRole("dialog", { name: "New automated strategy" }).getByRole("button", { name: "Done" }).click();
   check(await page.getByText(/Modelled option prices/).isVisible(), "it says the prices are modelled");
   check(await page.getByRole("row", { name: /Likely wins in the next 100.*56–72.*43–59/ }).isVisible(), "with the likely range for the next 100 trades");
@@ -374,11 +381,8 @@ try {
   check(await page.getByRole("img", { name: /kitty's balance/ }).isVisible(), "with its balance trade by trade");
   check(await page.locator(".card", { hasText: "settled" }).count() === 30, "the newest 30 trades are listed");
   await page.getByRole("button", { name: "Back", exact: true }).click();
-  check(await page.getByRole("heading", { name: "Backtests" }).isVisible(), "Back returns to the Backtests screen");
-  await page.getByRole("button", { name: "Strategies" }).click();
-  await page.getByRole("button", { name: /^Made-up signal → \+40%/ }).click();
-  check(await page.getByRole("button", { name: "Automate this strategy" }).isDisabled() && await page.getByText(/stock signals/).isVisible(), "a stock strategy says why it can't be a bot");
-  await page.getByRole("button", { name: "Back", exact: true }).click();
+  await page.getByRole("tab", { name: "Paper trading" }).click();
+  check(await page.locator(".card.strat", { hasText: "Made-up 9-day iron condor" }).isVisible(), "the Paper trading tab lists the automated strategies");
   await page.getByRole("button", { name: "Back", exact: true }).click();
 
   // Claude: ask at the top, the answer under it, actions as buttons; the conversation survives a reload

@@ -1,6 +1,9 @@
-// Backtests: the latest saved run of each strategy, build period and
-// held-back period side by side. Only held-back and walk-forward results stand
-// for expected performance; the build period is where the rules were made.
+// The Lab (Menu, Lab; Ben, 19 Nov 2026; was Backtests): one place from an idea to a strategy
+// trading on paper. Three tabs follow the path: Ideas (what the searches found: the pattern
+// lab and the 0DTE research), Backtested (every tested strategy with a plain verdict from its
+// held-back years) and Paper (the automated strategies running, their paper results against
+// what the backtest expected). Only held-back and walk-forward results stand for expected
+// performance; the build period is where the rules were made.
 
 import { Info } from "./parts";
 import MakeBot from "./MakeBot";
@@ -12,6 +15,10 @@ import KittyCard from "./Kitty";
 import { stockKitty } from "../data/kitty";
 import { OptionBacktestList } from "./OptionBacktests";
 import ResearchView from "./Research";
+import StrategiesSection from "./Strategies";
+import { useBotList, VerdictBadge } from "./LabParts";
+import { verdict } from "../data/lab";
+import { pcBridge } from "../data/pc";
 
 const num = (v: unknown, digits = 0) =>
   typeof v === "number" && Number.isFinite(v) ? v.toLocaleString(undefined, { maximumFractionDigits: digits, minimumFractionDigits: digits }) : "—";
@@ -47,11 +54,36 @@ function StudyNote({ s, run }: { s: StrategyDef; run: BacktestRun }) {
   );
 }
 
+type LabTab = "ideas" | "backtested" | "paper";
+type Sub = "patterns" | "zerodte" | "stocks" | "options";
+const remembered = <T extends string>(key: string, ok: readonly T[], fallback: T): T => {
+  try { const v = localStorage.getItem(key) as T | null; return v && ok.includes(v) ? v : fallback; } catch { return fallback; }
+};
+
+/** Inside the PC program on Ben's PC: run the backtests from here, as Run backtests on the icon by the clock does. */
+function RunBacktests() {
+  const [pc, setPc] = useState<Awaited<ReturnType<typeof pcBridge>>>(null);
+  const [ben, setBen] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+  useEffect(() => { pcBridge().then((b) => { setPc(b); b?.load().then((s) => setBen(s.uses_secret_key)).catch(() => {}); }); }, []);
+  if (!pc || !ben) return null;
+  return (
+    <>
+      <button className="ghost" style={{ marginBottom: 10 }} onClick={() => pc.run_backtests().then((r) => setMsg(r.error ?? "Running: stock backtests, option backtests and the pattern lab. A notice pops up by the clock when they're done (several minutes); then reopen the Lab."))}>
+        Run backtests on this PC
+      </button>
+      {msg && <div className="msg info" style={{ marginBottom: 10 }}>{msg}</div>}
+    </>
+  );
+}
+
 export function BacktestsScreen(props: { store: Store; onOpen: (id: string) => void; onOpenOption: (id: string) => void }) {
-  const [tab, setTab] = useState<"strategies" | "options" | "zerodte" | "lab">(() => {
-    try { const t = localStorage.getItem("stockwizard.btTab"); return t === "lab" || t === "options" || t === "zerodte" ? t : "strategies"; } catch { return "strategies"; }
-  });
-  useEffect(() => { try { localStorage.setItem("stockwizard.btTab", tab); } catch { /* fine */ } }, [tab]);
+  const [tab, setTabNow] = useState<LabTab>(() => remembered("stockwizard.labTab", ["ideas", "backtested", "paper"] as const, "backtested"));
+  const [sub, setSubNow] = useState<Sub>(() => remembered("stockwizard.labSub", ["patterns", "zerodte", "stocks", "options"] as const, "options"));
+  const setTab = (t: LabTab) => { setTabNow(t); try { localStorage.setItem("stockwizard.labTab", t); } catch { /* fine */ } };
+  const setSub = (s: Sub) => { setSubNow(s); try { localStorage.setItem("stockwizard.labSub", s); } catch { /* fine */ } };
+  const bots = useBotList(props.store);
+  const [paperError, setPaperError] = useState<string | null>(null);
   const [strategies, setStrategies] = useState<StrategyDef[]>([]);
   const [runs, setRuns] = useState<Record<string, BacktestRun>>({});
   const [state, setState] = useState<"loading" | "ok" | "error">("loading");
@@ -62,21 +94,47 @@ export function BacktestsScreen(props: { store: Store; onOpen: (id: string) => v
       .catch((e) => { setError(String(e.message ?? e)); setState("error"); });
   }, [props.store]);
 
+  const ideasSub: Sub = sub === "zerodte" ? "zerodte" : "patterns";
+  const testedSub: Sub = sub === "stocks" ? "stocks" : "options";
+  const chip = (s: Sub, label: string, on: boolean) => <button key={s} className={`chip${on ? " on" : ""}`} aria-pressed={on} onClick={() => setSub(s)}>{label}</button>;
   const tabs = (
-    <div className="seg" role="group" aria-label="Backtests or pattern lab" style={{ marginBottom: 10 }}>
-      <button className={tab === "strategies" ? "on" : ""} aria-pressed={tab === "strategies"} onClick={() => setTab("strategies")}>Strategies</button>
-      <button className={tab === "options" ? "on" : ""} aria-pressed={tab === "options"} onClick={() => setTab("options")}>Options</button>
-      <button className={tab === "zerodte" ? "on" : ""} aria-pressed={tab === "zerodte"} onClick={() => setTab("zerodte")}>0DTE</button>
-      <button className={tab === "lab" ? "on" : ""} aria-pressed={tab === "lab"} onClick={() => setTab("lab")}>Pattern lab</button>
+    <>
+      <RunBacktests />
+      <div className="seg wide" role="tablist" aria-label="The Lab" style={{ marginBottom: 6 }}>
+        {([["ideas", "Ideas"], ["backtested", "Backtested"], ["paper", "Paper trading"]] as const).map(([t, l]) => (
+          <button key={t} role="tab" aria-selected={tab === t} className={tab === t ? "on" : ""} onClick={() => setTab(t)}>{l}</button>
+        ))}
+      </div>
+      <p className="hint" style={{ marginTop: 0 }}>
+        {tab === "ideas" ? "What the searches found. Not proven yet: only the years they weren't chosen on count."
+          : tab === "backtested" ? "Every tested strategy, with its verdict from the held-back years. Open one that held up to start paper trading it."
+          : "Strategies trading on paper by themselves, against what their backtest expected. Paper only: practice money."}
+      </p>
+    </>
+  );
+  if (tab === "ideas") return (
+    <div className="list">{tabs}
+      <div className="chips" role="group" aria-label="Searches" style={{ marginBottom: 10 }}>{chip("patterns", "Pattern lab", ideasSub === "patterns")}{chip("zerodte", "0DTE research", ideasSub === "zerodte")}</div>
+      {ideasSub === "patterns" ? <LabView store={props.store} /> : <ResearchView store={props.store} />}
     </div>
   );
-  if (tab === "lab") return <div className="list">{tabs}<LabView store={props.store} /></div>;
-  if (tab === "zerodte") return <div className="list">{tabs}<ResearchView store={props.store} /></div>;
-  if (tab === "options") return <div className="list">{tabs}<OptionBacktestList store={props.store} onOpen={props.onOpenOption} /></div>;
+  if (tab === "paper") return (
+    <div className="list">{tabs}
+      {paperError && <div className="msg err">{paperError}</div>}
+      <StrategiesSection store={props.store} onError={setPaperError} />
+    </div>
+  );
+  if (testedSub === "options") return (
+    <div className="list">{tabs}
+      <div className="chips" role="group" aria-label="Kinds" style={{ marginBottom: 10 }}>{chip("options", "Option structures", true)}{chip("stocks", "Stock signals", false)}</div>
+      <OptionBacktestList store={props.store} onOpen={props.onOpenOption} bots={bots} />
+    </div>
+  );
 
   return (
     <div className="list">
       {tabs}
+      <div className="chips" role="group" aria-label="Kinds" style={{ marginBottom: 10 }}>{chip("options", "Option structures", false)}{chip("stocks", "Stock signals", true)}</div>
       {state === "loading" && <p className="empty">Loading…</p>}
       {state === "error" && <div className="msg err">Couldn't load the backtests: {error}</div>}
       {state === "ok" && !strategies.length && <p className="empty">No strategies.</p>}
@@ -86,7 +144,8 @@ export function BacktestsScreen(props: { store: Store; onOpen: (id: string) => v
         return (
           <div key={s.id} className="card" style={{ borderLeftColor: run?.warnings.length || run?.held_back_burned ? "var(--orange-dk)" : undefined }}>
             <button className="cmain" onClick={() => props.onOpen(s.id)}>
-              <div className="t">{s.label}</div>
+              <div className="cardtop"><div className="t">{s.label}</div>
+                <VerdictBadge v={!run ? "none" : verdict({ burned: run.held_back_burned, trades: Number(p?.held.trades ?? 0), expectancy: typeof p?.held.expectancy_pct === "number" ? p.held.expectancy_pct : null })} /></div>
               {!p ? <div className="meta">Not run yet</div> : (
                 <div className="btpair">
                   <div>

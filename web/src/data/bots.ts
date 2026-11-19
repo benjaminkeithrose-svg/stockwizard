@@ -17,7 +17,7 @@ const MANAGE: Record<string, Partial<StrategyConfig>> = {
 
 const BOT_STRUCTURES = ["iron_condor", "iron_fly", "bull_put", "bear_call", "bull_call_debit", "bear_put_debit"];
 
-/** An option backtest (Backtests, Options) as a bot: SPY, the same structure, expiry, placement, wings and management. */
+/** An option backtest (the Lab, Backtested) as a bot: SPY, the same structure, expiry, placement, wings and management. */
 export function botFromOptionBacktest(def: OptionStrategyDef, run: OptionRun | undefined): BotDraft {
   const c = def.config as OptionStrategyDef["config"] & { intraday?: boolean; signal_params?: Record<string, unknown>; vix_min?: number | null };
   if (c.intraday) return { ok: false, why: "Same-day methods are tested on hourly candles, which automated trading doesn't use. The 0DTE research survivors can be automated." };

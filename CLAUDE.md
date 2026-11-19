@@ -72,8 +72,8 @@ inputs listed under "Still needed from Ben" (Supabase project first).
 | `web/src/ui/Safety.tsx` | Safety and limits (Menu): the kill switch and the limits (19 Nov 2026: orders, approvals, closes and automated strategies moved to Trading, the one place for them). No live-trading control anywhere |
 | `web/src/engine/` | TypeScript copies of the scan rules and the backtester, for the Claude function; checked trade by trade against the Python library (golden.json) |
 | `web/src/ui/ClaudePanel.tsx`, `web/src/data/claude.ts` | The Claude panel: ask at the top, newest answer under it; the conversation kept in the browser and sent unchanged (thinking blocks included) |
-| `web/src/ui/Lab.tsx` | The Pattern lab tab of the Backtests screen |
-| `web/src/ui/Backtests.tsx` | The Backtests screens: each strategy's build and held-back results side by side, the windows and every trade |
+| `web/src/ui/Lab.tsx` | The pattern lab, under the Lab's Ideas tab |
+| `web/src/ui/Backtests.tsx`, `web/src/data/lab.ts`, `web/src/ui/LabParts.tsx` | The Lab (Menu, Lab; was Backtests; Ben, 19 Nov 2026): Ideas (pattern lab, 0DTE research), Backtested (stock signals and option structures, each with a verdict from its held-back years: Held up, Didn't hold up, Too few to tell, Burned; and its stage Idea → Backtested → Paper trading) and Paper trading (the automated strategies); Start paper trading on a backtest page; Run backtests on this PC (bridge, Ben's PC). Each strategy's page: build and held-back results side by side, the windows and every trade |
 | `web/src/ui/Scanner.tsx` | The Scanner screen: the latest run of each scan, in tabs |
 | `web/src/ui/Pages.tsx`, `web/src/data/grid.ts`, `web/src/data/useViews.ts` | Chart pages: up to 10 tabs as cards on a 12-column grid, dragged and resized with snapping on the PC, one per row on the phone; tap a card to select it and the chart toolbar (`ChartScreen` with `toolsOnly`) acts on it; its expand button opens it full screen |
 | `web/src/data/toolbar.ts` | Where the chart toolbar sits (top, side, floating, hidden), per device; the open tab is the symbol control (Ben, 19 Nov 2026) |

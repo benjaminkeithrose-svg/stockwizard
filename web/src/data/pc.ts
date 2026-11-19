@@ -44,6 +44,7 @@ interface Bridge {
   updates(): Promise<PcUpdates>;
   check_updates(): Promise<PcUpdates>;
   install_update(): Promise<Result>;
+  run_backtests(): Promise<Result>;
 }
 
 declare global {

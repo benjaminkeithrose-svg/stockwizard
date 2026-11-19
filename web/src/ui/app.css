@@ -483,3 +483,10 @@ ul.steps { margin: 6px 0 0; padding-left: 22px; line-height: 1.6; }
 .kv > .kvtap span { color: var(--cyan-dk); }
 .h2row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .h2row h2 { margin-bottom: 0; }
+/* The Lab: a verdict that isn't good news is plain grey, not red (red is for errors and deleting). */
+.badge.no { background: var(--sunk); color: var(--ink-2); border: 1px solid var(--line-2); }
+.stages { display: inline-flex; gap: 0; font-size: 11px; color: var(--ink-3); margin-top: 4px; }
+.stages span:not(:first-child)::before { content: "›"; margin: 0 6px; color: var(--ink-3); }
+.stages span.done { color: var(--ink-2); }
+.stages span.now { color: var(--act); font-weight: 700; }
+.cardtop { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }

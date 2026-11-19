@@ -19,12 +19,12 @@ export default function MakeBot({ store, draft }: { store: Store; draft: BotDraf
   }
   return (
     <>
-      <button className="big" onClick={() => { setSaid(null); setOpen(true); }}>Automate this strategy</button>
+      <button className="big" onClick={() => { setSaid(null); setOpen(true); }}>Start paper trading</button>
       {said && <div className="msg ok" role="status">{said}</div>}
       {open && (
         <BotSheet strategy={draft.bot} onClose={() => setOpen(false)}
           onDone={(b) => store.saveBotStrategy(b)
-            .then(() => setSaid(`Saved in Automated strategies, switched off. To run it: Menu, Trading, then its switch under Automated strategies.`))
+            .then(() => setSaid(`Saved, switched off. To start it: the Lab's Paper trading tab (or Trading), then its switch.`))
             .catch((e) => setSaid(`Couldn't save: ${e.message ?? e}`))} />
       )}
     </>
