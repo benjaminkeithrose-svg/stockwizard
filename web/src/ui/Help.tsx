@@ -47,6 +47,10 @@ const SCREENS: Topic[] = [
     "Under the toolbar: the option structures on this chart, then your favourite structures (starred ones on every chart, and this symbol's own) to place in one tap. Draw adds levels and trendlines.",
     "Options places a call, put, spread, condor or fly. It goes one daily range out by default, with $5 wings. Its star makes a structure a favourite on every chart; the symbol button beside it, on this symbol only.",
   ]],
+  ["Pattern markers", [
+    "Indicators, then Patterns on the chart: pick candlestick patterns (engulfing, hammer, stars, three soldiers or crows…) and chart patterns (flags, double tops and bottoms, triangles, 20-day breakouts). \"all\" switches on a whole group (leaving out doji and inside bars, which are very common).",
+    "Each mark sits on the candle where the pattern became complete: a green arrow below for bullish, a red arrow above for bearish. They're found the same way the Lab finds them, and only from candles up to that one. Kept on this device, for every chart.",
+  ]],
   ["Bar replay", [
     "Replay (on the chart's toolbar), then tap the candle to start from: everything after it is hidden. Step a candle at a time (‹ ›) or press play at 1×, 2×, 5× or 10×.",
     "Practise as if it were live: Buy or Sell at the latest close showing, then Close. Each practice trade is scored at the replayed prices and summed up in the bar. They're never paper orders, and they're gone when you exit.",

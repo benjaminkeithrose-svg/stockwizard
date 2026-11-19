@@ -81,3 +81,12 @@ def test_a_double_bottom_counts_when_it_clears_the_high_between_the_lows():
     d = detect(frame(rows))
     assert d["double_bottom"].iloc[-1]
     assert not np.any(d["double_bottom"].iloc[:-1])
+
+
+def test_the_browsers_golden_file_is_up_to_date():
+    import importlib.util
+    from pathlib import Path
+    spec = importlib.util.spec_from_file_location("mpg", Path(__file__).resolve().parents[1] / "tools" / "make_pattern_golden.py")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    assert mod.OUT.read_text() == mod.render(), "patterns-golden.json is stale: run python tools/make_pattern_golden.py"

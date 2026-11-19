@@ -18,6 +18,7 @@ import { closeTrade, openTrade, Replay, shown as replayShown, SPEEDS, startAt, s
 import { AskText, ConfirmDelete, MoreMenu, Info } from "./parts";
 import { clampPlace, nextPlace, ToolbarMode, useToolbarPlace } from "../data/toolbar";
 import { useAutoSymbols } from "../data/useAutoSymbols";
+import { usePatternMarkers, usePatternMarks } from "./PatternPicker";
 import { DrawSheet, IndicatorSheet, SymbolSearch } from "./sheets";
 import { OptionsSheet, PositionSheet } from "./OptionSheets";
 
@@ -127,6 +128,8 @@ export default function ChartScreen(props: {
     return () => window.clearInterval(t);
   }, [replay?.playing, replay?.speed, shown.time.length]); // eslint-disable-line react-hooks/exhaustive-deps
   const onChart = useMemo(() => replayShown(shown, replay), [shown, replay?.at]); // eslint-disable-line react-hooks/exhaustive-deps
+  const [patternsOn] = usePatternMarks();
+  const patternMarks = usePatternMarkers(onChart, patternsOn);
   useEffect(stopTapping, [w?.id]);
   const firstRender = useRef(true);
   useEffect(() => { if (firstRender.current) { firstRender.current = false; return; } setAdjusting(null); }, [w?.id, w?.symbol]);
@@ -281,7 +284,7 @@ export default function ChartScreen(props: {
       <div className="chartcard">
         <Chart candles={onChart} timeframe={w.timeframe} indicators={w.indicators} drawings={w.drawings} follow={!!replay}
           viewKey={`${w.id}|${w.symbol}|${w.timeframe}${replay ? `|replay${replay.start}` : ""}`} onTap={onTap}
-          positions={[...positions, ...bots.positions]} editId={adjusting} onDragLeg={dragLeg} markers={bots.markers} />
+          positions={[...positions, ...bots.positions]} editId={adjusting} onDragLeg={dragLeg} markers={[...bots.markers, ...patternMarks]} />
         {adjustingPos && !tapPrompt && !details && (
           <div className="adjbanner" role="status">
             <span>Drag a line to move</span>

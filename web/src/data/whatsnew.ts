@@ -5,6 +5,10 @@
 export interface News { build: string; date: string; items: string[] }
 
 export const WHATS_NEW: News[] = [
+  { build: "sw-v49", date: "19 Nov 2026", items: [
+    "Pattern markers: in Indicators, pick candlestick and chart patterns to mark on the chart, green below for bullish, red above for bearish, on the candle where each became complete.",
+    "They're found exactly the way the Lab finds them (checked pattern by pattern), so what you see on the chart is what the Lab tests.",
+  ] },
   { build: "sw-v48", date: "19 Nov 2026", items: [
     "1-minute charts: pick 1m beside 5m. A week of 1-minute candles, filled in by Stock Wizard on Ben's PC after its next update, plus today's live minutes.",
     "Fixed: 15- and 30-minute charts were empty since the move to Interactive Brokers. They're now built from the 5-minute candles.",
