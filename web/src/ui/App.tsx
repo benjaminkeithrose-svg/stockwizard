@@ -27,7 +27,8 @@ import { BacktestScreen, BacktestsScreen } from "./Backtests";
 import PagesScreen from "./Pages";
 import { useViews } from "../data/useViews";
 import { useFavourites, usePositions } from "../data/usePositions";
-import { cameBackFresh, checkForUpdate, getLatestVersion } from "../update";
+import { cameBackFresh, checkForUpdate } from "../update";
+import { checkUpdates } from "../data/updating";
 import ScannerScreen from "./Scanner";
 import type { Timeframe } from "../data/candles";
 import SignIn, { SetPassword } from "./SignIn";
@@ -143,8 +144,11 @@ function SignedIn({ store, user }: { store: Store; user: User }) {
     try { seen = localStorage.getItem(SEEN_BUILD); localStorage.setItem(SEEN_BUILD, APP_BUILD); } catch { /* fine */ }
     if (justUpdated(seen, APP_BUILD)) setNotice({ text: `Updated to build ${APP_BUILD}.`, action: "See what's new" });
     if (store.demo) return;
-    pcBridge().then((pc) => pc?.check_updates()).then((u) => {
-      if (u?.available) setNotice({ text: `Stock Wizard ${u.available} is ready${u.can_apply ? "." : " (it installs after the US close)."}`, action: u.can_apply ? "Update" : "See what's new" });
+    // Each time the app opens: is the app or (on the PC) Stock Wizard behind? One note, one Update.
+    checkUpdates().then((u) => {
+      const pcReady = u.pc?.available && u.pc.can_apply;
+      if (pcReady || u.appBehind) setNotice({ text: pcReady ? `Stock Wizard ${u.pc!.available} is ready.` : "A newer version of the app is ready.", action: "Update" });
+      else if (u.pc?.available) setNotice({ text: `Stock Wizard ${u.pc.available} is ready: it installs after the US close.`, action: "See updates" });
     }).catch(() => {});
   }, [store]);
   useEffect(() => {
@@ -162,7 +166,7 @@ function SignedIn({ store, user }: { store: Store; user: User }) {
   const titleOf = (s: Screen): string => s.name === "chart" ? "Stock Wizard" : s.name === "scanner" ? "Scanner"
     : s.name === "pages" ? "Chart pages" : s.name === "backtests" ? "Lab"
     : s.name === "backtest" ? (strategyLabels[s.id] ?? "Backtest") : s.name === "card" ? (ws.active?.name ?? "Chart")
-    : s.name === "watchlists" ? "Watchlists" : s.name === "optbacktest" ? (optionLabels[s.id] ?? "Option backtest") : s.name === "safety" ? "Safety and limits" : s.name === "trading" ? "Trading" : s.name === "setup" ? "Setup" : s.name === "whatsnew" ? "What's new" : s.name === "botkey" ? "Access key" : s.name === "help" ? "Help" : s.name === "today" ? "Today"
+    : s.name === "watchlists" ? "Watchlists" : s.name === "optbacktest" ? (optionLabels[s.id] ?? "Option backtest") : s.name === "safety" ? "Safety and limits" : s.name === "trading" ? "Trading" : s.name === "setup" ? "Setup" : s.name === "whatsnew" ? "Updates and what's new" : s.name === "botkey" ? "Access key" : s.name === "help" ? "Help" : s.name === "today" ? "Today"
     : s.name === "analysis" ? (() => { const p = pos.list.find((x) => x.id === s.id); return p ? `${structureLabel(p.structure)} · ${p.symbol}` : "Analysis"; })()
     : s.list.name;
   const title = titleOf(screen);
@@ -192,7 +196,6 @@ function SignedIn({ store, user }: { store: Store; user: User }) {
       entry({ name: "setup" }),
       entry({ name: "whatsnew" }),
       entry({ name: "help" }),
-      { key: "update", label: "Get latest version", onPick: () => { setToast("Getting the latest version…"); getLatestVersion(); } },
       { key: "signout", label: `Sign out of ${store.demo ? "demo" : user.email}`, onPick: () => store.signOut() },
     ] },
   ];

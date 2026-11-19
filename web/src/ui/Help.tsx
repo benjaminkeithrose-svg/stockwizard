@@ -14,7 +14,7 @@ type Topic = [string, string[]];
 const START: Topic[] = [
   ["1. Sign in and get the latest version", [
     "Sign in with your email and password. Everything you set up is saved to your account and follows you between the phone and the PC.",
-    "Menu (top right), then Get latest version, reloads the newest build. Do it after each change I tell you about. The build number is at the bottom of the menu. Menu → Light or dark switches the look.",
+    "Menu (top right), then Updates and what's new: one Update button brings everything up to date. The app also checks each time it opens and says when an update is ready. The build number is at the bottom of the menu. Menu → Light or dark switches the look.",
   ]],
   ["2. Set up a chart", [
     "Tap the open tab (it has a ▾) to change its symbol; the joined buttons pick the timeframe (5m to 1d).",
@@ -129,8 +129,9 @@ const BOT: Topic[] = [
     "Right-click the icon for Settings, Logs, updates and, on Ben's PC, Run backtests. Closing the window keeps trading running; Quit on the icon stops it.",
     "Setting up a PC: docs/SETUP.md on GitHub, or the setup guide in the Start menu.",
   ]],
-  ["What's new and updates", [
-    "Menu, What's new: what changed lately, in plain words. After an update a note at the top says so.",
+  ["Updates and what's new", [
+    "Menu, Updates and what's new: one Update button at the top updates whatever is behind (the app, and on the PC, Stock Wizard itself), then what changed lately, in plain words. After an update a note at the top says so.",
+    "Why two pieces: the screens load from the web (updated in seconds), while the program on the PC (trading, market data, backtests) is installed and needs its installer. The one button does whichever is needed, or both.",
     "On the PC it also shows Stock Wizard's version, checks for an update each time it opens, and Update installs it with one press (after the US close, so trading isn't cut off). In a browser or on the phone, Get latest version reloads the newest app.",
   ]],
   ["Setup (on the PC)", [
@@ -141,7 +142,7 @@ const BOT: Topic[] = [
 ];
 
 const TROUBLE: Topic[] = [
-  ["The app looks out of date", ["Menu, then Get latest version. If it still looks old, close the app fully and open it again."]],
+  ["The app looks out of date", ["Menu, Updates and what's new, then Update. If it says up to date but still looks old, close the app fully and open it again."]],
   ["Today says no snapshot, or the numbers are old", ["Your PC saves them only during the US session. If the session is open and they're more than 10 minutes old, Stock Wizard isn't running on the PC: look at the PC line under the header, then the icon by the clock on the PC."]],
   ["The PC line says waiting or stopped", ["Usually TWS: it isn't open, isn't logged in to Paper Trading, or restarted overnight. Log in again; Stock Wizard reconnects within a minute. Right-click the icon by the clock, Logs, shows the full story."]],
   ["An automated strategy didn't propose anything", ["Open Today: it shows the reason (outside its VIX range, no setup, a day it skips, a position still open). If it says your PC may not have been running, Stock Wizard wasn't running at the entry time."]],
