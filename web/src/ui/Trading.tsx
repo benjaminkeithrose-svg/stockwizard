@@ -113,7 +113,7 @@ export default function TradingScreen(props: { store: Store; onSafety: () => voi
   useEffect(() => { store.jointAccount().then(setJoint).catch(() => setJoint(null)); }, [store]);
 
   const load = () => Promise.all([store.paperOrders(), store.botStrategies(), store.safetyLimits(), store.botRequests()])
-    .then(([o, s, l, q]) => { setOrders(o); setStrategies(s); setLimits(l); setRequests(q.filter((x) => x.status === "waiting")); setError(null); })
+    .then(([o, s, l, q]) => { setOrders(o); setStrategies(s); setLimits(l); setRequests(q.filter((x) => x.status === "waiting" || (x.status === "failed" && Date.now() - Date.parse(x.done_at ?? x.created_at) < 86_400_000))); setError(null); })
     .catch((e) => setError(String(e.message ?? e)));
   useEffect(() => {
     load();
@@ -170,7 +170,7 @@ export default function TradingScreen(props: { store: Store; onSafety: () => voi
             <div key={`q${q.id}`} className="card">
               <div className="cmain" style={{ cursor: "default" }}>
                 <div className="t">{q.kind === "open" ? `Order request · ${q.quantity} contract${q.quantity === 1 ? "" : "s"}` : `Close request · order ${q.order_id}`}</div>
-                <div className="meta">Waiting for your PC to pick it up</div>
+                <div className="meta">{q.status === "failed" ? <span style={{ color: "var(--warn)" }}>{q.result ?? "Couldn't"}</span> : q.result ?? "Waiting for your PC to pick it up"}</div>
               </div>
             </div>
           ))}

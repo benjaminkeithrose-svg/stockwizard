@@ -5,6 +5,10 @@
 export interface News { build: string; date: string; items: string[] }
 
 export const WHATS_NEW: News[] = [
+  { build: "sw-v54", date: "19 Nov 2026", items: [
+    "An order sent while the US market is shut now waits for the next open (9:35 am New York, about 1:35 am Sydney) instead of failing. Trading shows when it will go.",
+    "Requests that couldn't be done now show in Trading for a day, with the reason, instead of disappearing.",
+  ] },
   { build: "sw-v53", date: "19 Nov 2026", items: [
     "Help mentions the 1-minute timeframe. The user guides are refreshed for everything up to the joint account.",
   ] },

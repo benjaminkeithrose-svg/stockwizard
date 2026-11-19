@@ -414,7 +414,7 @@ class MarketBroker(SlowBroker):
     def quote(self, order):
         if self.fail:
             raise ValueError("No bid and ask for the 590 put: is the market open and the data subscribed?")
-        return _replace(order, limit_price=self.credit, price_kind="credit", prices_as_of=NOW)
+        return _replace(order, limit_price=self.credit, price_kind="credit", prices_as_of=getattr(self, "as_of", NOW))
 
     def close_quote(self, order):
         return self.to_close
@@ -529,3 +529,40 @@ def test_a_close_that_filled_while_the_bot_was_away_is_booked_at_its_limit():
     assert r2.bot.reconciled and o["status"] == "closed"
     assert o["pnl"] == round((o["limit_price"] - o["close_price"]) * 100, 2)
     assert "closed_while_away" in actions(s)
+
+
+# --- requests sent while the market is shut wait for the open (Ben, 19 Nov 2026) ---
+
+def test_a_request_sent_overnight_waits_for_the_open_then_goes_through():
+    s = FakeStore()
+    s.set_limits(**{**LIMITS, "max_loss_per_trade": 100})
+    market(s)
+    q = request(s, kind="open", position_id="pos-1", quantity=1)
+    clock = {"t": datetime(2026, 11, 19, 9, 30, tzinfo=timezone.utc)}      # 4:30 am New York, Thursday
+    r = BotRunner(s, OWNER, clock=lambda: clock["t"], broker=MarketBroker(credit=0.85))
+    r.cycle()
+    assert q["status"] == "waiting" and "Waiting for the market to open" in q["result"]
+    assert "9:35 am New York on Thu 19 Nov" in q["result"] and "1:35 am Sydney, Fri 20 Nov" in q["result"]
+    assert not r.bot.orders, "nothing is priced or sent while the market is shut"
+    clock["t"] = datetime(2026, 11, 19, 14, 36, tzinfo=timezone.utc)         # 9:36 am New York
+    r.broker.as_of = clock["t"]                                               # the market's quotes, fresh at the open
+    r.cycle()
+    assert q["status"] == "done" and "waiting for your approval" in q["result"]
+
+
+def test_a_request_whose_structure_expires_before_the_open_fails():
+    s = FakeStore()
+    s.set_limits(**LIMITS)
+    market(s)
+    s.tables["option_positions"][0]["expiry"] = "2026-11-20"
+    q = request(s, kind="open", position_id="pos-1", quantity=1)
+    r = BotRunner(s, OWNER, clock=lambda: datetime(2026, 11, 20, 22, 0, tzinfo=timezone.utc), broker=MarketBroker())   # Friday after the close
+    r.cycle()
+    assert q["status"] == "failed" and "expires before the market opens" in q["result"]
+
+
+def test_the_next_open_skips_weekends_and_holidays():
+    from stockwizard.run_bot import next_open
+    assert next_open(datetime(2026, 11, 18, 15, 0, tzinfo=timezone.utc)) is None                       # Wed 10:00 New York: open
+    assert next_open(datetime(2026, 11, 20, 22, 0, tzinfo=timezone.utc)).date().isoformat() == "2026-11-23"   # Fri evening → Mon
+    assert next_open(datetime(2026, 11, 25, 22, 0, tzinfo=timezone.utc)).date().isoformat() == "2026-11-27"   # Thanksgiving skipped

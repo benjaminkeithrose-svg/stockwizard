@@ -276,6 +276,7 @@ export interface BotRequest {
   quantity: number;
   status: "waiting" | "done" | "failed";
   result: string | null;
+  done_at?: string | null;
 }
 
 // --- option-structure backtests (read-only in the app; the server writes) ---

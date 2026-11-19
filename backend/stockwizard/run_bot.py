@@ -47,6 +47,7 @@ from stockwizard.data.base import select_preferred
 from stockwizard.data.store import SupabaseStore
 from stockwizard.pricing import historical_vol, limit_price, net_value, years_left
 from stockwizard.notify import Notifier, limit_message, message
+from stockwizard.zerodte import calendar
 from stockwizard.rails import Leg, Limits, OrderRequest, request_from_dict, request_to_dict
 
 NY = ZoneInfo("America/New_York")
@@ -74,6 +75,29 @@ def joint_owner(store, owner: str) -> dict | None:
     """The account this person is a partner on (Ben, 19 Nov 2026: joint accounts), or None: then their PC doesn't trade."""
     rows = store.select("trading_partners", {"select": "owner,owner_email", "partner": f"eq.{owner}"})
     return rows[0] if rows else None
+
+
+SYDNEY = ZoneInfo("Australia/Sydney")
+OPEN_AFTER = (9, 35)    # New York: five minutes into the session, once option quotes have settled
+CLOSE_AT = (16, 0)
+
+
+def clock_time(d: datetime) -> str:
+    return f"{d.hour % 12 or 12}:{d.minute:02d} {'am' if d.hour < 12 else 'pm'}"
+
+
+def day_name(d: datetime) -> str:
+    return f"{d:%a} {d.day} {d:%b}"
+
+
+def next_open(now: datetime) -> datetime | None:
+    """None while the session is on (from 9:35 to 16:00 New York on a trading day); otherwise when the next one starts."""
+    ny = now.astimezone(NY)
+    t = (ny.hour, ny.minute)
+    if calendar.is_trading_day(ny.date()) and OPEN_AFTER <= t < CLOSE_AT:
+        return None
+    day = ny.date() if calendar.is_trading_day(ny.date()) and t < OPEN_AFTER else calendar.trading_day_ahead(ny.date(), 1)
+    return datetime(day.year, day.month, day.day, *OPEN_AFTER, tzinfo=NY)
 
 
 class BotRunner:
@@ -184,7 +208,13 @@ class BotRunner:
     def requests(self) -> list[str]:
         said: list[str] = []
         waiting = self.store.select("bot_requests", {"select": "*", "owner": f"eq.{self.owner}", "status": "eq.waiting", "order": "id"})
+        opens_at = None if not self.broker.real_quotes else next_open(self.clock())
         for q in waiting:
+            if opens_at is not None:
+                # Real prices need the market open (Ben, 19 Nov 2026): a request sent while it's shut waits for
+                # the next session, a few minutes in, instead of failing; one whose structure expires first fails.
+                said += self._hold(q, opens_at)
+                continue
             try:
                 result = self._open(q) if q["kind"] == "open" else self._close(q)
                 status = "done"
@@ -193,6 +223,22 @@ class BotRunner:
             self.store.update("bot_requests", {"id": f"eq.{q['id']}"}, {"status": status, "result": result, "done_at": self.clock().isoformat()})
             said.append(f"Request {q['id']} ({q['kind']}): {result}")
         return said
+
+    def _hold(self, q: dict, opens_at: datetime) -> list[str]:
+        ny_open = opens_at.astimezone(NY)
+        if q["kind"] == "open":
+            pos = self.store.select("option_positions", {"select": "expiry", "id": f"eq.{q['position_id']}"})
+            if pos and datetime.fromisoformat(str(pos[0]["expiry"])[:10]).date() < ny_open.date():
+                self.store.update("bot_requests", {"id": f"eq.{q['id']}"}, {"status": "failed", "done_at": self.clock().isoformat(),
+                                  "result": "Couldn't: the structure expires before the market opens again."})
+                return [f"Request {q['id']}: expires before the open"]
+        sydney = opens_at.astimezone(SYDNEY)
+        note = (f"Waiting for the market to open: sent at {clock_time(ny_open)} New York on {day_name(ny_open)} "
+                f"({clock_time(sydney)} Sydney, {day_name(sydney)}), a few minutes after the open so prices have settled.")
+        if q.get("result") != note:
+            self.store.update("bot_requests", {"id": f"eq.{q['id']}"}, {"result": note})
+            return [f"Request {q['id']}: {note}"]
+        return []
 
     def _open(self, q: dict) -> str:
         # A joint account's partner orders from their own chart: their structures count as the account's.

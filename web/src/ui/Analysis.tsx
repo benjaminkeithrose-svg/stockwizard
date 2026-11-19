@@ -88,7 +88,7 @@ function OrderSheet(props: { store: Store; position: OptionPosition; perContract
     <Sheet title="Order (paper)" onClose={props.onClose}>
       {state === "sent" ? (
         <>
-          <p className="msg ok">Sent to Stock Wizard on your PC. It prices the order and checks every limit; it then waits for you in Trading, under Waiting for you.</p>
+          <p className="msg ok">Sent to Stock Wizard on your PC. It prices the order and checks every limit; it then waits for you in Trading, under Waiting for you. If the market's shut, it waits for the next open (9:35 am New York) and goes then.</p>
           <button className="big" onClick={props.onClose}>Done</button>
         </>
       ) : (
