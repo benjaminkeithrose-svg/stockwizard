@@ -5,6 +5,10 @@
 export interface News { build: string; date: string; items: string[] }
 
 export const WHATS_NEW: News[] = [
+  { build: "sw-v50", date: "19 Nov 2026", items: [
+    "Test a structure against the past: tap a structure's chip, then History, Test it against the past. It shows how often the same shape, placed the same way and held to expiry, made money on every past day, with the average, the middle, the worst and the best.",
+    "Only days like today: chips keep just the days when the VIX was near today's, or when SPY, QQQ, NVIDIA and the rest were trending the same way as now.",
+  ] },
   { build: "sw-v49", date: "19 Nov 2026", items: [
     "Pattern markers: in Indicators, pick candlestick and chart patterns to mark on the chart, green below for bullish, red above for bearish, on the candle where each became complete.",
     "They're found exactly the way the Lab finds them (checked pattern by pattern), so what you see on the chart is what the Lab tests.",

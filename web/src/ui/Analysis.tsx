@@ -13,6 +13,7 @@ import { analyse, decayCurve, expiryTime, historicalVol, pnlCurve } from "../dat
 import Graph, { Marker, Series } from "./Graph";
 import { ExpiryChips } from "./OptionSheets";
 import { Sheet, Info } from "./parts";
+import HistoryTest from "./HistoryTest";
 
 const COLOURS = ["#7A3E9D", "#00708D", "#E36C00"];
 export const MAX_COMPARE = 3;
@@ -245,6 +246,8 @@ export default function AnalysisScreen(props: {
         Chance of profit is held to expiry, with no adjusting or early exit. Delta and gamma are in shares; theta and vega in dollars.
         Prices are Black-Scholes estimates from the last close; real spreads will differ.
       </p>
+
+      <HistoryTest store={props.store} position={p} under={under} vix={vix} expired={expired} />
 
       <h2>Time decay <Info term="theta" /></h2>
       {decay && (

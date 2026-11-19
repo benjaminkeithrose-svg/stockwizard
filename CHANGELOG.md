@@ -5,6 +5,7 @@ on GitHub (#number). Kept up when Ben asks for a documentation refresh.
 
 ## 19 November 2026
 
+- #74 Test a structure against the past from its analysis, optionally only on days like today
 - #73 Pattern markers on the chart: the 18 candlestick and chart patterns, chosen in Indicators, found exactly as the Lab finds them
 
 - #72 1-minute candles and charts; 15- and 30-minute charts built from the 5-minute candles (they were empty since the move to IBKR)
