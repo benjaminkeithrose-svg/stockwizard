@@ -31,7 +31,7 @@ INDEXES = {
     "^VIX": ("VIX", "CBOE"), "^VIX1D": ("VIX1D", "CBOE"), "^VIX9D": ("VIX9D", "CBOE"), "^VIX3M": ("VIX3M", "CBOE"),
     "^SPX": ("SPX", "CBOE"), "^NDX": ("NDX", "NASDAQ"), "^RUT": ("RUT", "RUSSELL"),
 }
-BAR_SIZE = {"5m": "5 mins", "15m": "15 mins", "30m": "30 mins", "1h": "1 hour", "1d": "1 day"}
+BAR_SIZE = {"1m": "1 min", "5m": "5 mins", "15m": "15 mins", "30m": "30 mins", "1h": "1 hour", "1d": "1 day"}
 
 
 def ibkr_symbol(symbol: str) -> str:

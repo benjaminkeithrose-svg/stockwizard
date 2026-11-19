@@ -13,6 +13,7 @@ COLUMNS = ["open", "high", "low", "close", "volume"]
 
 # Timeframes the app supports (5 minutes and above, per SPEC.md).
 TIMEFRAMES: dict[str, pd.Timedelta] = {
+    "1m": pd.Timedelta(minutes=1),
     "5m": pd.Timedelta(minutes=5),
     "15m": pd.Timedelta(minutes=15),
     "30m": pd.Timedelta(minutes=30),

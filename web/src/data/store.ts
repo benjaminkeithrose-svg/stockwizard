@@ -2,6 +2,7 @@
 // everything in this browser with made-up candles (used by the tests, and by
 // opening the app with ?demo in the address).
 
+import { resample } from "./live";
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
 import { Candles, emptyCandles, madeUpCandles, Timeframe } from "./candles";
 import type { LiveBar } from "./live";
@@ -111,7 +112,7 @@ export interface Store {
 export const SOURCE_PREFERENCE = ["ibkr", "yahoo-unofficial"];
 const PAGE = 1000;
 // Enough history to draw and warm up the indicators without loading decades of 5-minute bars.
-const MAX_CANDLES: Record<Timeframe, number> = { "5m": 6000, "15m": 4000, "30m": 3000, "1h": 4000, "1d": 6000 };
+const MAX_CANDLES: Record<Timeframe, number> = { "1m": 4000, "5m": 6000, "15m": 4000, "30m": 3000, "1h": 4000, "1d": 6000 };
 
 export class SupabaseStore implements Store {
   readonly demo = false;
@@ -200,6 +201,8 @@ export class SupabaseStore implements Store {
   }
 
   async candles(symbol: string, tf: Timeframe): Promise<Candles> {
+    // 15- and 30-minute candles are built from the 5-minute ones: the PC's data program stores 1m, 5m, 1h and 1d (19 Nov 2026).
+    if (tf === "15m" || tf === "30m") return resample(await this.candles(symbol, "5m"), tf);
     for (const source of SOURCE_PREFERENCE) {
       const rows: { ts: string; open: number; high: number; low: number; close: number; volume: number }[] = [];
       while (rows.length < MAX_CANDLES[tf]) {

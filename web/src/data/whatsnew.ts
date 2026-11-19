@@ -5,6 +5,10 @@
 export interface News { build: string; date: string; items: string[] }
 
 export const WHATS_NEW: News[] = [
+  { build: "sw-v48", date: "19 Nov 2026", items: [
+    "1-minute charts: pick 1m beside 5m. A week of 1-minute candles, filled in by Stock Wizard on Ben's PC after its next update, plus today's live minutes.",
+    "Fixed: 15- and 30-minute charts were empty since the move to Interactive Brokers. They're now built from the 5-minute candles.",
+  ] },
   { build: "sw-v47", date: "19 Nov 2026", items: [
     "One Update button: Menu, Updates and what's new. It updates whatever is behind, the app and (on the PC) Stock Wizard itself, so there's no second path to remember.",
     "Each time the app opens it checks, and a note at the top says when an update is ready.",
