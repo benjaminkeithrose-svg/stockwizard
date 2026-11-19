@@ -8,7 +8,8 @@ import pytest
 
 from stockwizard.intraday_options import IntradayStrategy, run
 
-HOURS = ["09:30", "10:30", "11:30", "12:30", "13:30", "14:30", "15:30"]
+# IBKR's regular-hours hourly candles: a half-hour first candle, then on the hour to the 16:00 close.
+HOURS = ["09:30", "10:00", "11:00", "12:00", "13:00", "14:00", "15:00"]
 
 
 def hourly(days=40, seed=5, start="2025-01-06", base=500.0, drift=0.0015, shock=None):
@@ -47,10 +48,10 @@ def data(vix=30.0, **kw):
 START = date(2025, 1, 6)
 
 
-def test_entry_at_1030_uses_the_second_candles_open():
+def test_entry_at_1000_uses_the_second_candles_open():
     h, d, v, v1 = data()
-    t = run(IntradayStrategy(entry="10:30"), h, d, v, None, START)["trades"]
-    assert t and all(x.entry_time == "10:30" for x in t)
+    t = run(IntradayStrategy(entry="10:00"), h, d, v, None, START)["trades"]
+    assert t and all(x.entry_time == "10:00" for x in t)
     first = t[0]
     assert first.spot_in == pytest.approx(float(h.loc[h.index.tz_convert("America/New_York").date == first.entry_day]["open"].iloc[1]))
 
@@ -107,7 +108,7 @@ def test_short_days_are_skipped():
     assert res["skipped"]["short_day"] == 1
 
 
-@pytest.mark.parametrize("cfg", [dict(), dict(entry="10:30", vol_source="vix1d", strikes="expected_move", stop_mult=1.0), dict(structure="iron_fly", stop_mult=2.0)])
+@pytest.mark.parametrize("cfg", [dict(), dict(entry="10:00", vol_source="vix1d", strikes="expected_move", stop_mult=1.0), dict(structure="iron_fly", stop_mult=2.0)])
 def test_truncation_no_trade_uses_later_candles(cfg):
     h, d, v, v1 = data(days=40, seed=9)
     full = run(IntradayStrategy(**cfg), h, d, v, v1, START)["trades"]
@@ -124,3 +125,9 @@ def test_the_risk_cap():
     h, d, v, v1 = data()
     res = run(IntradayStrategy(max_loss_cap=50), h, d, v, None, START)
     assert not res["trades"] and res["skipped"]["over_risk_limit"] > 0
+
+
+def test_an_entry_time_with_no_candle_starting_then_is_skipped_and_counted():
+    h, d, v, _ = data()
+    out = run(IntradayStrategy(entry="10:30"), h, d, v, None, START)
+    assert not out["trades"] and out["skipped"]["no_entry_candle"] > 0, "IBKR has no candle starting at 10:30"

@@ -5,6 +5,8 @@ on GitHub (#number). Kept up when Ben asks for a documentation refresh.
 
 ## 19 November 2026
 
+- #71 Same-day backtests on IBKR's hourly candles; the second entry moves from 10:30 to 10:00
+
 - #70 One Update button (Menu, Updates and what's new) for the app and Stock Wizard on the PC; checked each time the app opens
 
 - #69 The candle archive guards itself: a damaged archive is set aside and the backup put back; a damaged archive is never backed up

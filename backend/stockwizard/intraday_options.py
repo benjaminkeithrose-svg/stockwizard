@@ -1,14 +1,15 @@
 """Same-day (0DTE) option backtests on SPY's hourly candles, priced by model (Ben, 18 Nov 2026).
 
 Tests the choices practitioners argue about (see SPEC.md):
-- entry at the open (09:30) or after the first hour (10:30; the free hourly
-  candles start on the half hour, so 10:00 itself isn't available);
+- entry at the open (09:30) or at 10:00 (Ben, 19 Nov 2026: IBKR's hourly candles run 09:30-10:00,
+  then on the hour to 16:00, so the second entry moved from 10:30 to 10:00; the strategies changed,
+  so their held-back years count as seen);
 - volatility from the VIX (previous close) or VIX1D (the one-day VIX, its
   value at the entry candle's open);
 - short strikes from the daily range (ATR) or from the expected move to the
   close (price × volatility × √time), times a multiple;
-- a stop-loss at 1× or 2× the credit, checked at each hourly candle's high and
-  low (priced at that candle's end, so a little pessimistic), or none.
+- a stop-loss at 1× or 2× the credit, checked at each candle's high and low (priced at that
+  candle's end, the next candle's start, so a little pessimistic), or none.
 
 Time is counted in trading hours (6.5 a session, 252 sessions a year), as
 volatility builds up while the market is open. Stops trigger on the mid
@@ -39,7 +40,7 @@ TRADING_YEAR = 252 * 6.5 * 3600   # seconds of trading in a year: time counts on
 @dataclass(frozen=True)
 class IntradayStrategy:
     structure: str = "iron_condor"
-    entry: str = "open"            # open (09:30) or 10:30
+    entry: str = "open"            # open (09:30) or 10:00 (10:30 for runs on the old half-hour candles)
     vol_source: str = "vix"        # vix or vix1d
     strikes: str = "atr"           # atr or expected_move
     short_atr: float = 1.0
@@ -104,15 +105,21 @@ def run(s: IntradayStrategy, spy_1h: pd.DataFrame, spy_1d: pd.DataFrame, vix_1d:
     v1 = _ny(vix1d_1h) if vix1d_1h is not None else None
     n_legs = 4
     trades: list[IntradayTrade] = []
-    skipped = {"short_day": 0, "no_vol": 0, "no_history": 0, "over_risk_limit": 0, "no_credit": 0}
+    skipped = {"short_day": 0, "no_vol": 0, "no_history": 0, "over_risk_limit": 0, "no_credit": 0, "no_entry_candle": 0}
+    want = time(9, 30) if s.entry == "open" else time(*map(int, s.entry.split(":")))
     for d in days:
         if d < start:
             continue
         bars = h[[t.date() == d for t in h.index]]
-        if len(bars) < 6 or bars.index[-1].time() != time(15, 30) or bars.index[0].time() != time(9, 30):
+        # A full session: from 09:30 to the 16:00 close (IBKR's last hourly candle starts at 15:00; the old ones at 15:30).
+        if len(bars) < 6 or bars.index[0].time() != time(9, 30) or bars.index[-1].time() not in (time(15, 0), time(15, 30)):
             skipped["short_day"] += 1
             continue
-        e = 0 if s.entry == "open" else 1
+        starts = [t.time() for t in bars.index]
+        if want not in starts:
+            skipped["no_entry_candle"] += 1
+            continue
+        e = starts.index(want)
         t_in = bars.index[e]
         spot = float(bars["open"].iloc[e])
         prior = [x for x in daily.index if x < d]
@@ -153,7 +160,7 @@ def run(s: IntradayStrategy, spy_1h: pd.DataFrame, spy_1d: pd.DataFrame, vix_1d:
         exit_cost, reason, exit_t, spot_out = None, "expiry", bars.index[-1], float(bars["close"].iloc[-1])
         if s.stop_mult is not None and credit > 0:
             for j in range(e, len(bars)):
-                end = bars.index[j] + pd.Timedelta(hours=1) if j < len(bars) - 1 else pd.Timestamp(close)
+                end = bars.index[j + 1] if j < len(bars) - 1 else pd.Timestamp(close)   # IBKR's first candle is half an hour
                 tj = max((close - end.to_pydatetime()).total_seconds(), 0) / TRADING_YEAR
                 for px in (float(bars["high"].iloc[j]), float(bars["low"].iloc[j])):
                     # The stop triggers on the mid price, as a broker's would; slippage applies to the exit.
