@@ -16,6 +16,10 @@ Discovery is allowed to see the future; proof is not.
 5. The best survivors go once to the sealed years through the bar-by-bar
    backtester: entry at the next open, target from the entry price, the same
    time limit. Discovery and sealed results are kept and labelled apart.
+
+Three questions (Ben, 19 Nov 2026): the VIX rising (the first), SPY rising, and SPY falling.
+The backtester only trades rises, so "SPY falls 2%" is tested on SPY's prices turned upside
+down (1 / price): a 2% fall is the matching rise there, and nothing else changes.
 """
 
 from __future__ import annotations
@@ -28,7 +32,7 @@ import numpy as np
 import pandas as pd
 
 from stockwizard.backtest import Strategy, run
-from stockwizard.features import FEATURES, build, outcome
+from stockwizard.features import FEATURES, build, outcome, spy_outcome
 
 PERCENTILES = (10, 20, 30, 70, 80, 90)
 NEIGHBOURS = {10: (20,), 20: (10, 30), 30: (20,), 70: (80,), 80: (70, 90), 90: (80,)}
@@ -56,11 +60,16 @@ class Condition:
             return "SPY closed up today"
         template = meta.low if self.op == "<=" else meta.high
         # "down 3%", "below its average by 3%", "within 1% of its high" read as positive numbers.
-        v = abs(self.value) if any(w in template for w in ("down", "below", "within")) else self.value
+        v = abs(self.value) if any(w in template for w in ("down", "below", "within", "behind")) else self.value
         return template.format(v=round(v, 2) if abs(v) < 10 else round(v, 1))
 
     def key(self) -> dict:
         return {"feature": self.feature, "op": self.op, "value": float(f"{self.value:.6g}"), "pctl": self.pctl}
+
+
+TARGETS = ("vix_rise", "spy_up", "spy_down")
+#: The measures a run searched: patterns and linked symbols since 19 Nov 2026.
+FEATURE_SET = "spy_vix_patterns_linked_v1"
 
 
 @dataclass
@@ -70,6 +79,8 @@ class Settings:
     min_episodes: int = 20
     fdr_q: float = 0.05
     survivors: int = 8
+    target: str = "vix_rise"
+    features: str = FEATURE_SET
 
     def as_dict(self) -> dict:
         return dict(self.__dict__)
@@ -224,6 +235,21 @@ def discover(f: pd.DataFrame, y: np.ndarray, s: Settings) -> tuple[list[Candidat
     return tried, counts
 
 
+def upside_down(df: pd.DataFrame) -> pd.DataFrame:
+    """Prices turned upside down (1 / price): a fall becomes a rise, so the rise-only backtester can test falls."""
+    return pd.DataFrame({"open": 1 / df["open"], "high": 1 / df["low"], "low": 1 / df["high"], "close": 1 / df["close"],
+                         "volume": df["volume"]}, index=df.index)
+
+
+def traded(s: Settings, spy: pd.DataFrame, vix: pd.DataFrame) -> tuple[str, pd.DataFrame, float]:
+    """What the sealed test trades for this question, and the rise that counts as the target there."""
+    if s.target == "spy_up":
+        return "SPY", spy, s.rise_pct
+    if s.target == "spy_down":
+        return "SPY (upside down)", upside_down(spy), (1 / (1 - s.rise_pct / 100) - 1) * 100
+    return "^VIX", vix, s.rise_pct
+
+
 def sealed_test(c: Candidate, f_all: pd.DataFrame, spy: pd.DataFrame, vix: pd.DataFrame, split: pd.Timestamp, s: Settings,
                 y_sealed_base: float) -> dict:
     """Run a survivor once through the blind backtester on the sealed years only."""
@@ -231,8 +257,9 @@ def sealed_test(c: Candidate, f_all: pd.DataFrame, spy: pd.DataFrame, vix: pd.Da
     for cond in c.conds:
         m &= cond.mask(f_all)
     signals = pd.DataFrame({"hit": pd.array(m, dtype="boolean"), "direction": pd.NA}, index=f_all.index)
-    strat = Strategy("lab", "SPY", "pattern", {}, "^VIX", target_pct=s.rise_pct, max_bars=s.days, cost_pct=0.0, study=True)
-    res = run(strat, spy, vix, split, signals=signals)
+    symbol, candles, target = traded(s, spy, vix)
+    strat = Strategy("lab", "SPY", "pattern", {}, symbol, target_pct=target, max_bars=s.days, cost_pct=0.0, study=True)
+    res = run(strat, spy, candles, split, signals=signals)
     done = [t for t in res.trades if t.exit_reason != "open"]
     n, k = len(done), sum(t.exit_reason == "target" for t in done)
     rate = k / n if n else None
@@ -246,13 +273,21 @@ def sealed_test(c: Candidate, f_all: pd.DataFrame, spy: pd.DataFrame, vix: pd.Da
     }
 
 
-def study(spy, vix, vix3m, start: pd.Timestamp, split: pd.Timestamp, s: Settings) -> dict:
+def target_outcome(s: Settings, spy: pd.DataFrame, vix: pd.DataFrame, index: pd.DatetimeIndex) -> pd.Series:
+    if s.target == "vix_rise":
+        return outcome(vix, index, s.rise_pct, s.days)
+    if s.target in ("spy_up", "spy_down"):
+        return spy_outcome(spy, s.rise_pct, s.days, up=s.target == "spy_up").reindex(index)
+    raise ValueError(f"Unknown question: {s.target}")
+
+
+def study(spy, vix, vix3m, start: pd.Timestamp, split: pd.Timestamp, s: Settings, linked: dict[str, pd.DataFrame] | None = None) -> dict:
     """The whole lab run: build measures, search the discovery years, test survivors on the sealed years."""
-    f_all = build(spy, vix, vix3m)
+    f_all = build(spy, vix, vix3m, linked)
     disc = (f_all.index >= start) & (f_all.index < split)
     f = f_all[disc]
     # The look-ahead target, cut so no discovery day's window reaches into the sealed years.
-    y_all = outcome(vix, f_all.index, s.rise_pct, s.days)
+    y_all = target_outcome(s, spy, vix, f_all.index)
     sealed_from = f_all.index.searchsorted(split)
     last_ok = f_all.index[max(0, sealed_from - s.days - 1)]
     y = y_all[disc].where(f_all.index[disc] <= last_ok).to_numpy()

@@ -122,3 +122,54 @@ def test_identical_thresholds_count_once():
     conds = [c for c in conditions(f) if c.feature == "spy_down_days"]
     assert len({(c.op, c.value) for c in conds}) == len(conds)
     assert Condition("spy_down_days", "<=", 0.0, 10).text() == "SPY closed up today"
+
+
+# --- traditional patterns, linked symbols and the SPY questions (19 Nov 2026) ---
+
+def linked_frames():
+    return {"NVDA": make_candles(IDX, seed=21, start=40.0), "TSLA": make_candles(IDX[700:], seed=22, start=20.0)}
+
+
+def test_linked_symbols_and_patterns_do_not_look_ahead():
+    spy, vix, vix3m = frames()
+    linked = linked_frames()
+    full = build(spy, vix, vix3m, linked)
+    assert {"spy_bull_flag", "nvda_rel_5", "nvda_corr_20", "tsla_breakout_20"} <= set(full.columns)
+    assert full["tsla_ret_5"].iloc[:690].isna().all(), "no Tesla candles yet: no reading, never a made-up one"
+    assert full["qqq_rsi"].isna().all(), "a linked symbol with no candles at all just has no readings"
+    for k in (900, 1800, N - 3):
+        cut = {sym: df[df.index < IDX[k]] for sym, df in linked.items()}
+        assert_same(full, build(spy.iloc[:k], vix.iloc[:k], vix3m.iloc[:k], cut), f"linked measures cut at {k}")
+
+
+def test_relative_strength_is_the_linked_move_less_spys():
+    spy, vix, vix3m = frames()
+    linked = linked_frames()
+    f = build(spy, vix, vix3m, linked)
+    i = 1500
+    assert f["nvda_rel_5"].iloc[i] == pytest.approx(f["nvda_ret_5"].iloc[i] - f["spy_ret_5"].iloc[i])
+    assert -1 <= f["nvda_corr_20"].dropna().min() and f["nvda_corr_20"].dropna().max() <= 1
+
+
+def test_the_spy_questions_look_up_and_down_and_only_ahead():
+    from stockwizard.features import spy_outcome
+    from stockwizard.lab import upside_down
+    rows = [(100.0, 100.5, 99.5, 100.0)] * 10 + [(100.0, 102.5, 99.0, 101.0)] + [(100.0, 100.5, 97.5, 98.0)] + [(100.0, 100.5, 99.5, 100.0)] * 5
+    idx = daily_index(len(rows))
+    o, h, l, c = zip(*rows)
+    spy = pd.DataFrame({"open": o, "high": h, "low": l, "close": c, "volume": 1.0}, index=idx)
+    up, down = spy_outcome(spy, 2.0, 3, up=True), spy_outcome(spy, 2.0, 3, up=False)
+    assert up.iloc[9] == 1 and up.iloc[10] == 0, "day 9's next 3 days reach +2.5%; day 10's own high doesn't count for day 10"
+    assert down.iloc[9] == 1 and down.iloc[12] == 0
+    assert up.iloc[-3:].isna().all(), "the last days have no full window: unknown, not no"
+    inv = upside_down(spy)
+    assert inv["high"].iloc[11] == pytest.approx(1 / 97.5) and inv["close"].iloc[11] == pytest.approx(1 / 98.0)
+
+
+def test_a_spy_question_runs_end_to_end_and_tests_survivors_on_the_sealed_years():
+    spy, vix, vix3m = frames(plant=False)
+    out = study(spy, vix, vix3m, IDX[250], SPLIT, Settings(rise_pct=1.5, days=5, min_episodes=15, target="spy_down"), linked_frames())
+    assert out["counts"]["tried"] > 1000
+    for c in out["tried"]:
+        if c.status == "survivor":
+            assert "trades" in c.sealed

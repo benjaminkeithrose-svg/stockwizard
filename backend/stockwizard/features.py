@@ -6,6 +6,13 @@ tests/test_features.py proves it with the truncation test.
 
 Cross-symbol inputs (the VIX, the 3-month VIX) are matched to SPY by date;
 each is that symbol's own close on the same day, also known at the close.
+
+Since 19 Nov 2026 (Ben: traditional patterns and linked symbols) the measures also include
+SPY's candlestick and chart patterns (stockwizard/patterns.py), and for each linked symbol
+(QQQ, IWM, NVIDIA, Apple, Tesla) its own moves, RSI and trend, a few of its patterns, and how
+it moves with SPY: the 20-day correlation of daily moves, its 5-day move against SPY's
+(relative strength), and today's move (whether it leads SPY's next days). A symbol with no
+candles for a day simply has no reading that day.
 """
 
 from __future__ import annotations
@@ -17,7 +24,13 @@ import pandas as pd
 
 from stockwizard.candles import session_dates, validate
 from stockwizard.indicators import core
+from stockwizard.patterns import PATTERNS, detect
 from stockwizard.scans import rsi_divergence
+
+#: Symbols whose behaviour may say something about SPY's, and how they read.
+LINKED: dict[str, str] = {"QQQ": "QQQ", "IWM": "IWM", "NVDA": "NVIDIA", "AAPL": "Apple", "TSLA": "Tesla"}
+#: The patterns looked for on each linked symbol (all of them on SPY).
+LINKED_PATTERNS = ("bull_flag", "bear_flag", "breakout_20", "breakdown_20", "bull_engulf", "bear_engulf")
 
 
 @dataclass(frozen=True)
@@ -53,6 +66,19 @@ FEATURES: dict[str, Feature] = {
         Feature("vix_vs_sma20", "number", "VIX {v}% or more below its 20-day average", "VIX {v}% or more above its 20-day average", "%"),
         Feature("vix_pctb", "number", "VIX at or below {v} on its Bollinger %B", "VIX at or above {v} on its Bollinger %B"),
         Feature("vix_term", "number", "VIX at or below {v}× the 3-month VIX (calm curve)", "VIX at or above {v}× the 3-month VIX (stressed curve)", "×"),
+        *[Feature(f"spy_{k}", "flag", "", f"SPY {label}") for k, label in PATTERNS.items()],
+        *[f for sym, name in LINKED.items() for f in (
+            Feature(f"{sym.lower()}_ret_1", "number", f"{name} down {{v}}% or more today", f"{name} up {{v}}% or more today", "%"),
+            Feature(f"{sym.lower()}_ret_5", "number", f"{name} down {{v}}% or more over 5 days", f"{name} up {{v}}% or more over 5 days", "%"),
+            Feature(f"{sym.lower()}_rel_5", "number", f"{name} behind SPY by {{v}} points or more over 5 days",
+                    f"{name} ahead of SPY by {{v}} points or more over 5 days", " points"),
+            Feature(f"{sym.lower()}_corr_20", "number", f"{name} and SPY moving together at or below {{v}} (20-day correlation)",
+                    f"{name} and SPY moving together at or above {{v}} (20-day correlation)"),
+            Feature(f"{sym.lower()}_rsi", "number", f"{name} RSI(14) at or below {{v}}", f"{name} RSI(14) at or above {{v}}"),
+            Feature(f"{sym.lower()}_vs_sma50", "number", f"{name} {{v}}% or more below its 50-day average",
+                    f"{name} {{v}}% or more above its 50-day average", "%"),
+            *[Feature(f"{sym.lower()}_{k}", "flag", "", f"{name} {PATTERNS[k]}") for k in LINKED_PATTERNS],
+        )],
     ]
 }
 
@@ -68,7 +94,8 @@ def _on(series: pd.Series, index: pd.DatetimeIndex) -> pd.Series:
     return pd.Series(by_date.reindex(session_dates(index)).to_numpy(), index=index)
 
 
-def build(spy: pd.DataFrame, vix: pd.DataFrame, vix3m: pd.DataFrame | None = None) -> pd.DataFrame:
+def build(spy: pd.DataFrame, vix: pd.DataFrame, vix3m: pd.DataFrame | None = None,
+          linked: dict[str, pd.DataFrame] | None = None) -> pd.DataFrame:
     spy, vix = validate(spy), validate(vix)
     c = spy["close"]
     out = pd.DataFrame(index=spy.index)
@@ -102,7 +129,50 @@ def build(spy: pd.DataFrame, vix: pd.DataFrame, vix3m: pd.DataFrame | None = Non
         out["vix_term"] = _on(v, spy.index) / _on(validate(vix3m)["close"], spy.index)
     else:
         out["vix_term"] = np.nan
+
+    pats = detect(spy)
+    for k in PATTERNS:
+        out[f"spy_{k}"] = pats[k].astype(float)
+
+    spy_ret1 = c.pct_change()
+    spy_ret5 = (c / c.shift(5) - 1) * 100
+    for sym in LINKED:
+        key = sym.lower()
+        df = (linked or {}).get(sym)
+        if df is None or not len(df):
+            for col in ("ret_1", "ret_5", "rel_5", "corr_20", "rsi", "vs_sma50", *LINKED_PATTERNS):
+                out[f"{key}_{col}"] = np.nan
+            continue
+        df = validate(df)
+        lc = df["close"]
+        out[f"{key}_ret_1"] = _on((lc / lc.shift(1) - 1) * 100, spy.index)
+        ret5 = _on((lc / lc.shift(5) - 1) * 100, spy.index)
+        out[f"{key}_ret_5"] = ret5
+        out[f"{key}_rel_5"] = ret5 - spy_ret5
+        # The 20-day correlation of daily moves, on the days both traded (matched to SPY's dates first).
+        lr1 = _on(lc.pct_change(), spy.index)
+        out[f"{key}_corr_20"] = spy_ret1.rolling(20, min_periods=20).corr(lr1)
+        out[f"{key}_rsi"] = _on(core.rsi(df, 14)["rsi"], spy.index)
+        out[f"{key}_vs_sma50"] = _on((lc / core.sma(df, 50)["sma"] - 1) * 100, spy.index)
+        lp = detect(df)
+        for k in LINKED_PATTERNS:
+            out[f"{key}_{k}"] = _on(lp[k].astype(float), spy.index)
     return out.astype(float)
+
+
+def spy_outcome(spy: pd.DataFrame, rise_pct: float, days: int, up: bool = True) -> pd.Series:
+    """DISCOVERY ONLY: 1 if SPY's high (low) over the next `days` trading days reaches `rise_pct`% above (below) today's close.
+
+    Looks ahead by design, like `outcome`; only for searching the discovery years.
+    """
+    s = validate(spy)
+    if up:
+        fut = s["high"][::-1].rolling(days, min_periods=days).max()[::-1].shift(-1)
+        hit = (fut >= s["close"] * (1 + rise_pct / 100))
+    else:
+        fut = s["low"][::-1].rolling(days, min_periods=days).min()[::-1].shift(-1)
+        hit = (fut <= s["close"] * (1 - rise_pct / 100))
+    return hit.astype(float).where(fut.notna())
 
 
 def outcome(vix: pd.DataFrame, index: pd.DatetimeIndex, rise_pct: float, days: int) -> pd.Series:

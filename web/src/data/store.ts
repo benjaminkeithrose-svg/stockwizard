@@ -92,7 +92,8 @@ export interface Store {
   latestBacktests(): Promise<Record<string, BacktestRun>>;
   backtestTrades(runId: number): Promise<BacktestTrade[]>;
   /** The latest pattern lab run (not a re-run check), with the patterns it kept. */
-  latestPatternRun(): Promise<PatternRun | null>;
+  /** The latest run of one of the Lab's questions (vix_rise, spy_up, spy_down; runs before 19 Nov 2026 asked about the VIX). */
+  latestPatternRun(target?: string): Promise<PatternRun | null>;
   /** Option-structure backtests: the strategies, the latest run of each (without its trades), and one run's trades. */
   optionStrategies(): Promise<OptionStrategyDef[]>;
   latestOptionRuns(): Promise<Record<string, OptionRun>>;
@@ -430,11 +431,11 @@ export class SupabaseStore implements Store {
     return rows[0]?.trades ?? [];
   }
 
-  async latestPatternRun() {
-    const runs = this.check(
-      await this.sb.from("pattern_runs").select("id,question,settings,start_date,split_date,ran_at,as_of,source,counts,sealed_burned")
-        .neq("trigger", "rerun").order("ran_at", { ascending: false }).limit(1),
-    ) as Omit<PatternRun, "candidates">[];
+  async latestPatternRun(target = "vix_rise") {
+    let q = this.sb.from("pattern_runs").select("id,question,settings,start_date,split_date,ran_at,as_of,source,counts,sealed_burned")
+      .neq("trigger", "rerun");
+    q = target === "vix_rise" ? q.or("settings->>target.eq.vix_rise,settings->>target.is.null") : q.eq("settings->>target", target);
+    const runs = this.check(await q.order("ran_at", { ascending: false }).limit(1)) as Omit<PatternRun, "candidates">[];
     if (!runs.length) return null;
     const candidates = this.check(
       await this.sb.from("pattern_candidates").select("n,label,status,discovery,sealed").eq("run_id", runs[0].id).order("n"),
@@ -814,7 +815,7 @@ export class DemoStore implements Store {
     });
   }
 
-  async latestPatternRun(): Promise<PatternRun | null> {
+  async latestPatternRun(_target?: string): Promise<PatternRun | null> {
     const d = (episodes: number, hits: number, q: number) => ({ episodes, hits, rate: hits / episodes, lift: hits / episodes / 0.24, p: 0.0001, q, stable: q <= 0.05 });
     return {
       id: 1, question: "What made-up conditions come before TEST rising 30% or more within 10 trading days?",

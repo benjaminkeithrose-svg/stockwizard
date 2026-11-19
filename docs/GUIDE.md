@@ -21,7 +21,10 @@ Five parts that build on each other:
    (the pattern lab and the 0DTE research, searches across hundreds of
    combinations with a check that throws out what looks good only by luck),
    Backtested (each with a verdict from its held-back years) and Paper
-   trading.
+   trading. The pattern lab asks what came before SPY rising 2%, SPY
+   falling 2%, and a VIX spike, searching SPY's own measures, traditional
+   candlestick and chart patterns, the VIX, and the linked symbols (QQQ,
+   IWM, NVIDIA, Apple, Tesla) and how they move with SPY.
 5. **Automated trading.** It trades on **paper** at Interactive Brokers, only through
    the safety rails, and only automated strategies whose settings were backtested. It runs
    in the Stock Wizard program on your Windows PC, next to TWS.

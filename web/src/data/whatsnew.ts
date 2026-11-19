@@ -5,6 +5,11 @@
 export interface News { build: string; date: string; items: string[] }
 
 export const WHATS_NEW: News[] = [
+  { build: "sw-v44", date: "19 Nov 2026", items: [
+    "The pattern lab looks for traditional patterns: candlesticks (engulfing, hammers, stars, doji and more) and chart patterns (flags, double tops and bottoms, triangles, breakouts), each counted only once it's confirmed.",
+    "It also looks at QQQ, IWM, NVIDIA, Apple and Tesla: their moves and patterns, and how they move with SPY.",
+    "Three questions in the Lab's Ideas: SPY up 2%, SPY down 2%, and a VIX spike. Pick one with the buttons at the top.",
+  ] },
   { build: "sw-v43", date: "19 Nov 2026", items: [
     "The Lab (Menu, Lab) replaces Backtests: one place from an idea to a strategy trading on paper, in three tabs: Ideas, Backtested and Paper trading.",
     "Every backtest has a plain verdict from its held-back years: Held up, Didn't hold up, Too few to tell or Burned, and a line showing how far it has come.",
