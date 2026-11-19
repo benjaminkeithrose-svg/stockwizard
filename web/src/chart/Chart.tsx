@@ -24,7 +24,7 @@ import { daysToExpiry, expiryLabel, legName, OptionPosition, structureLabel, tod
 import { REGISTRY, unavailable } from "../indicators";
 import { cssVar, THEME_EVENT } from "../theme";
 
-export type TapMode = "none" | "level" | "trend" | "anchor";
+export type TapMode = "none" | "level" | "trend" | "anchor" | "replay";
 
 interface Props {
   candles: Candles;
@@ -36,6 +36,8 @@ interface Props {
   onTap?: (time: number, price: number) => void;
   /** A card on a chart page: no panning or zooming, so the card can be tapped and dragged. */
   still?: boolean;
+  /** Bar replay: as candles are added, slide the view along with them instead of holding it still. */
+  follow?: boolean;
   /** Option structures on this symbol: a line per leg, purple while planned, green once bought. */
   positions?: OptionPosition[];
   /** The structure being adjusted: its lines are bold and can be dragged. */
@@ -65,7 +67,7 @@ function histogramColour(values: number[], i: number) {
   return rising ? "#E8A0A6" : "#B2232F";
 }
 
-export default function Chart({ candles, timeframe, indicators, drawings, viewKey, onTap, still, positions, editId, onDragLeg, markers }: Props) {
+export default function Chart({ candles, timeframe, indicators, drawings, viewKey, onTap, still, positions, editId, onDragLeg, markers, follow }: Props) {
   const box = useRef<HTMLDivElement>(null);
   const chart = useRef<IChartApi | null>(null);
   const priceSeries = useRef<ISeriesApi<"Candlestick"> | null>(null);
@@ -275,7 +277,10 @@ export default function Chart({ candles, timeframe, indicators, drawings, viewKe
     const panes = c.panes();
     panes.forEach((p, i) => p.setStretchFactor(i === 0 ? Math.max(2, panes.length) : 1));
 
-    if (keep) c.timeScale().setVisibleLogicalRange(keep);
+    if (follow) {
+      // Bar replay: a steady window of the last 120 candles, the newest a few places in from the right edge.
+      c.timeScale().setVisibleLogicalRange({ from: t.length - 120, to: t.length + 3 } as LogicalRange);
+    } else if (keep) c.timeScale().setVisibleLogicalRange(keep);
     else c.timeScale().setVisibleLogicalRange({ from: Math.max(0, t.length - (still ? 90 : 150)), to: t.length + 3 } as LogicalRange);
     lastKey.current = viewKey;
   }, [candles, timeframe, indicators, viewKey]);

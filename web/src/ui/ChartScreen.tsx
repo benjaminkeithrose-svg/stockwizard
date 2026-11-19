@@ -13,7 +13,8 @@ import { botsOnChart } from "../data/botsOnChart";
 import { expiryChoices, expiryLabel, MoveMode, moveLeg, newPosition, OptionPosition, placementBasis, Structure, structureLabel, todayNY } from "../data/options";
 import type { useFavourites, usePositions } from "../data/usePositions";
 import { cachedCandles, Store } from "../data/store";
-import { Close, Indicators, Legs, Pencil, Plus, Star } from "./icons";
+import { Close, Indicators, Legs, Pencil, Plus, ReplayIcon, Star } from "./icons";
+import { closeTrade, openTrade, Replay, shown as replayShown, SPEEDS, startAt, step, summary } from "../data/replay";
 import { AskText, ConfirmDelete, MoreMenu, Info } from "./parts";
 import { clampPlace, nextPlace, ToolbarMode, useToolbarPlace } from "../data/toolbar";
 import { useAutoSymbols } from "../data/useAutoSymbols";
@@ -117,6 +118,15 @@ export default function ChartScreen(props: {
   const shown = useMemo(() => (w ? withLive(candles, live, w.timeframe) : candles), [candles, live, w?.timeframe]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const stopTapping = () => { setTapMode("none"); setTrendStart(null); setAnchorFor(null); };
+  // Bar replay: the chart shows only the candles up to the replay's "now".
+  const [replay, setReplay] = useState<Replay | null>(null);
+  useEffect(() => { setReplay(null); }, [w?.id, w?.symbol, w?.timeframe]);
+  useEffect(() => {
+    if (!replay?.playing) return;
+    const t = window.setInterval(() => setReplay((r) => (r ? step(r, 1, shown.time.length) : r)), 1000 / replay.speed);
+    return () => window.clearInterval(t);
+  }, [replay?.playing, replay?.speed, shown.time.length]); // eslint-disable-line react-hooks/exhaustive-deps
+  const onChart = useMemo(() => replayShown(shown, replay), [shown, replay?.at]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(stopTapping, [w?.id]);
   const firstRender = useRef(true);
   useEffect(() => { if (firstRender.current) { firstRender.current = false; return; } setAdjusting(null); }, [w?.id, w?.symbol]);
@@ -132,6 +142,9 @@ export default function ChartScreen(props: {
         ws.update({ ...w, drawings: [...w.drawings, { id: newId(), kind: "trendline", a: trendStart, b: { time, price } }] });
         stopTapping();
       }
+    } else if (tapMode === "replay") {
+      setReplay(startAt(shown, time));
+      stopTapping();
     } else if (tapMode === "anchor" && anchorFor) {
       const anchor = new Date(time * 1000).toISOString();
       ws.update({ ...w, indicators: w.indicators.map((i) => (i.id === anchorFor ? { ...i, params: { ...i.params, anchor } } : i)) });
@@ -142,7 +155,8 @@ export default function ChartScreen(props: {
   const tapPrompt =
     tapMode === "level" ? "Tap the chart where the level goes"
     : tapMode === "trend" ? (trendStart ? "Tap the trendline's second point" : "Tap the trendline's first point")
-    : tapMode === "anchor" ? "Tap the candle VWAP starts from" : "";
+    : tapMode === "anchor" ? "Tap the candle VWAP starts from"
+    : tapMode === "replay" ? "Tap the candle the replay starts from: everything after it is hidden" : "";
 
   const sourceBadge = useMemo(() => {
     if (candles.source === "made-up") return <span className="badge est">Made-up candles</span>;
@@ -235,6 +249,12 @@ export default function ChartScreen(props: {
         </button>
         <button className={`tool${adjusting ? " on" : ""}`} aria-label="Options" onClick={() => setSheet("options")}><Legs /><span className="word">Options</span></button>
         <button className={`tool${tapMode === "level" || tapMode === "trend" ? " on" : ""}`} aria-label="Draw" onClick={() => setSheet("draw")}><Pencil /><span className="word">Draw</span></button>
+        {!props.toolsOnly && (
+          <button className={`tool${replay || tapMode === "replay" ? " on" : ""}`} aria-label="Bar replay"
+            onClick={() => (replay ? setReplay(null) : tapMode === "replay" ? stopTapping() : (stopTapping(), setTapMode("replay")))}>
+            <ReplayIcon /><span className="word">Replay</span>
+          </button>
+        )}
       </div>
       )}
       <div className="workcol">
@@ -259,8 +279,8 @@ export default function ChartScreen(props: {
 
       {props.toolsOnly ? props.children : <>
       <div className="chartcard">
-        <Chart candles={shown} timeframe={w.timeframe} indicators={w.indicators} drawings={w.drawings}
-          viewKey={`${w.id}|${w.symbol}|${w.timeframe}`} onTap={onTap}
+        <Chart candles={onChart} timeframe={w.timeframe} indicators={w.indicators} drawings={w.drawings} follow={!!replay}
+          viewKey={`${w.id}|${w.symbol}|${w.timeframe}${replay ? `|replay${replay.start}` : ""}`} onTap={onTap}
           positions={[...positions, ...bots.positions]} editId={adjusting} onDragLeg={dragLeg} markers={bots.markers} />
         {adjustingPos && !tapPrompt && !details && (
           <div className="adjbanner" role="status">
@@ -275,7 +295,39 @@ export default function ChartScreen(props: {
             <button className="adjbtn" onClick={() => setAdjusting(null)}>Done</button>
           </div>
         )}
-        {sourceBadge && <div className="srcbadge">{sourceBadge}</div>}
+        {sourceBadge && !replay && <div className="srcbadge">{sourceBadge}</div>}
+        {replay && (() => {
+          const total = shown.time.length;
+          const day = new Date(onChart.time[onChart.time.length - 1] * 1000).toLocaleString("en-AU", w.timeframe === "1d"
+            ? { day: "numeric", month: "short", year: "numeric", timeZone: "America/New_York" }
+            : { day: "numeric", month: "short", hour: "numeric", minute: "2-digit", timeZone: "America/New_York" });
+          const sm = summary(replay);
+          const last = onChart.close[onChart.close.length - 1];
+          const openPct = replay.open ? (replay.open.side === "long" ? last / replay.open.entry - 1 : replay.open.entry / last - 1) * 100 : null;
+          const fmt = (v: number) => `${v >= 0 ? "+" : "−"}${Math.abs(v).toFixed(2)}%`;
+          return (
+            <div className="replaybar" role="group" aria-label="Bar replay">
+              <span className="replayday">Replay · {day}{replay.at >= total ? " · the latest candle" : ""}</span>
+              <div className="replaybtns">
+                <button className="adjbtn" aria-label="Back one candle" onClick={() => setReplay(step({ ...replay, playing: false }, -1, total))}>‹</button>
+                <button className="adjbtn" aria-label={replay.playing ? "Pause" : "Play"} disabled={!replay.playing && replay.at >= total}
+                  onClick={() => setReplay({ ...replay, playing: !replay.playing })}>{replay.playing ? "❚❚" : "▶"}</button>
+                <button className="adjbtn" aria-label="Forward one candle" disabled={replay.at >= total} onClick={() => setReplay(step({ ...replay, playing: false }, 1, total))}>›</button>
+                <div className="seg" role="group" aria-label="Speed">
+                  {SPEEDS.map((v) => <button key={v} className={replay.speed === v ? "on" : ""} aria-pressed={replay.speed === v} onClick={() => setReplay({ ...replay, speed: v })}>{v}×</button>)}
+                </div>
+              </div>
+              <div className="replaybtns">
+                {!replay.open ? <>
+                  <button className="adjbtn" onClick={() => setReplay(openTrade(shown, replay, "long"))}>Buy</button>
+                  <button className="adjbtn" onClick={() => setReplay(openTrade(shown, replay, "short"))}>Sell</button>
+                </> : <button className="adjbtn" onClick={() => setReplay(closeTrade(shown, replay))}>Close {replay.open.side === "long" ? "buy" : "sell"} ({fmt(openPct!)})</button>}
+                <span className="replaysum">{sm.trades ? `Practice: ${sm.trades} trade${sm.trades === 1 ? "" : "s"}, ${sm.won} won, ${fmt(sm.total)}` : "Practice trades aren't paper orders"}</span>
+                <button className="adjbtn" onClick={() => setReplay(null)}>Exit</button>
+              </div>
+            </div>
+          );
+        })()}
         {tapPrompt && (
           <div className="tapbanner" role="status">{tapPrompt}<button onClick={stopTapping}>Cancel</button></div>
         )}

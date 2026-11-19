@@ -5,6 +5,10 @@
 export interface News { build: string; date: string; items: string[] }
 
 export const WHATS_NEW: News[] = [
+  { build: "sw-v45", date: "19 Nov 2026", items: [
+    "Bar replay: Replay on the chart's toolbar, tap a day, and everything after it is hidden. Step a candle at a time or play at up to 10×.",
+    "Practise trading in a replay with Buy, Sell and Close, scored at the replayed prices. Practice trades are never paper orders.",
+  ] },
   { build: "sw-v44", date: "19 Nov 2026", items: [
     "The pattern lab looks for traditional patterns: candlesticks (engulfing, hammers, stars, doji and more) and chart patterns (flags, double tops and bottoms, triangles, breakouts), each counted only once it's confirmed.",
     "It also looks at QQQ, IWM, NVIDIA, Apple and Tesla: their moves and patterns, and how they move with SPY.",

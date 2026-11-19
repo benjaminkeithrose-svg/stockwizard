@@ -47,6 +47,11 @@ const SCREENS: Topic[] = [
     "Under the toolbar: the option structures on this chart, then your favourite structures (starred ones on every chart, and this symbol's own) to place in one tap. Draw adds levels and trendlines.",
     "Options places a call, put, spread, condor or fly. It goes one daily range out by default, with $5 wings. Its star makes a structure a favourite on every chart; the symbol button beside it, on this symbol only.",
   ]],
+  ["Bar replay", [
+    "Replay (on the chart's toolbar), then tap the candle to start from: everything after it is hidden. Step a candle at a time (‹ ›) or press play at 1×, 2×, 5× or 10×.",
+    "Practise as if it were live: Buy or Sell at the latest close showing, then Close. Each practice trade is scored at the replayed prices and summed up in the bar. They're never paper orders, and they're gone when you exit.",
+    "The indicators only see the candles showing, so nothing peeks ahead. Exit returns to today.",
+  ]],
   ["Options on the chart", [
     "Each leg is a line: ▲ for a call, ▼ for a put. Solid lines are legs you sell; dotted lines are legs you buy. Purple means planned; green means marked bought.",
     "Touch a line to see that leg, its expiry and days left.",
